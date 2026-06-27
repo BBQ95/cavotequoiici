@@ -27,8 +27,9 @@ data:  ## Pipeline complet : contours + 4 scrutins + couleurs
 couleurs:  ## Recalcule uniquement les couleurs
 	$(PY) -m pipeline.compute_couleurs
 
+# NB : port 8200 — le 8000 est RÉSERVÉ à workspace-mcp (intégration Google de Boss), ne pas l'utiliser.
 api:  ## Lance l'API en développement (rechargement auto)
-	$(PY) -m uvicorn api.main:app --reload --port 8000
+	$(PY) -m uvicorn api.main:app --reload --port 8200
 
 types:  ## Régénère les types TypeScript du mobile depuis l'OpenAPI
 	$(PY) -m api.openapi_export openapi.json

@@ -15,7 +15,7 @@ export type DetailScrutinResponse = Schemas["DetailScrutinResponse"];
 export type FamilleVoix = Schemas["FamilleVoix"];
 
 const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:8000";
+  process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:8200";
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`);
