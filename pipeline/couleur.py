@@ -228,7 +228,10 @@ def couleur_ville(
         )
 
     # 2. Parts synthétiques par famille + participation synthétique
-    familles = {f for s in scrutins for f in s.parts_familles}
+    # familles est construit uniquement à partir des scrutins retenus
+    # (ceux dans `poids`), pas tous les scrutins — une famille n'apparaissant
+    # qu'en second tour ne doit pas figurer dans la synthèse.
+    familles = {f for s, _ in poids for f in s.parts_familles}
     synthese = {
         f: sum(p * s.parts_familles.get(f, 0.0) for s, p in poids) / total_poids
         for f in familles
@@ -244,8 +247,12 @@ def couleur_ville(
     # 4. Couleur : teinte de la famille dominante,
     #    intensité = netteté du résultat × niveau de participation
     saturation_marge = clamp(0.45 + marge * 1.6, 0.45, 1.0)
-    facteur_participation = clamp(participation / participation_mediane, 0.55, 1.0)
-    base = hex_to_oklch(COULEURS[gagnante])
+    if participation_mediane == 0:
+        facteur_participation = 0.55  # plancher : éviter ZeroDivisionError
+    else:
+        facteur_participation = clamp(participation / participation_mediane, 0.55, 1.0)
+    # Fallback : si la famille gagnante n'est pas dans COULEURS, utiliser « divers »
+    base = hex_to_oklch(COULEURS.get(gagnante, COULEURS["divers"]))
     couleur = OKLCH(
         L=base.L,
         C=base.C * saturation_marge * facteur_participation,
@@ -261,5 +268,5 @@ def couleur_ville(
         "scrutins_inclus": [
             (s.type_scrutin, round(p / total_poids, 3)) for s, p in poids
         ],
-        "repartition": classement,
+        "repartition": [(f, round(v, 3)) for f, v in classement],
     }
