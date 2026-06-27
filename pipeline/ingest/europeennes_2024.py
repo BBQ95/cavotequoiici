@@ -22,7 +22,9 @@ from sqlalchemy import create_engine
 
 from pipeline.ingest.common import (
     charger_nuances,
+    codes_communes,
     compter_orphelins,
+    filtrer_communes_connues,
     inserer_resultats,
     upsert_scrutin,
 )
@@ -282,15 +284,23 @@ def main() -> None:
     lignes = build_lignes_insertion(df_agg, mapping)
     print(f"  → {len(lignes)} lignes à insérer (après filtrage nuances mappées)")
 
-    # 7. Upsert scrutin
+    # 7. Écarter les communes hors contours (étranger ZZ/ZX, fusions) — sinon la
+    #    contrainte de clé étrangère sur resultats_scrutin fait échouer l'insertion.
+    connus = codes_communes(engine)
+    lignes, orphelins = filtrer_communes_connues(lignes, connus)
+    if orphelins:
+        ex = ", ".join(sorted(orphelins)[:10])
+        print(f"⚠️ {len(orphelins)} communes ignorées (hors contours) : {ex}…")
+
+    # 8. Upsert scrutin
     upsert_scrutin(SCRUTIN_ID, SCRUTIN_TYPE, TOUR, DATE_SCRUTIN, POIDS, engine)
     print(f"Scrutin upserté : {SCRUTIN_ID}")
 
-    # 8. Insérer les résultats
+    # 9. Insérer les résultats
     nb = inserer_resultats(lignes, SCRUTIN_ID, engine)
     print(f"{nb} résultats insérés")
 
-    # 9. Vérifier les orphelins
+    # 10. Vérifier qu'il ne reste aucun orphelin
     orphelins = compter_orphelins(SCRUTIN_ID, engine)
     print(f"Orphelins : {orphelins}")
     if orphelins > 0:
