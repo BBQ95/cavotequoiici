@@ -166,6 +166,7 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
 
     # Apparier explicitement nuance↔voix par le numéro N
     rows: list[pl.DataFrame] = []
+    lud_voix_total = 0
     for n in sorted(nuance_cols.keys()):
         nc = nuance_cols[n]
         vc = voix_cols.get(n)
@@ -188,6 +189,15 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
         # Panneaux réellement vides : ni nuance, ni voix
         sub = sub.filter(has_nuance | voix_val)
 
+        # Compter les voix reversées à LUD (nuance vide + voix > 0)
+        # avant le relabel pour tracer le volume
+        lud_mask = ~has_nuance & voix_val
+        lud_sub = sub.filter(lud_mask)
+        if len(lud_sub) > 0:
+            lud_voix_total += int(
+                lud_sub["voix_raw"].cast(pl.Int64, strict=False).fill_null(0).sum()
+            )
+
         # Pour les lignes sans nuance mais avec voix → LUD
         sub = sub.with_columns(
             pl.when(~has_nuance)
@@ -196,6 +206,10 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
             .alias("nuance")
         )
         rows.append(sub)
+
+    # Traçabilité : signaler le volume de voix reversées à LUD (philosophie fail-loud)
+    if lud_voix_total > 0:
+        print(f"  ℹ {lud_voix_total} voix reversées à LUD (sans étiquette) — communes < 1000 hab.")
 
     if not rows:
         # Aucune colonne de nuance trouvée → DataFrame vide avec bonnes colonnes
