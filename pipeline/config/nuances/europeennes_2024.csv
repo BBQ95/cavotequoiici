@@ -1,0 +1,15 @@
+nuance,famille,scrutin_type,annee,date_classification,date_debut,date_fin,source
+LCOM,extreme_gauche,europeennes,2024,2024-06-09,,,data.gouv.fr
+LEXG,extreme_gauche,europeennes,2024,2024-06-09,,,data.gouv.fr
+LFI,extreme_gauche,europeennes,2024,2024-06-09,,,data.gouv.fr
+LUG,gauche,europeennes,2024,2024-06-09,,,data.gouv.fr
+LDVG,gauche,europeennes,2024,2024-06-09,,,data.gouv.fr
+LVEC,ecologistes,europeennes,2024,2024-06-09,,,data.gouv.fr
+LECO,ecologistes,europeennes,2024,2024-06-09,,,data.gouv.fr
+LENS,centre,europeennes,2024,2024-06-09,,,data.gouv.fr
+LLR,droite,europeennes,2024,2024-06-09,,,data.gouv.fr
+LDVD,droite,europeennes,2024,2024-06-09,,,data.gouv.fr
+LRN,extreme_droite,europeennes,2024,2024-06-09,,,data.gouv.fr
+LREC,extreme_droite,europeennes,2024,2024-06-09,,,data.gouv.fr
+LEXD,extreme_droite,europeennes,2024,2024-06-09,,,data.gouv.fr
+LDIV,divers,europeennes,2024,2024-06-09,,,data.gouv.fr

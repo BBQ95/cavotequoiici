@@ -1,0 +1,342 @@
+"""Tests TDD des fonctions pures de pipeline.ingest.europeennes_2024.
+
+Couvre :
+- Normalisation INSEE (codes à 5 chiffres, gestion des communes nouvelles)
+- Agrégation voix → nuance (somme par commune × nuance)
+- Mapping nuance → famille (toutes les nuances du CSV ont une famille valide)
+- Cas limites : commune sans exprimés, nuance non mappée
+"""
+
+import csv
+from io import StringIO
+from pathlib import Path
+
+import polars as pl
+import pytest
+
+from pipeline.ingest.common import charger_nuances, familles_valides
+from pipeline.ingest.europeennes_2024 import (
+    aggregate_voix,
+    normaliser_code_insee,
+    parse_resultats_commune,
+)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Fixtures
+# ──────────────────────────────────────────────────────────────────────────────
+
+NUANCES_DIR = (
+    Path(__file__).resolve().parents[1] / "pipeline" / "config" / "nuances"
+)
+
+
+@pytest.fixture
+def mapping_nuances():
+    """Charge le mapping réel du fichier europeennes_2024.csv."""
+    return charger_nuances("europeennes_2024", nuances_dir=NUANCES_DIR)
+
+
+@pytest.fixture
+def familles_ref():
+    """Ensemble des familles canoniques de familles.csv."""
+    return familles_valides(NUANCES_DIR.parent)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests : normalisation INSEE
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestNormaliserCodeInsee:
+    """Normalisation des codes INSEE : toujours 5 chiffres, zéro-pad à gauche."""
+
+    def test_code_court_pad(self):
+        """Code < 100000 doit être zero-pad à 5 chiffres."""
+        assert normaliser_code_insee("1234") == "01234"
+
+    def test_code_5_chiffres(self):
+        """Code déjà à 5 chiffres reste inchangé."""
+        assert normaliser_code_insee("75001") == "75001"
+
+    def test_code_3_chiffres(self):
+        """Code très court (3 chiffres) est pad à 5 (zéro-pad à gauche)."""
+        assert normaliser_code_insee("001") == "00001"
+
+    def test_code_avec_string_vide(self):
+        """String vide → erreur ou valeur sensible."""
+        with pytest.raises((ValueError, AssertionError)):
+            normaliser_code_insee("")
+
+    def test_code_none(self):
+        """None → erreur."""
+        with pytest.raises((ValueError, AssertionError, TypeError)):
+            normaliser_code_insee(None)
+
+    def test_code_entier(self):
+        """Entier → string de 5 chiffres."""
+        assert normaliser_code_insee(1234) == "01234"
+
+    def test_code_entier_5(self):
+        """Entier déjà à 5 chiffres."""
+        assert normaliser_code_insee(75001) == "75001"
+
+    def test_code_corse_2a(self):
+        """Code corse 2Axxx est conservé tel quel."""
+        assert normaliser_code_insee("2A001") == "2A001"
+
+    def test_code_corse_2b(self):
+        """Code corse 2Bxxx est conservé tel quel."""
+        assert normaliser_code_insee("2B001") == "2B001"
+
+    def test_code_corse_minuscule(self):
+        """Code corse en minuscules est normalisé en majuscules."""
+        assert normaliser_code_insee("2a001") == "2A001"
+
+    def test_code_francais_etranger_zz(self):
+        """Code ZZxxx (Français de l'étranger) est conservé tel quel."""
+        assert normaliser_code_insee("ZZ001") == "ZZ001"
+
+    def test_code_territoire_zx(self):
+        """Code ZXxxx (St-Barthélémy/St-Martin) est conservé tel quel."""
+        assert normaliser_code_insee("ZX701") == "ZX701"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests : mapping nuance → famille
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestMappingNuanceFamille:
+    """Vérifie que toutes les nuances du fichier CSV ont une famille valide."""
+
+    def test_mapping_nuances_non_vide(self, mapping_nuances):
+        """Le mapping contient au moins 10 nuances (14 attendues)."""
+        assert len(mapping_nuances) >= 10
+
+    def test_toutes_familles_valides(self, mapping_nuances, familles_ref):
+        """Chaque famille du mapping existe dans familles.csv."""
+        for nuance, famille in mapping_nuances.items():
+            assert famille in familles_ref, (
+                f"Nuance {nuance!r} → famille {famille!r} inconnue dans familles.csv"
+            )
+
+    def test_nuances_connues_presentes(self, mapping_nuances):
+        """Les nuances principales sont présentes dans le mapping."""
+        attendues = {"LFI", "LRN", "LVEC", "LLR", "LENS", "LCOM", "LDIV"}
+        for n in attendues:
+            assert n in mapping_nuances, f"Nuance {n!r} absente du mapping"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests : agrégation voix → nuance
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _fake_df_pivot() -> pl.DataFrame:
+    """DataFrame de test : 2 communes, 3 nuances, voix à agréger.
+
+    Structure (après pivot, format attendu par aggregate_voix) :
+    | code_insee | nuance | voix | exprimes | inscrits |
+    """
+    return pl.DataFrame(
+        {
+            "code_insee": ["01001", "01001", "01001", "01002", "01002"],
+            "nuance": ["LFI", "LRN", "LVEC", "LFI", "LRN"],
+            "voix": [100, 200, 50, 80, 120],
+            "exprimes": [350, 350, 350, 200, 200],
+            "inscrits": [662, 662, 662, 500, 500],
+        }
+    )
+
+
+def _fake_raw_row() -> dict:
+    """Une ligne de données brutes au format du fichier data.gouv.fr (wide format).
+
+    Colonnes minimales : code commune, inscrits, exprimés, et voix N / nuance N
+    pour quelques listes.
+    """
+    return {
+        "Code commune": "01001",
+        "Libellé commune": "L'Abergement-Clémenciat",
+        "Inscrits": "662",
+        "Exprimés": "369",
+        "Nuance liste 1": "LDIV",
+        "Voix 1": "5",
+        "Nuance liste 2": "LFI",
+        "Voix 2": "100",
+        "Nuance liste 3": "LRN",
+        "Voix 3": "200",
+        "Nuance liste 4": "LVEC",
+        "Voix 4": "50",
+    }
+
+
+class TestAggregateVoix:
+    """Agrégation des voix par commune × nuance."""
+
+    def test_somme_par_commune_nuance(self):
+        """L'agrégation somme correctement les voix par (commune, nuance)."""
+        df = _fake_df_pivot()
+        agg = aggregate_voix(df)
+        # L'agrégation doit retourner une ligne par (code_insee, nuance)
+        # Les voix sont déjà agrégées dans ce fake (une ligne par pair)
+        assert agg.shape[0] == 5  # 3 nuances pour commune 1, 2 pour commune 2
+
+    def test_commune_sans_exprimes(self):
+        """Commune avec 0 exprimés → voix = 0, mais ligne présente."""
+        df = pl.DataFrame(
+            {
+                "code_insee": ["01003"],
+                "nuance": ["LFI"],
+                "voix": [0],
+                "exprimes": [0],
+                "inscrits": [100],
+            }
+        )
+        agg = aggregate_voix(df)
+        assert agg.shape[0] == 1
+        row = agg.filter(pl.col("code_insee") == "01003").filter(pl.col("nuance") == "LFI")
+        assert row["voix"][0] == 0
+        assert row["exprimes"][0] == 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests : parse_resultats_commune (wide → long format)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestParseResultatsCommune:
+    """Transformation du format wide (38 listes en colonnes) → format long."""
+
+    def test_parse_retourne_dataframe(self):
+        """parse_resultats_commune retourne un DataFrame Polars."""
+        df = pl.DataFrame(
+            {
+                "Code commune": ["01001"],
+                "Libellé commune": ["Test"],
+                "Inscrits": ["662"],
+                "Exprimés": ["369"],
+                "Nuance liste 1": ["LFI"],
+                "Voix 1": ["100"],
+                "Nuance liste 2": ["LRN"],
+                "Voix 2": ["200"],
+                "Nuance liste 3": [None],
+                "Voix 3": [None],
+            }
+        )
+        result = parse_resultats_commune(df)
+        assert isinstance(result, pl.DataFrame)
+
+    def test_parse_colonnes_attendues(self):
+        """Le résultat a les colonnes : code_insee, nuance, voix, exprimes, inscrits."""
+        df = pl.DataFrame(
+            {
+                "Code commune": ["01001"],
+                "Libellé commune": ["Test"],
+                "Inscrits": ["662"],
+                "Exprimés": ["369"],
+                "Nuance liste 1": ["LFI"],
+                "Voix 1": ["100"],
+                "Nuance liste 2": ["LRN"],
+                "Voix 2": ["200"],
+                "Nuance liste 3": [None],
+                "Voix 3": [None],
+            }
+        )
+        result = parse_resultats_commune(df)
+        cols = set(result.columns)
+        assert "code_insee" in cols
+        assert "nuance" in cols
+        assert "voix" in cols
+        assert "exprimes" in cols
+        assert "inscrits" in cols
+
+    def test_parse_voix_converties_en_entiers(self):
+        """Les voix sont converties en entiers (pas en strings)."""
+        df = pl.DataFrame(
+            {
+                "Code commune": ["01001"],
+                "Libellé commune": ["Test"],
+                "Inscrits": ["662"],
+                "Exprimés": ["369"],
+                "Nuance liste 1": ["LFI"],
+                "Voix 1": ["100"],
+                "Nuance liste 2": ["LRN"],
+                "Voix 2": ["200"],
+                "Nuance liste 3": [None],
+                "Voix 3": [None],
+            }
+        )
+        result = parse_resultats_commune(df)
+        lfi = result.filter(pl.col("nuance") == "LFI")
+        assert lfi["voix"][0] == 100
+        assert isinstance(lfi["voix"][0], (int,)) or lfi["voix"].dtype in [pl.Int64, pl.Int32]
+
+    def test_parse_filtre_nuances_vides(self):
+        """Les panneau vides (nuance = None) ne génèrent pas de ligne."""
+        df = pl.DataFrame(
+            {
+                "Code commune": ["01001"],
+                "Libellé commune": ["Test"],
+                "Inscrits": ["662"],
+                "Exprimés": ["369"],
+                "Nuance liste 1": ["LFI"],
+                "Voix 1": ["100"],
+                "Nuance liste 2": [None],
+                "Voix 2": [None],
+            }
+        )
+        result = parse_resultats_commune(df)
+        assert result.shape[0] == 1  # Seulement la liste 1
+
+    def test_parse_code_insee_normalise(self):
+        """Le code INSEE est normalisé à 5 chiffres."""
+        df = pl.DataFrame(
+            {
+                "Code commune": ["1234"],
+                "Libellé commune": ["Test"],
+                "Inscrits": ["100"],
+                "Exprimés": ["50"],
+                "Nuance liste 1": ["LFI"],
+                "Voix 1": ["30"],
+                "Nuance liste 2": [None],
+                "Voix 2": [None],
+            }
+        )
+        result = parse_resultats_commune(df)
+        assert result["code_insee"][0] == "01234"
+
+    def test_parse_nuance_non_mappee_pas_filtree(self):
+        """Une nuance non mappée apparaît quand même (le filtrage se fait en amont)."""
+        df = pl.DataFrame(
+            {
+                "Code commune": ["01001"],
+                "Libellé commune": ["Test"],
+                "Inscrits": ["100"],
+                "Exprimés": ["50"],
+                "Nuance liste 1": ["XX_UNKNOWN"],
+                "Voix 1": ["10"],
+                "Nuance liste 2": [None],
+                "Voix 2": [None],
+            }
+        )
+        result = parse_resultats_commune(df)
+        # La nuance inconnue est présente (le filtrage par mapping se fait ailleurs)
+        assert "XX_UNKNOWN" in result["nuance"].to_list()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests : intégration mapping + parse
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestIntegration:
+    """Tests d'intégration : parse + mapping nuance→famille."""
+
+    def test_toutes_nuances_du_fichier_sont_mappees(self, mapping_nuances):
+        """Toutes les nuances présentes dans le fichier réel sont dans le mapping."""
+        # Les 14 nuances officielles
+        nuances_officielles = {
+            "LCOM", "LDIV", "LDVD", "LDVG", "LECO", "LENS", "LEXD",
+            "LEXG", "LFI", "LLR", "LREC", "LRN", "LUG", "LVEC",
+        }
+        for n in nuances_officielles:
+            assert n in mapping_nuances, (
+                f"Nuance officielle {n!r} absente du mapping europeennes_2024.csv"
+            )

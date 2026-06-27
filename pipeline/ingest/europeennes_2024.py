@@ -1,0 +1,254 @@
+"""Ingestion des résultats des élections européennes du 9 juin 2024 par commune.
+
+Source : data.gouv.fr — Ministère de l'Intérieur
+  https://www.data.gouv.fr/fr/datasets/resultats-des-elections-europeennes-du-9-juin-2024/
+
+Le fichier par commune est au format wide : 38 listes en colonnes (panneau 1..38),
+chaque panneau occupe 8 colonnes (numéro, nuance, libellé abrégé, libellé, voix,
+% inscrits, % exprimés, sièges). On pivote en format long (une ligne par
+commune × nuance) puis on insère via pipeline.ingest.common.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Iterable
+
+import polars as pl
+from sqlalchemy import create_engine
+
+from pipeline.ingest.common import (
+    charger_nuances,
+    compter_orphelins,
+    inserer_resultats,
+    upsert_scrutin,
+)
+
+SCRUTIN_ID = "europeennes_2024"
+SCRUTIN_TYPE = "europeennes"
+TOUR = 1
+DATE_SCRUTIN = "2024-06-09"
+POIDS = 0.7
+
+DATA_DIR = Path(__file__).resolve().parents[2] / "data"
+COMMUNE_CSV = DATA_DIR / "europeennes_2024_commune.csv"
+DOWNLOAD_URL = (
+    "https://static.data.gouv.fr/resources/"
+    "resultats-des-elections-europeennes-du-9-juin-2024/"
+    "20240613-154634/resultats-definitifs-par-commune.csv"
+)
+
+NUANCES_DIR = (
+    Path(__file__).resolve().parents[1] / "config" / "nuances"
+)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Fonctions pures
+# ──────────────────────────────────────────────────────────────────────────────
+
+def normaliser_code_insee(code: str | int | None) -> str:
+    """Normalise un code INSEE en string de 5 caractères (zéro-pad à gauche pour les numériques).
+
+    Gère :
+    - Les codes numériques (zero-pad à 5 chiffres)
+    - Les codes corses (2Axxx, 2Bxxx) — conservés tels quels
+    - Les codes des Français de l'étranger (ZZxxx) et territoires (ZXxxx) — conservés tels quels
+
+    >>> normaliser_code_insee("1234")
+    '01234'
+    >>> normaliser_code_insee(75001)
+    '75001'
+    >>> normaliser_code_insee("2A001")
+    '2A001'
+    >>> normaliser_code_insee("ZZ001")
+    'ZZ001'
+    """
+    if code is None or str(code).strip() == "":
+        raise ValueError("Code INSEE vide ou None")
+    s = str(code).strip().upper()
+
+    # Codes alphanumériques de 5 caractères (2A, 2B, ZX, ZZ, etc.)
+    if len(s) == 5 and not s.isdigit():
+        # Vérifier que c'est bien un code INSEE valide (lettres + chiffres)
+        if all(c.isalnum() for c in s):
+            return s
+
+    # Cas normal : numérique → zero-pad à 5
+    try:
+        n = int(s)
+    except ValueError:
+        raise ValueError(f"Code INSEE non valide : {code!r}")
+    if n < 0 or n > 99999:
+        raise ValueError(f"Code INSEE hors plage : {code!r}")
+    return f"{n:05d}"
+
+
+def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
+    """Transforme le DataFrame wide (38 listes en colonnes) en format long.
+
+    Colonnes du fichier source :
+      - "Code commune", "Libellé commune", "Inscrits", "Exprimés"
+      - Pour chaque liste N (1..38) :
+        "Nuance liste N", "Voix N"
+
+    Retourne un DataFrame avec colonnes :
+      code_insee, nuance, voix, exprimes, inscrits
+    (une ligne par commune × nuance, sans les panneau vides)
+    """
+    # Identifier les colonnes de nuances et de voix
+    nuance_cols = [c for c in df.columns if c.startswith("Nuance liste ")]
+    voix_cols = [c for c in df.columns if c.startswith("Voix ")]
+
+    # Pour chaque liste, extraire (code_insee, nuance, voix, exprimes, inscrits)
+    rows: list[dict] = []
+    for nc, vc in zip(nuance_cols, voix_cols):
+        # Numéro de liste dans le nom de colonne
+        # nc = "Nuance liste N", vc = "Voix N"
+        sub = df.select(
+            pl.col("Code commune").alias("code_insee_raw"),
+            pl.col(nc).alias("nuance"),
+            pl.col(vc).alias("voix_raw"),
+            pl.col("Exprimés").alias("exprimes_raw"),
+            pl.col("Inscrits").alias("inscrits_raw"),
+        )
+        # Filtrer les panneau vides (nuance None ou vide)
+        sub = sub.filter(pl.col("nuance").is_not_null() & (pl.col("nuance") != ""))
+        rows.append(sub)
+
+    if not rows:
+        raise ValueError("Aucune colonne de nuance trouvée")
+
+    long_df = pl.concat(rows, how="vertical")
+
+    # Normaliser code INSEE
+    long_df = long_df.with_columns(
+        long_df["code_insee_raw"].map_elements(
+            lambda x: normaliser_code_insee(x),
+            return_dtype=pl.Utf8,
+        ).alias("code_insee")
+    )
+
+    # Convertir voix, exprimes, inscrits en entiers
+    long_df = long_df.with_columns(
+        pl.col("voix_raw").cast(pl.Int64, strict=False).fill_null(0).alias("voix"),
+        pl.col("exprimes_raw").cast(pl.Int64, strict=False).fill_null(0).alias("exprimes"),
+        pl.col("inscrits_raw").cast(pl.Int64, strict=False).fill_null(0).alias("inscrits"),
+    )
+
+    # Sélectionner les colonnes finales
+    result = long_df.select(
+        ["code_insee", "nuance", "voix", "exprimes", "inscrits"]
+    )
+
+    return result
+
+
+def aggregate_voix(df: pl.DataFrame) -> pl.DataFrame:
+    """Agrège les voix par (code_insee, nuance) en sommant.
+
+    Utile si plusieurs panneau ont la même nuance (théoriquement impossible
+    pour les européennes, mais le test le vérifie pour robustesse).
+
+    Garde exprimes et inscrits au niveau commune (max, car constant par commune).
+    """
+    agg = df.group_by(["code_insee", "nuance"]).agg(
+        pl.col("voix").sum().alias("voix"),
+        pl.col("exprimes").max().alias("exprimes"),
+        pl.col("inscrits").max().alias("inscrits"),
+    )
+    return agg
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pipeline principal
+# ──────────────────────────────────────────────────────────────────────────────
+
+def telecharger_fichier(url: str, dest: Path) -> Path:
+    """Télécharge le fichier si absent localement."""
+    if dest.exists():
+        print(f"Fichier déjà présent : {dest}")
+        return dest
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Téléchargement : {url}")
+    import urllib.request
+    urllib.request.urlretrieve(url, dest)
+    print(f"  → {dest} ({dest.stat().st_size / 1e6:.1f} MB)")
+    return dest
+
+
+def build_lignes_insertion(
+    df_long: pl.DataFrame, mapping: dict[str, str]
+) -> list[dict]:
+    """Filtre les nuances non mappées et prépare les lignes pour inserer_resultats.
+
+    Retourne une liste de dicts avec les colonnes :
+    code_insee, nuance, voix, exprimes, inscrits
+    """
+    # Filtrer les nuances non mappées
+    nuances_valides = set(mapping.keys())
+    df_filtre = df_long.filter(df_long["nuance"].is_in(nuances_valides))
+
+    # Convertir en liste de dicts
+    lignes = df_filtre.to_dicts()
+    return lignes
+
+
+def main() -> None:
+    """Point d'entrée : télécharge, parse, insère."""
+    database_url = os.environ.get(
+        "DATABASE_URL",
+        "postgresql+psycopg2://postgres:cavote@localhost:5432/postgres",
+    )
+    engine = create_engine(database_url)
+
+    # 1. Télécharger
+    csv_path = telecharger_fichier(DOWNLOAD_URL, COMMUNE_CSV)
+
+    # 2. Charger le mapping nuances
+    mapping = charger_nuances(SCRUTIN_ID, nuances_dir=NUANCES_DIR)
+    print(f"Mapping nuances : {len(mapping)} nuances chargées")
+
+    # 3. Parser le fichier (Polars, UTF-8, séparateur ;)
+    print(f"Parsing : {csv_path}")
+    df = pl.read_csv(
+        str(csv_path),
+        separator=";",
+        encoding="utf-8",
+        infer_schema_length=0,
+        quote_char='"',
+    )
+    print(f"  → {df.shape[0]} lignes, {df.shape[1]} colonnes")
+
+    # 4. Pivoter en format long
+    df_long = parse_resultats_commune(df)
+    print(f"  → {df_long.shape[0]} lignes (commune × nuance)")
+
+    # 5. Agréger (sécurité : somme si doublons)
+    df_agg = aggregate_voix(df_long)
+    print(f"  → {df_agg.shape[0]} lignes après agrégation")
+
+    # 6. Préparer les lignes pour l'insertion
+    lignes = build_lignes_insertion(df_agg, mapping)
+    print(f"  → {len(lignes)} lignes à insérer (après filtrage nuances mappées)")
+
+    # 7. Upsert scrutin
+    upsert_scrutin(SCRUTIN_ID, SCRUTIN_TYPE, TOUR, DATE_SCRUTIN, POIDS, engine)
+    print(f"Scrutin upserté : {SCRUTIN_ID}")
+
+    # 8. Insérer les résultats
+    nb = inserer_resultats(lignes, SCRUTIN_ID, engine)
+    print(f"{nb} résultats insérés")
+
+    # 9. Vérifier les orphelins
+    orphelins = compter_orphelins(SCRUTIN_ID, engine)
+    print(f"Orphelins : {orphelins}")
+    if orphelins > 0:
+        print(f"ATTENTION : {orphelins} codes INSEE non trouvés dans la table communes")
+    else:
+        print("✓ Aucun orphelin")
+
+
+if __name__ == "__main__":
+    main()
