@@ -1,0 +1,22 @@
+# Base de données de développement (PostgreSQL + PostGIS).
+# Lancement : docker compose up -d db
+# La base est ensuite migrée (make migrate) puis peuplée (make data).
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: cavote-db
+    environment:
+      POSTGRES_PASSWORD: cavote
+    ports:
+      - "5432:5432"
+    volumes:
+      - cavote_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  cavote_pgdata:
