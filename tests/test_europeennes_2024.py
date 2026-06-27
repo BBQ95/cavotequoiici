@@ -7,8 +7,6 @@ Couvre :
 - Cas limites : commune sans exprimés, nuance non mappée
 """
 
-import csv
-from io import StringIO
 from pathlib import Path
 
 import polars as pl
@@ -320,6 +318,63 @@ class TestParseResultatsCommune:
         result = parse_resultats_commune(df)
         # La nuance inconnue est présente (le filtrage par mapping se fait ailleurs)
         assert "XX_UNKNOWN" in result["nuance"].to_list()
+
+    def test_parse_numeros_superieurs_a_10(self):
+        """L'appariement nuance↔voix fonctionne avec des numéros ≥ 10.
+
+        On crée un DataFrame avec les listes 1, 2 et 10. La liste 10 doit
+        être correctement appariée (et ne pas écraser la liste 2).
+        """
+        df = pl.DataFrame(
+            {
+                "Code commune": ["01001"],
+                "Libellé commune": ["Test"],
+                "Inscrits": ["1000"],
+                "Exprimés": ["500"],
+                "Nuance liste 1": ["LFI"],
+                "Voix 1": ["100"],
+                "Nuance liste 2": ["LRN"],
+                "Voix 2": ["200"],
+                "Nuance liste 10": ["LVEC"],
+                "Voix 10": ["50"],
+            }
+        )
+        result = parse_resultats_commune(df)
+        assert result.shape[0] == 3
+        lvec = result.filter(pl.col("nuance") == "LVEC")
+        assert lvec.shape[0] == 1
+        assert lvec["voix"][0] == 50
+
+    def test_parse_colonnes_desordonnees(self):
+        """L'appariement nuance↔voix fonctionne même si les colonnes
+        ne sont pas dans l'ordre numérique.
+
+        On place volontairement « Nuance liste 10 » avant « Nuance liste 2 »
+        et « Voix 10 » avant « Voix 2 ».
+        """
+        df = pl.DataFrame(
+            {
+                "Code commune": ["01001"],
+                "Libellé commune": ["Test"],
+                "Inscrits": ["1000"],
+                "Exprimés": ["500"],
+                "Nuance liste 1": ["LFI"],
+                "Voix 1": ["100"],
+                "Nuance liste 10": ["LVEC"],
+                "Voix 10": ["50"],
+                "Nuance liste 2": ["LRN"],
+                "Voix 2": ["200"],
+            }
+        )
+        result = parse_resultats_commune(df)
+        assert result.shape[0] == 3
+        # Vérifier que chaque nuance est bien appariée avec sa bonne voix
+        lfi = result.filter(pl.col("nuance") == "LFI")
+        lrn = result.filter(pl.col("nuance") == "LRN")
+        lvec = result.filter(pl.col("nuance") == "LVEC")
+        assert lfi["voix"][0] == 100
+        assert lrn["voix"][0] == 200
+        assert lvec["voix"][0] == 50
 
 
 # ──────────────────────────────────────────────────────────────────────────────

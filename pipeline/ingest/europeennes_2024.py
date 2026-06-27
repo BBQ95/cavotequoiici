@@ -12,8 +12,9 @@ commune × nuance) puis on insère via pipeline.ingest.common.
 from __future__ import annotations
 
 import os
+import re
+import urllib.request
 from pathlib import Path
-from typing import Iterable
 
 import polars as pl
 from sqlalchemy import create_engine
@@ -97,15 +98,28 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
       code_insee, nuance, voix, exprimes, inscrits
     (une ligne par commune × nuance, sans les panneau vides)
     """
-    # Identifier les colonnes de nuances et de voix
-    nuance_cols = [c for c in df.columns if c.startswith("Nuance liste ")]
-    voix_cols = [c for c in df.columns if c.startswith("Voix ")]
+    # Identifier les colonnes de nuances et de voix, en extrayant le numéro N
+    nuance_cols = {}
+    for c in df.columns:
+        if c.startswith("Nuance liste "):
+            m = re.search(r"Nuance liste (\d+)", c)
+            if m:
+                nuance_cols[int(m.group(1))] = c
 
-    # Pour chaque liste, extraire (code_insee, nuance, voix, exprimes, inscrits)
+    voix_cols = {}
+    for c in df.columns:
+        if c.startswith("Voix "):
+            m = re.search(r"Voix (\d+)", c)
+            if m:
+                voix_cols[int(m.group(1))] = c
+
+    # Apparier explicitement nuance↔voix par le numéro N
     rows: list[dict] = []
-    for nc, vc in zip(nuance_cols, voix_cols):
-        # Numéro de liste dans le nom de colonne
-        # nc = "Nuance liste N", vc = "Voix N"
+    for n in sorted(nuance_cols.keys()):
+        nc = nuance_cols[n]
+        vc = voix_cols.get(n)
+        if vc is None:
+            continue  # pas de colonne Voix N correspondante
         sub = df.select(
             pl.col("Code commune").alias("code_insee_raw"),
             pl.col(nc).alias("nuance"),
@@ -172,7 +186,6 @@ def telecharger_fichier(url: str, dest: Path) -> Path:
         return dest
     dest.parent.mkdir(parents=True, exist_ok=True)
     print(f"Téléchargement : {url}")
-    import urllib.request
     urllib.request.urlretrieve(url, dest)
     print(f"  → {dest} ({dest.stat().st_size / 1e6:.1f} MB)")
     return dest
@@ -197,10 +210,9 @@ def build_lignes_insertion(
 
 def main() -> None:
     """Point d'entrée : télécharge, parse, insère."""
-    database_url = os.environ.get(
-        "DATABASE_URL",
-        "postgresql+psycopg2://postgres:cavote@localhost:5432/postgres",
-    )
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL non définie. Exportez-la avant de lancer l'ingestion.")
     engine = create_engine(database_url)
 
     # 1. Télécharger
