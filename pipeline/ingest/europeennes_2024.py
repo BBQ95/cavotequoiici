@@ -96,7 +96,7 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
 
     Retourne un DataFrame avec colonnes :
       code_insee, nuance, voix, exprimes, inscrits
-    (une ligne par commune × nuance, sans les panneau vides)
+    (une ligne par commune × nuance, sans les panneaux vides)
     """
     # Identifier les colonnes de nuances et de voix, en extrayant le numéro N
     nuance_cols = {}
@@ -127,7 +127,7 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
             pl.col("Exprimés").alias("exprimes_raw"),
             pl.col("Inscrits").alias("inscrits_raw"),
         )
-        # Filtrer les panneau vides (nuance None ou vide)
+        # Filtrer les panneaux vides (nuance None ou vide)
         sub = sub.filter(pl.col("nuance").is_not_null() & (pl.col("nuance") != ""))
         rows.append(sub)
 

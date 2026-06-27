@@ -195,6 +195,50 @@ class TestAggregateVoix:
         assert row["voix"][0] == 0
         assert row["exprimes"][0] == 0
 
+    def test_sommation_doublons_meme_nuance(self):
+        """Deux lignes avec même code_insee + même nuance sont sommées.
+
+        La docstring d'aggregate_voix indique qu'elle somme les voix en cas
+        de nuance dupliquée sur une même commune. Ce test vérifie ce
+        comportement : le résultat ne doit contenir qu'une seule ligne pour
+        cette paire (code_insee, nuance), avec la somme des voix.
+        """
+        df = pl.DataFrame(
+            {
+                "code_insee": ["01001", "01001", "01002"],
+                "nuance": ["LFI", "LFI", "LFI"],
+                "voix": [100, 50, 80],
+                "exprimes": [350, 350, 200],
+                "inscrits": [662, 662, 500],
+            }
+        )
+        agg = aggregate_voix(df)
+
+        # Pour la commune 01001, nuance LFI : 1 seule ligne avec voix = 150
+        lfi_01001 = agg.filter(
+            (pl.col("code_insee") == "01001") & (pl.col("nuance") == "LFI")
+        )
+        assert lfi_01001.shape[0] == 1, (
+            "aggregate_voix doit retourner une seule ligne par (code_insee, nuance)"
+        )
+        assert lfi_01001["voix"][0] == 150, (
+            "Les voix doivent être sommées : 100 + 50 = 150"
+        )
+
+        # exprimes et inscrits sont au max (constantes par commune)
+        assert lfi_01001["exprimes"][0] == 350
+        assert lfi_01001["inscrits"][0] == 662
+
+        # Pour la commune 01002, nuance LFI : 1 ligne avec voix = 80
+        lfi_01002 = agg.filter(
+            (pl.col("code_insee") == "01002") & (pl.col("nuance") == "LFI")
+        )
+        assert lfi_01002.shape[0] == 1
+        assert lfi_01002["voix"][0] == 80
+
+        # Total : 2 lignes (1 pour 01001-LFI, 1 pour 01002-LFI)
+        assert agg.shape[0] == 2
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Tests : parse_resultats_commune (wide → long format)
@@ -268,7 +312,7 @@ class TestParseResultatsCommune:
         assert isinstance(lfi["voix"][0], (int,)) or lfi["voix"].dtype in [pl.Int64, pl.Int32]
 
     def test_parse_filtre_nuances_vides(self):
-        """Les panneau vides (nuance = None) ne génèrent pas de ligne."""
+        """Les panneaux vides (nuance = None) ne génèrent pas de ligne."""
         df = pl.DataFrame(
             {
                 "Code commune": ["01001"],
@@ -375,6 +419,61 @@ class TestParseResultatsCommune:
         assert lfi["voix"][0] == 100
         assert lrn["voix"][0] == 200
         assert lvec["voix"][0] == 50
+
+    # ── Test sur la vraie structure du fichier data.gouv.fr ──────────────
+
+    FIXTURE_PATH = (
+        Path(__file__).resolve().parents[1]
+        / "tests"
+        / "fixtures"
+        / "europeennes_2024_sample.csv"
+    )
+
+    def test_parse_vrai_fichier_data_gouv(self):
+        """Valide parse_resultats_commune sur un extrait du vrai fichier CSV
+        de data.gouv.fr (3 communes, 38 listes en colonnes).
+
+        Vérifie que :
+        - Les vraies colonnes « Nuance liste N » / « Voix N » sont détectées
+        - Le parsing ne lève pas d'erreur
+        - Les codes INSEE sont normalisés à 5 chiffres
+        - Le nombre de lignes est cohérent (3 communes × ≤ 38 nuances)
+        """
+        if not self.FIXTURE_PATH.exists():
+            pytest.skip("Fixture du vrai fichier data.gouv.fr absente")
+
+        df = pl.read_csv(
+            str(self.FIXTURE_PATH),
+            separator=";",
+            encoding="utf-8",
+            infer_schema_length=0,
+            quote_char='"',
+        )
+        result = parse_resultats_commune(df)
+
+        # Le résultat est un DataFrame
+        assert isinstance(result, pl.DataFrame)
+
+        # Colonnes attendues
+        assert set(result.columns) == {
+            "code_insee", "nuance", "voix", "exprimes", "inscrits"
+        }
+
+        # Les 3 communes de la fixture (01001, 01002, 01004) sont présentes
+        codes = set(result["code_insee"].unique().to_list())
+        assert "01001" in codes
+        assert "01002" in codes
+        assert "01004" in codes
+
+        # Tous les codes INSEE font 5 caractères
+        for code in result["code_insee"].to_list():
+            assert len(code) == 5, f"Code INSEE mal normalisé : {code!r}"
+
+        # Les voix sont des entiers
+        assert result["voix"].dtype in [pl.Int64, pl.Int32]
+
+        # Au moins une nuance non vide (les 38 listes ne sont pas toutes vides)
+        assert result.shape[0] > 0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
