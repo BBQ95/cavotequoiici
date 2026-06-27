@@ -42,21 +42,52 @@ Paramètres versionnés :
 - `pipeline/config/poids_scrutins.yaml` — poids des scrutins, demi-vie, plancher de désaturation
 - `pipeline/config/nuances_familles.csv` — correspondance nuance officielle → famille politique
 
-## Développement
+## Démarrage rapide
+
+Prérequis : Docker (utilisateur dans le groupe `docker`), [`uv`](https://docs.astral.sh/uv/), Node 20+.
 
 ```bash
-# Pipeline + API (Python 3.12)
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt        # ou : pip install fastapi uvicorn polars psycopg2-binary sqlalchemy alembic geopandas pytest
-pytest pipeline/tests
+cp .env.example .env          # DATABASE_URL (défaut = base docker locale)
+make venv                     # crée .venv (uv) + dépendances Python
+make fresh                    # db PostGIS + migrations + pipeline complet (contours, 4 scrutins, couleurs)
+make api                      # API sur http://localhost:8000  (doc : /docs)
+make test                     # suite de tests
+```
 
-# Base de données (Docker)
-docker run -d --name cavote-db -e POSTGRES_PASSWORD=cavote -p 5432:5432 postgis/postgis:16-3.4
-cd api && alembic upgrade head
+`make help` liste toutes les cibles (`db-up`, `migrate`, `data`, `couleurs`, `types`…).
 
-# Mobile
+> La base est un conteneur `cavote-db` (PostGIS). `make db-up` le crée/redémarre via `docker run` ;
+> un `docker-compose.yml` équivalent est fourni pour les environnements disposant du plugin Compose.
+
+État des données après `make fresh` : ~35 000 communes, 4 scrutins (présidentielle 2022,
+législatives 2024, européennes 2024, municipales 2026), couleurs synthétiques calculées
+(repères validés : Saint-Denis rouge, Nice marine).
+
+## API (lecture seule)
+
+| Méthode | Route | Rôle |
+|---------|-------|------|
+| GET | `/communes/search?q=` | Autocomplétion par nom |
+| GET | `/communes/{insee}` | Fiche : métadonnées + couleur synthétique |
+| GET | `/communes/{insee}/couleur` | Couleur OKLCH + hex + participation + scrutins inclus |
+| GET | `/communes/{insee}/scrutins` | Scrutins inclus + poids relatif |
+| GET | `/communes/{insee}/scrutins/{scrutin_id}` | Détail par famille + couleur du scrutin |
+| GET | `/communes/proximite?lat=&lon=&rayon_m=` | Communes voisines (PostGIS) |
+| GET | `/healthz` | Sonde de vivacité |
+
+Les types TypeScript du client mobile sont générés depuis l'OpenAPI : `make types`
+(→ `mobile/src/api/types.ts`).
+
+## Mobile
+
+```bash
 cd mobile && npm install && npx expo start
 ```
+
+## État d'avancement (MVP)
+
+Étapes 0→4 faites (fondations, contours, ingestion des scrutins, calcul des couleurs, API).
+Prochaine étape : application mobile (écrans Accueil / Fiche commune / Méthodologie).
 
 ## Licence
 

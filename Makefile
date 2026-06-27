@@ -1,0 +1,41 @@
+PY := .venv/bin/python
+
+.PHONY: help venv db-up db-down migrate data couleurs api types test fresh
+
+help:  ## Affiche cette aide
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+
+venv:  ## Crée le venv (uv) et installe les dépendances
+	uv venv .venv
+	uv pip install --python $(PY) -r requirements.txt
+
+db-up:  ## Démarre PostGIS (conteneur docker ; réutilise cavote-db s'il existe)
+	@docker start cavote-db 2>/dev/null || docker run -d --name cavote-db \
+		-e POSTGRES_PASSWORD=cavote -p 5432:5432 \
+		-v cavote_pgdata:/var/lib/postgresql/data --restart unless-stopped \
+		postgis/postgis:16-3.4
+
+db-down:  ## Arrête PostGIS
+	docker stop cavote-db
+
+migrate:  ## Applique les migrations Alembic
+	cd api && ../$(PY) -m alembic upgrade head
+
+data:  ## Pipeline complet : contours + 4 scrutins + couleurs
+	$(PY) -m pipeline.run_all
+
+couleurs:  ## Recalcule uniquement les couleurs
+	$(PY) -m pipeline.compute_couleurs
+
+api:  ## Lance l'API en développement (rechargement auto)
+	$(PY) -m uvicorn api.main:app --reload --port 8000
+
+types:  ## Régénère les types TypeScript du mobile depuis l'OpenAPI
+	$(PY) -m api.openapi_export openapi.json
+	npx --yes openapi-typescript openapi.json -o mobile/src/api/types.ts
+
+test:  ## Lance la suite de tests
+	$(PY) -m pytest -q
+
+fresh: db-up migrate data  ## De zéro à base peuplée (db + migrations + pipeline)
+	@echo "Base prête. Lancer l'API : make api"
