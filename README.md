@@ -50,7 +50,7 @@ Prérequis : Docker (utilisateur dans le groupe `docker`), [`uv`](https://docs.a
 cp .env.example .env          # DATABASE_URL (défaut = base docker locale)
 make venv                     # crée .venv (uv) + dépendances Python
 make fresh                    # db PostGIS + migrations + pipeline complet (contours, 4 scrutins, couleurs)
-make api                      # API sur http://localhost:8000  (doc : /docs)
+make api                      # API sur http://localhost:8200  (doc : /docs)
 make test                     # suite de tests
 ```
 
