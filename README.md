@@ -86,8 +86,10 @@ cd mobile && npm install && npx expo start
 
 ## État d'avancement (MVP)
 
-Étapes 0→4 faites (fondations, contours, ingestion des scrutins, calcul des couleurs, API).
-Prochaine étape : application mobile (écrans Accueil / Fiche commune / Méthodologie).
+Étapes 0→5 faites (fondations, contours, ingestion des scrutins, calcul des couleurs,
+API, application mobile). **Étape 6 — tuiles vectorielles** : génération des PMTiles
+opérationnelle (`make tiles`, voir [`tiles/README.md`](tiles/README.md)).
+Reste de l'Étape 6 : intégration MapLibre dans l'app + hébergement CDN. Étape 7 : CI/CD + stores.
 
 ## Licence
 
