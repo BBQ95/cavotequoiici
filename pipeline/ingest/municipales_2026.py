@@ -41,9 +41,11 @@ TOUR = 1
 DATE_SCRUTIN = "2026-03-15"
 POIDS = 0.5
 
-# Seuil de population pour distinguer petites communes (candidats nominatifs
-# sans nuance officielle) des grandes communes (listes avec nuance officielle).
-SEUIL_PETITE_COMMUNE = 1000
+# Les communes < 1000 hab. ont des candidats nominatifs SANS nuance officielle :
+# les colonnes « Nuance liste N » sont vides dans le fichier source. Le filtrage
+# se fait donc implicitement (les nuances vides ne génèrent pas de ligne dans
+# parse_resultats_commune), et non via un seuil explicite. Voir le commentaire
+# dans main() pour l'impact de cette exclusion.
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 COMMUNE_CSV = DATA_DIR / "municipales_2026_t1_communes.csv"
@@ -294,6 +296,15 @@ def main() -> None:
     print(f"  → {df.shape[0]} lignes, {df.shape[1]} colonnes")
 
     # 4. Pivoter en format long
+    #    NOTE : les communes < 1000 hab. sont EXCLUES de l'analyse par famille.
+    #    Dans le fichier source, leurs colonnes « Nuance liste N » sont vides
+    #    (candidats nominatifs sans nuance officielle). Le filtrage implicite par
+    #    nuances vides dans parse_resultats_commune les écarte automatiquement.
+    #    Impact : tout le rural (≈ 25 000 communes < 1000 hab. sur ~35 000 au
+    #    total) est absent de l'analyse par famille politique. C'est une
+    #    limitation de la source (pas de nuance officielle pour les petites
+    #    communes), pas un bug. Pour couvrir ces communes, il faudrait classifier
+    #    manuellement les candidats nominatifs — hors périmètre de cette ingestion.
     df_long = parse_resultats_commune(df)
     print(f"  → {df_long.shape[0]} lignes (commune × nuance)")
 

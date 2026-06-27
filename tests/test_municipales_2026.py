@@ -25,7 +25,6 @@ from pipeline.ingest.municipales_2026 import (
     build_lignes_insertion,
     normaliser_code_insee,
     parse_resultats_commune,
-    SEUIL_PETITE_COMMUNE,
 )
 
 
@@ -135,9 +134,17 @@ class TestMappingNuanceFamille:
             assert n in mapping_nuances, f"Nuance {n!r} absente du mapping"
 
     def test_aucune_nuance_dupliquée(self, mapping_nuances):
-        """Le mapping ne contient pas de nuances dupliquées (vérifié par charger_nuances)."""
-        # Si charger_nuances ne lève pas, il n'y a pas de doublon
-        assert len(mapping_nuances) >= 15
+        """Le mapping ne contient pas de nuances dupliquées.
+
+        On le vérifie réellement : le nombre de nuances uniques doit
+        être égal au nombre total d'entrées. De plus, charger_nuances
+        lève déjà une ValueError en cas de doublon dans le CSV source.
+        """
+        nuances = list(mapping_nuances.keys())
+        assert len(nuances) == len(set(nuances)), (
+            f"Doublon détecté : {len(nuances)} clés mais seulement "
+            f"{len(set(nuances))} uniques"
+        )
 
     def test_famille_divers_pour_sans_etiquette(self, mapping_nuances):
         """LUD (sans étiquette) → divers."""
@@ -359,10 +366,6 @@ class TestParseResultatsCommune:
 class TestFormatMixte:
     """Gestion du format mixte : petites communes sans nuance, grandes avec nuance."""
 
-    def test_seuil_petite_commune(self):
-        """Le seuil de 1000 habitants est défini."""
-        assert SEUIL_PETITE_COMMUNE == 1000
-
     def test_grande_commune_avec_nuance_mapping_normal(self, mapping_nuances):
         """Commune ≥ 1000 hab. avec nuance → mapping normal via le CSV."""
         df = _fake_raw_wide(petite=False)
@@ -371,17 +374,26 @@ class TestFormatMixte:
         for nuance in result["nuance"].to_list():
             assert nuance in mapping_nuances
 
-    def test_petite_commune_sans_nuance_famille_divers(self):
-        """Commune < 1000 hab. sans nuance → famille divers (sans étiquette).
+    def test_petite_commune_sans_nuance_famille_divers(self, mapping_nuances):
+        """Commune < 1000 hab. sans nuance → aucune ligne au niveau nuance.
 
-        Comme les nuances sont vides, parse_resultats_commune ne retourne
-        aucune ligne. À l'étape d'insertion, ces communes n'ont pas de résultat
-        au niveau nuance — mais le test vérifie que le mapping renvoie
-        bien divers pour le code 'LUD' (sans étiquette).
+        Les communes < 1000 hab. ont des candidats nominatifs sans nuance
+        officielle : les colonnes « Nuance liste N » sont vides dans le fichier
+        source, donc parse_resultats_commune ne retourne aucune ligne pour elles.
+        Le mapping nuance → famille ne s'applique pas à ces communes.
+
+        On vérifie ici que :
+        1. Le parse ne retourne aucune ligne pour une petite commune (nuances vides).
+        2. La nuance « sans étiquette » (LUD), si elle était présente, mapperait
+           bien vers la famille « divers » — ce qui est cohérent avec
+           l'absence de nuance officielle pour ces communes.
         """
-        # Vérifier que la famille 'divers' est bien la valeur par défaut
-        # pour les communes sans étiquette
-        assert True  # Le comportement réel est testé via l'ingestion
+        df = _fake_raw_wide(petite=True)
+        result = parse_resultats_commune(df)
+        # Aucune ligne retournée : les nuances sont toutes vides
+        assert result.shape[0] == 0
+        # La nuance LUD (sans étiquette) mappe bien vers divers
+        assert mapping_nuances.get("LUD") == "divers"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
