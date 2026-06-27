@@ -15,6 +15,7 @@ import os
 import re
 import urllib.request
 from pathlib import Path
+from typing import Literal, overload
 
 import polars as pl
 from sqlalchemy import create_engine
@@ -34,10 +35,16 @@ POIDS = 0.7
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 COMMUNE_CSV = DATA_DIR / "europeennes_2024_commune.csv"
-DOWNLOAD_URL = (
+
+# Timestamp de version du fichier sur data.gouv.fr (segment dans l'URL).
+# Si data.gouv.fr met à jour le fichier, ce timestamp change et l'URL aussi.
+TIMESTAMP_DATA_GOUV = "20240613-154634"
+
+# URL de téléchargement du fichier résultats par commune (data.gouv.fr).
+URL_DATA_GOUV = (
     "https://static.data.gouv.fr/resources/"
     "resultats-des-elections-europeennes-du-9-juin-2024/"
-    "20240613-154634/resultats-definitifs-par-commune.csv"
+    f"{TIMESTAMP_DATA_GOUV}/resultats-definitifs-par-commune.csv"
 )
 
 NUANCES_DIR = (
@@ -49,13 +56,31 @@ NUANCES_DIR = (
 # Fonctions pures
 # ──────────────────────────────────────────────────────────────────────────────
 
-def normaliser_code_insee(code: str | int | None) -> str:
+@overload
+def normaliser_code_insee(
+    code: str | int | None, *, strict: Literal[True] = True
+) -> str: ...
+
+
+@overload
+def normaliser_code_insee(
+    code: str | int | None, *, strict: Literal[False]
+) -> str | None: ...
+
+
+def normaliser_code_insee(
+    code: str | int | None, *, strict: bool = True
+) -> str | None:
     """Normalise un code INSEE en string de 5 caractères (zéro-pad à gauche pour les numériques).
 
     Gère :
     - Les codes numériques (zero-pad à 5 chiffres)
     - Les codes corses (2Axxx, 2Bxxx) — conservés tels quels
     - Les codes des Français de l'étranger (ZZxxx) et territoires (ZXxxx) — conservés tels quels
+
+    Paramètre ``strict`` :
+    - ``strict=True`` (défaut) : lève ``ValueError`` sur code invalide (fail-loud)
+    - ``strict=False`` : retourne ``None`` pour les codes invalides (rejet silencieux pour batch)
 
     >>> normaliser_code_insee("1234")
     '01234'
@@ -67,7 +92,9 @@ def normaliser_code_insee(code: str | int | None) -> str:
     'ZZ001'
     """
     if code is None or str(code).strip() == "":
-        raise ValueError("Code INSEE vide ou None")
+        if strict:
+            raise ValueError("Code INSEE vide ou None")
+        return None
     s = str(code).strip().upper()
 
     # Codes alphanumériques de 5 caractères (2A, 2B, ZX, ZZ, etc.)
@@ -80,9 +107,13 @@ def normaliser_code_insee(code: str | int | None) -> str:
     try:
         n = int(s)
     except ValueError:
-        raise ValueError(f"Code INSEE non valide : {code!r}")
+        if strict:
+            raise ValueError(f"Code INSEE non valide : {code!r}")
+        return None
     if n < 0 or n > 99999:
-        raise ValueError(f"Code INSEE hors plage : {code!r}")
+        if strict:
+            raise ValueError(f"Code INSEE hors plage : {code!r}")
+        return None
     return f"{n:05d}"
 
 
@@ -139,7 +170,7 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
     # Normaliser code INSEE
     long_df = long_df.with_columns(
         long_df["code_insee_raw"].map_elements(
-            lambda x: normaliser_code_insee(x),
+            lambda x: normaliser_code_insee(x, strict=False),
             return_dtype=pl.Utf8,
         ).alias("code_insee")
     )
@@ -198,10 +229,16 @@ def build_lignes_insertion(
 
     Retourne une liste de dicts avec les colonnes :
     code_insee, nuance, voix, exprimes, inscrits
+
+    Les lignes dont ``code_insee`` est ``None`` (issu d'une normalisation
+    non-strict sur un code INSEE invalide) sont également exclues.
     """
     # Filtrer les nuances non mappées
     nuances_valides = set(mapping.keys())
     df_filtre = df_long.filter(df_long["nuance"].is_in(nuances_valides))
+
+    # Exclure les lignes dont le code INSEE est None (mode non-strict)
+    df_filtre = df_filtre.filter(pl.col("code_insee").is_not_null())
 
     # Convertir en liste de dicts
     lignes = df_filtre.to_dicts()
@@ -216,7 +253,7 @@ def main() -> None:
     engine = create_engine(database_url)
 
     # 1. Télécharger
-    csv_path = telecharger_fichier(DOWNLOAD_URL, COMMUNE_CSV)
+    csv_path = telecharger_fichier(URL_DATA_GOUV, COMMUNE_CSV)
 
     # 2. Charger le mapping nuances
     mapping = charger_nuances(SCRUTIN_ID, nuances_dir=NUANCES_DIR)
