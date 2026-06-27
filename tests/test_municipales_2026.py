@@ -348,15 +348,21 @@ class TestParseResultatsCommune:
         assert "XX_UNKNOWN" in result["nuance"].to_list()
 
     def test_parse_petite_commune_sans_nuance(self):
-        """Commune < 1000 hab. : nuances toutes vides → aucune ligne avec nuance.
+        """Commune < 1000 hab. : nuances toutes vides → voix attribuées à LUD.
 
-        Le parse ne doit retourner aucune ligne avec une nuance non nulle
-        (les voix sont des candidats nominatifs sans étiquette).
+        Le parse doit retourner des lignes pour une petite commune : les voix
+        des candidats nominatifs sans nuance officielle sont attribuées à la
+        nuance LUD (sans étiquette → famille divers).
         """
         df = _fake_raw_wide(petite=True)
         result = parse_resultats_commune(df)
-        # Toutes les nuances sont None → aucune ligne retournée
-        assert result.shape[0] == 0
+        # La petite commune doit avoir des lignes (voix → LUD)
+        assert result.shape[0] > 0
+        nuances = result["nuance"].to_list()
+        # Toutes les nuances doivent être LUD
+        assert all(n == "LUD" for n in nuances), f"Attendu LUD, obtenu {nuances}"
+        # Les voix doivent être les sommes des voix des candidats
+        assert result["voix"].sum() == 250  # 150 + 100
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -375,24 +381,21 @@ class TestFormatMixte:
             assert nuance in mapping_nuances
 
     def test_petite_commune_sans_nuance_famille_divers(self, mapping_nuances):
-        """Commune < 1000 hab. sans nuance → aucune ligne au niveau nuance.
+        """Commune < 1000 hab. sans nuance → voix mappées à LUD (famille divers).
 
-        Les communes < 1000 hab. ont des candidats nominatifs sans nuance
-        officielle : les colonnes « Nuance liste N » sont vides dans le fichier
-        source, donc parse_resultats_commune ne retourne aucune ligne pour elles.
-        Le mapping nuance → famille ne s'applique pas à ces communes.
-
-        On vérifie ici que :
-        1. Le parse ne retourne aucune ligne pour une petite commune (nuances vides).
-        2. La nuance « sans étiquette » (LUD), si elle était présente, mapperait
-           bien vers la famille « divers » — ce qui est cohérent avec
-           l'absence de nuance officielle pour ces communes.
+        Vérifie réellement qu'une commune < 1000 hab. dont toutes les nuances
+        sont vides mais qui a des voix se voit attribuer la nuance LUD
+        (sans étiquette → famille divers) — pas assert True.
         """
         df = _fake_raw_wide(petite=True)
         result = parse_resultats_commune(df)
-        # Aucune ligne retournée : les nuances sont toutes vides
-        assert result.shape[0] == 0
-        # La nuance LUD (sans étiquette) mappe bien vers divers
+        # La petite commune doit avoir des lignes (voix attribuées à LUD)
+        assert result.shape[0] > 0, "Les petites communes doivent être incluses, pas exclues"
+        nuances_result = result["nuance"].to_list()
+        # Toutes les nuances doivent être LUD (sans étiquette → divers)
+        for nuance in nuances_result:
+            assert nuance == "LUD", f"Nuance attendue LUD, obtenue {nuance!r}"
+        # LUD doit bien mapper à la famille divers
         assert mapping_nuances.get("LUD") == "divers"
 
 

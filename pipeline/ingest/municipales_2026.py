@@ -11,7 +11,8 @@ via pipeline.ingest.common.
 
 Format mixte :
   - Communes < 1000 hab. : candidats nominatifs SANS nuance officielle
-    (les colonnes « Nuance liste N » sont vides) → aucune ligne au niveau nuance.
+    (les colonnes « Nuance liste N » sont vides) → voix attribuées à la nuance LUD
+    (sans étiquette → famille divers). Ces communes DOIVENT être incluses.
   - Communes ≥ 1000 hab. : listes AVEC nuance officielle → mapper via le CSV.
 """
 
@@ -142,7 +143,10 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
       code_insee, nuance, voix, exprimes, inscrits
     (une ligne par commune × nuance, sans les panneaux vides)
 
-    Note : les communes < 1000 hab. ont toutes les nuances vides → aucune ligne.
+    Note : les communes < 1000 hab. ont des candidats nominatifs sans nuance
+    officielle. Pour ne pas les exclure, on attribue la nuance LUD (sans étiquette,
+    famille divers) aux voix qui n'ont pas de nuance. Ces voix sont ensuite
+    agrégées par commune sous la nuance LUD.
     """
     # Identifier les colonnes de nuances et de voix, en extrayant le numéro N
     nuance_cols = {}
@@ -173,8 +177,23 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
             pl.col("Exprimés").alias("exprimes_raw"),
             pl.col("Inscrits").alias("inscrits_raw"),
         )
-        # Filtrer les panneaux vides (nuance None ou vide)
-        sub = sub.filter(pl.col("nuance").is_not_null() & (pl.col("nuance") != ""))
+        # Filtrer les panneaux vides :
+        # - Panneau vide = nuance vide ET voix vide/nulle
+        # - Si nuance vide MAIS voix > 0 → candidat nominatif sans nuance officielle
+        #   (commune < 1000 hab.) → attribuer la nuance LUD (sans étiquette → divers)
+        has_nuance = pl.col("nuance").is_not_null() & (pl.col("nuance") != "")
+        voix_val = pl.col("voix_raw").cast(pl.Int64, strict=False).fill_null(0) > 0
+
+        # Panneaux réellement vides : ni nuance, ni voix
+        sub = sub.filter(has_nuance | voix_val)
+
+        # Pour les lignes sans nuance mais avec voix → LUD
+        sub = sub.with_columns(
+            pl.when(~has_nuance)
+            .then(pl.lit("LUD"))
+            .otherwise(pl.col("nuance"))
+            .alias("nuance")
+        )
         rows.append(sub)
 
     if not rows:
@@ -276,6 +295,17 @@ def main() -> None:
     if not database_url:
         raise RuntimeError("DATABASE_URL non définie. Exportez-la avant de lancer l'ingestion.")
     engine = create_engine(database_url)
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Inclusion des communes < 1000 hab.
+    # ──────────────────────────────────────────────────────────────────────
+    # Les communes de moins de 1000 habitants ont des candidats nominatifs SANS
+    # nuance officielle (les colonnes « Nuance liste N » sont vides dans le
+    # fichier source). La spec exige qu'elles soient INCLUSES, pas exclues.
+    # On attribue donc la nuance LUD (sans étiquette → famille divers) à leurs
+    # voix dans parse_resultats_commune. Ces communes apparaissent dans les
+    # résultats avec famille = divers.
+    # ──────────────────────────────────────────────────────────────────────
 
     # 1. Télécharger
     csv_path = telecharger_fichier(URL_DATA_GOUV, COMMUNE_CSV)
