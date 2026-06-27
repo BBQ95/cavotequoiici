@@ -14,8 +14,8 @@ import pytest
 
 from pipeline.ingest.common import charger_nuances, familles_valides
 from pipeline.ingest.europeennes_2024 import (
-    URL_DATA_GOUUV,
-    TIMESTAMP_DATA_GOUUV,
+    URL_DATA_GOUV,
+    TIMESTAMP_DATA_GOUV,
     aggregate_voix,
     build_lignes_insertion,
     normaliser_code_insee,
@@ -574,22 +574,22 @@ class TestUrlConstante:
 
     def test_url_pointe_vers_data_gouv_fr(self):
         """L'URL constante doit pointer vers data.gouv.fr."""
-        assert "data.gouv.fr" in URL_DATA_GOUUV
-        assert URL_DATA_GOUUV.startswith("https://")
+        assert "data.gouv.fr" in URL_DATA_GOUV
+        assert URL_DATA_GOUV.startswith("https://")
 
     def test_url_est_une_string(self):
         """L'URL doit être une string."""
-        assert isinstance(URL_DATA_GOUUV, str)
-        assert len(URL_DATA_GOUUV) > 0
+        assert isinstance(URL_DATA_GOUV, str)
+        assert len(URL_DATA_GOUV) > 0
 
     def test_timestamp_est_une_string_non_vide(self):
         """Le timestamp de version data.gouv doit être une string non vide."""
-        assert isinstance(TIMESTAMP_DATA_GOUUV, str)
-        assert len(TIMESTAMP_DATA_GOUUV) > 0
+        assert isinstance(TIMESTAMP_DATA_GOUV, str)
+        assert len(TIMESTAMP_DATA_GOUV) > 0
 
     def test_url_contient_le_timestamp(self):
         """L'URL contient le timestamp (segment de version data.gouv)."""
-        assert TIMESTAMP_DATA_GOUUV in URL_DATA_GOUUV
+        assert TIMESTAMP_DATA_GOUV in URL_DATA_GOUV
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -626,3 +626,108 @@ class TestNormaliserCodeInseeNonStrict:
         """En mode strict, un code valide est normalisé normalement."""
         assert normaliser_code_insee("1234", strict=True) == "01234"
         assert normaliser_code_insee("75001", strict=True) == "75001"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests d'intégration : code INSEE malformé ignoré dans le pipeline
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestCodeInseeMalformeIgnore:
+    """Une commune avec un code INSEE malformé doit être ignorée (pas de crash)."""
+
+    def test_parse_resultats_commune_avec_code_malforme(self):
+        """parse_resultats_commune ne lève pas d'erreur sur un code INSEE invalide.
+
+        Le code malformé produit ``None`` (mode strict=False câblé dans le
+        pipeline), qui sera filtré ultérieurement par ``build_lignes_insertion``.
+        """
+        df = pl.DataFrame(
+            {
+                "Code commune": ["ABCDEF", "01001"],
+                "Libellé commune": ["Commune Bogus", "Commune Valide"],
+                "Inscrits": ["100", "662"],
+                "Exprimés": ["50", "369"],
+                "Nuance liste 1": ["LFI", "LFI"],
+                "Voix 1": ["10", "100"],
+                "Nuance liste 2": ["LRN", "LRN"],
+                "Voix 2": ["20", "200"],
+                "Nuance liste 3": [None, None],
+                "Voix 3": [None, None],
+            }
+        )
+        # Le parsing ne doit pas crasher
+        result = parse_resultats_commune(df)
+        assert isinstance(result, pl.DataFrame)
+
+        # La commune valide (01001) est présente
+        codes = result["code_insee"].to_list()
+        assert "01001" in codes
+
+        # La commune avec code malformé a un code_insee = None
+        # (elle sera filtrée par build_lignes_insertion plus tard)
+        lignes_bogus = result.filter(
+            result["code_insee"].is_null()
+        )
+        assert lignes_bogus.shape[0] == 2  # 2 nuances pour la commune bogus
+
+    def test_build_lignes_insertion_filtre_code_malforme(self):
+        """build_lignes_insertion exclut les lignes dont le code INSEE est None.
+
+        Test d'intégration : un DataFrame avec un code malformé (→ None après
+        normalisation non-strict) ne produit aucune ligne pour cette commune.
+        """
+        df = pl.DataFrame(
+            {
+                "code_insee": [None, "01001"],
+                "nuance": ["LFI", "LFI"],
+                "voix": [10, 100],
+                "exprimes": [50, 369],
+                "inscrits": [100, 662],
+            }
+        )
+        mapping = {"LFI": "gauche"}
+        lignes = build_lignes_insertion(df, mapping)
+        # Aucune ligne pour la commune au code malformé
+        assert len(lignes) == 1
+        assert lignes[0]["code_insee"] == "01001"
+
+    def test_pipeline_complet_code_malforme_ignore(self):
+        """Test d'intégration : parse → build_lignes_insertion avec code malformé.
+
+        Une commune avec un code INSEE malformé doit être ignorée de bout en bout
+        (pas de crash, pas de ligne insérée pour cette commune).
+        """
+        df = pl.DataFrame(
+            {
+                "Code commune": ["ABCDEF", "01001"],
+                "Libellé commune": ["Commune Bogus", "Commune Valide"],
+                "Inscrits": ["100", "662"],
+                "Exprimés": ["50", "369"],
+                "Nuance liste 1": ["LFI", "LFI"],
+                "Voix 1": ["10", "100"],
+                "Nuance liste 2": ["LRN", "LRN"],
+                "Voix 2": ["20", "200"],
+                "Nuance liste 3": [None, None],
+                "Voix 3": [None, None],
+            }
+        )
+        # 1. Parser (strict=False câblé → pas de crash)
+        df_long = parse_resultats_commune(df)
+
+        # 2. Agréger
+        df_agg = aggregate_voix(df_long)
+
+        # 3. build_lignes_insertion filtre les code_insee = None
+        mapping = {"LFI": "gauche", "LRN": "droite"}
+        lignes = build_lignes_insertion(df_agg, mapping)
+
+        # Aucune ligne pour la commune au code malformé
+        codes = {l["code_insee"] for l in lignes}
+        assert None not in codes
+        assert "ABCDEF" not in codes
+        assert "01001" in codes
+
+        # Toutes les lignes ont un code_insee valide (non None)
+        for ligne in lignes:
+            assert ligne["code_insee"] is not None
+            assert isinstance(ligne["code_insee"], str)

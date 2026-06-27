@@ -15,6 +15,7 @@ import os
 import re
 import urllib.request
 from pathlib import Path
+from typing import Literal, overload
 
 import polars as pl
 from sqlalchemy import create_engine
@@ -37,13 +38,13 @@ COMMUNE_CSV = DATA_DIR / "europeennes_2024_commune.csv"
 
 # Timestamp de version du fichier sur data.gouv.fr (segment dans l'URL).
 # Si data.gouv.fr met à jour le fichier, ce timestamp change et l'URL aussi.
-TIMESTAMP_DATA_GOUUV = "20240613-154634"
+TIMESTAMP_DATA_GOUV = "20240613-154634"
 
 # URL de téléchargement du fichier résultats par commune (data.gouv.fr).
-URL_DATA_GOUUV = (
+URL_DATA_GOUV = (
     "https://static.data.gouv.fr/resources/"
     "resultats-des-elections-europeennes-du-9-juin-2024/"
-    f"{TIMESTAMP_DATA_GOUUV}/resultats-definitifs-par-commune.csv"
+    f"{TIMESTAMP_DATA_GOUV}/resultats-definitifs-par-commune.csv"
 )
 
 NUANCES_DIR = (
@@ -54,6 +55,18 @@ NUANCES_DIR = (
 # ──────────────────────────────────────────────────────────────────────────────
 # Fonctions pures
 # ──────────────────────────────────────────────────────────────────────────────
+
+@overload
+def normaliser_code_insee(
+    code: str | int | None, *, strict: Literal[True] = True
+) -> str: ...
+
+
+@overload
+def normaliser_code_insee(
+    code: str | int | None, *, strict: Literal[False]
+) -> str | None: ...
+
 
 def normaliser_code_insee(
     code: str | int | None, *, strict: bool = True
@@ -157,7 +170,7 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
     # Normaliser code INSEE
     long_df = long_df.with_columns(
         long_df["code_insee_raw"].map_elements(
-            lambda x: normaliser_code_insee(x),
+            lambda x: normaliser_code_insee(x, strict=False),
             return_dtype=pl.Utf8,
         ).alias("code_insee")
     )
@@ -240,7 +253,7 @@ def main() -> None:
     engine = create_engine(database_url)
 
     # 1. Télécharger
-    csv_path = telecharger_fichier(URL_DATA_GOUUV, COMMUNE_CSV)
+    csv_path = telecharger_fichier(URL_DATA_GOUV, COMMUNE_CSV)
 
     # 2. Charger le mapping nuances
     mapping = charger_nuances(SCRUTIN_ID, nuances_dir=NUANCES_DIR)
