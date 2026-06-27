@@ -8,3 +8,4 @@ geopandas
 GeoAlchemy2
 pyyaml
 pytest
+httpx
