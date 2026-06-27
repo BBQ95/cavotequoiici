@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import urllib.request
 from pathlib import Path
 from typing import Literal, overload
@@ -43,10 +44,10 @@ DATE_SCRUTIN = "2026-03-15"
 POIDS = 0.5
 
 # Les communes < 1000 hab. ont des candidats nominatifs SANS nuance officielle :
-# les colonnes « Nuance liste N » sont vides dans le fichier source. Le filtrage
-# se fait donc implicitement (les nuances vides ne génèrent pas de ligne dans
-# parse_resultats_commune), et non via un seuil explicite. Voir le commentaire
-# dans main() pour l'impact de cette exclusion.
+# les colonnes « Nuance liste N » sont vides dans le fichier source. On attribue
+# donc la nuance LUD (sans étiquette → famille divers) à leurs voix dans
+# parse_resultats_commune, ce qui les inclut dans l'analyse.
+# Voir « Remarques de classification » dans pipeline/config/nuances/README.md.
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 COMMUNE_CSV = DATA_DIR / "municipales_2026_t1_communes.csv"
@@ -276,9 +277,26 @@ def build_lignes_insertion(
 
     Les lignes dont ``code_insee`` est ``None`` (issu d'une normalisation
     non-strict sur un code INSEE invalide) sont également exclues.
+
+    Garde-fou (fail-loud) : si les données contiennent des nuances absentes
+    du mapping, on lève une ``SystemExit`` avec le volume de voix concerné
+    plutôt que d'écarter silencieusement ces voix (cf. legislatives_2024.py).
     """
-    # Filtrer les nuances non mappées
+    # Détecter les nuances non mappées avant filtrage (fail-loud)
     nuances_valides = set(mapping.keys())
+    nuances_presentes = set(df_long["nuance"].unique().to_list())
+    nuances_manquantes = nuances_presentes - nuances_valides
+    if nuances_manquantes:
+        voix_perdues = df_long.filter(
+            df_long["nuance"].is_in(nuances_manquantes)
+        )["voix"].sum()
+        sys.exit(
+            f"⛔ nuances sans famille dans {SCRUTIN_ID}.csv : "
+            f"{sorted(nuances_manquantes)} "
+            f"({voix_perdues} voix écartées)"
+        )
+
+    # Filtrer les nuances non mappées (toutes mappées à ce stade)
     df_filtre = df_long.filter(df_long["nuance"].is_in(nuances_valides))
 
     # Exclure les lignes dont le code INSEE est None (mode non-strict)
@@ -326,15 +344,13 @@ def main() -> None:
     print(f"  → {df.shape[0]} lignes, {df.shape[1]} colonnes")
 
     # 4. Pivoter en format long
-    #    NOTE : les communes < 1000 hab. sont EXCLUES de l'analyse par famille.
-    #    Dans le fichier source, leurs colonnes « Nuance liste N » sont vides
-    #    (candidats nominatifs sans nuance officielle). Le filtrage implicite par
-    #    nuances vides dans parse_resultats_commune les écarte automatiquement.
-    #    Impact : tout le rural (≈ 25 000 communes < 1000 hab. sur ~35 000 au
-    #    total) est absent de l'analyse par famille politique. C'est une
-    #    limitation de la source (pas de nuance officielle pour les petites
-    #    communes), pas un bug. Pour couvrir ces communes, il faudrait classifier
-    #    manuellement les candidats nominatifs — hors périmètre de cette ingestion.
+    #    Les communes < 1000 hab. sont INCLUSES : les candidats nominatifs
+    #    sans nuance officielle se voient attribuer la nuance LUD
+    #    (sans étiquette → famille divers) dans parse_resultats_commune.
+    #    Impact : la famille « divers » est gonflée dans tout le rural
+    #    (≈ 25 000 communes < 1000 hab. sur ~35 000 au total), mais les
+    #    résultats ne sont pas perdus — voir « Remarques de classification »
+    #    dans pipeline/config/nuances/README.md.
     df_long = parse_resultats_commune(df)
     print(f"  → {df_long.shape[0]} lignes (commune × nuance)")
 

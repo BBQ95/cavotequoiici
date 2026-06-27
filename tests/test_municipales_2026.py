@@ -20,6 +20,8 @@ from pipeline.ingest.common import (
     familles_valides,
     filtrer_communes_connues,
 )
+import sys
+
 from pipeline.ingest.municipales_2026 import (
     aggregate_voix,
     build_lignes_insertion,
@@ -407,7 +409,12 @@ class TestBuildLignesInsertion:
     """Construction des lignes prêtes à insérer (filtrage nuances mappées)."""
 
     def test_filtre_nuances_non_mappees(self, mapping_nuances):
-        """Les nuances non mappées sont exclues des lignes d'insertion."""
+        """Les nuances non mappées déclenchent une erreur (fail-loud).
+
+        Une nuance non mappée ne doit pas être filtrée silencieusement :
+        build_lignes_insertion lève SystemExit pour alerter (cf. legislatives_2024.py).
+        Les nuances mappées sont conservées, mais l'erreur s'élève avant le filtrage.
+        """
         df = pl.DataFrame(
             {
                 "code_insee": ["01001", "01001"],
@@ -417,10 +424,8 @@ class TestBuildLignesInsertion:
                 "inscrits": [662, 662],
             }
         )
-        lignes = build_lignes_insertion(df, mapping_nuances)
-        nuances_result = {l["nuance"] for l in lignes}
-        assert "LFI" in nuances_result
-        assert "XX_UNKNOWN" not in nuances_result
+        with pytest.raises(SystemExit, match="XX_UNKNOWN"):
+            build_lignes_insertion(df, mapping_nuances)
 
     def test_filtre_code_insee_none(self, mapping_nuances):
         """Les lignes avec code_insee None sont exclues."""
@@ -454,6 +459,39 @@ class TestBuildLignesInsertion:
         assert set(lignes[0].keys()) == {
             "code_insee", "nuance", "voix", "exprimes", "inscrits"
         }
+
+    def test_nuance_non_mappee_leve_erreur(self, mapping_nuances):
+        """Une nuance non mappée → SystemExit (fail-loud, pas de perte silencieuse).
+
+        Convention du projet : si data.gouv.fr publie une nuance non prévue
+        dans le CSV de mapping, build_lignes_insertion doit échouer bruyamment
+        (cf. legislatives_2024.py) plutôt que d'écarter les voix silencieusement.
+        """
+        df = pl.DataFrame(
+            {
+                "code_insee": ["01001", "01001"],
+                "nuance": ["LFI", "ZZ_BOGUS"],
+                "voix": [100, 10],
+                "exprimes": [350, 350],
+                "inscrits": [662, 662],
+            }
+        )
+        with pytest.raises(SystemExit, match="ZZ_BOGUS"):
+            build_lignes_insertion(df, mapping_nuances)
+
+    def test_toutes_nuances_mappees_pas_erreur(self, mapping_nuances):
+        """Si toutes les nuances sont mappées, pas d'erreur (cas normal)."""
+        df = pl.DataFrame(
+            {
+                "code_insee": ["01001", "01001"],
+                "nuance": ["LFI", "LRN"],
+                "voix": [100, 200],
+                "exprimes": [350, 350],
+                "inscrits": [662, 662],
+            }
+        )
+        lignes = build_lignes_insertion(df, mapping_nuances)
+        assert len(lignes) == 2
 
 
 # ──────────────────────────────────────────────────────────────────────────────
