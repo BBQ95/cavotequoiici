@@ -30,6 +30,30 @@ def test_couleur_404(client):
     assert client.get("/communes/00000/couleur").status_code == 404
 
 
+def test_couleur_repartition(client):
+    """La synthèse expose la répartition par famille (barre des familles de la fiche)."""
+    r = client.get("/communes/93066/couleur")
+    assert r.status_code == 200
+    rep = r.json()["repartition"]
+    assert isinstance(rep, list) and rep, "répartition non vide attendue"
+    # Chaque entrée = {famille, part}
+    for entree in rep:
+        assert set(entree) == {"famille", "part"}
+        assert 0.0 <= entree["part"] <= 1.0
+    # Triée par part décroissante ; somme des parts ≈ 1
+    parts = [e["part"] for e in rep]
+    assert parts == sorted(parts, reverse=True)
+    assert abs(sum(parts) - 1.0) < 0.01
+    # Saint-Denis → famille dominante à gauche (extrême gauche ou gauche)
+    assert rep[0]["famille"] in {"extreme_gauche", "gauche"}
+
+
+def test_fiche_repartition(client):
+    """La fiche complète porte aussi la répartition (sous couleur)."""
+    body = client.get("/communes/06088").json()
+    assert body["couleur"]["repartition"]
+
+
 def test_fiche(client):
     r = client.get("/communes/06088")
     assert r.status_code == 200

@@ -39,3 +39,6 @@ tiles/*.mbtiles
 *.swp
 .idea/
 .vscode/
+
+# Artefact généré par `make types` (transitoire)
+openapi.json
