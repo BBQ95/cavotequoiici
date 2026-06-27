@@ -72,7 +72,8 @@ def feature_proprietes(row: Mapping[str, Any]) -> dict[str, Any]:
     # `repartition` est une colonne sa.JSON() lue via text() brut : selon le
     # driver elle peut arriver en chaîne JSON non décodée (cf. pipeline.jsoncol).
     repartition = decode_json_col(row["repartition"]) or []
-    famille = repartition[0]["famille"] if repartition else "divers"
+    premier = repartition[0] if repartition else {}
+    famille = premier.get("famille", "divers") if isinstance(premier, dict) else "divers"
     # Garde-fou : une famille inconnue de la palette retomberait sur `divers`
     # côté client ; on n'invente pas de teinte ici, on transmet la famille.
     if famille not in COULEURS:

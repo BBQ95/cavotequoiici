@@ -62,6 +62,16 @@ class TestFeatureProprietes:
         row = _ligne(repartition='[{"famille": "gauche", "part": 0.41}]')
         assert feature_proprietes(row)["famille"] == "gauche"
 
+    def test_famille_hors_palette_retombe_sur_divers(self):
+        """Une famille dominante absente de la palette COULEURS ne doit pas
+        fuiter vers le client (qui la rendrait en gris) — on transmet `divers`."""
+        row = _ligne(repartition=[{"famille": "inconnue", "part": 0.9}])
+        assert feature_proprietes(row)["famille"] == "divers"
+
+    def test_element_repartition_malforme_retombe_sur_divers(self):
+        row = _ligne(repartition=["pas un dict"])
+        assert feature_proprietes(row)["famille"] == "divers"
+
     def test_participation_nulle_donne_none(self):
         props = feature_proprietes(_ligne(participation_mediane=None))
         assert props["participation"] is None
