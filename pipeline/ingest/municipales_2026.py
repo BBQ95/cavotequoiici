@@ -267,6 +267,55 @@ def telecharger_fichier(url: str, dest: Path) -> Path:
     return dest
 
 
+# Colonnes obligatoires du fichier source (hors colonnes de listes « Nuance liste N » / « Voix N »
+# qui sont détectées dynamiquement par parse_resultats_commune).
+COLONNES_OBLIGATOIRES = ["Code commune", "Exprimés", "Inscrits"]
+
+
+def verifier_colonnes(df: pl.DataFrame) -> None:
+    """Vérifie que les colonnes attendues sont présentes dans le DataFrame.
+
+    Lève ``ValueError`` avec un message clair si une colonne obligatoire manque.
+    Les colonnes « Nuance liste N » et « Voix N » ne sont pas vérifiées ici :
+    elles sont détectées dynamiquement par ``parse_resultats_commune`` (le nombre
+    de listes varie selon le scrutin).
+
+    >>> verifier_colonnes(pl.DataFrame({"Code commune": [], "Exprimés": [], "Inscrits": []}))
+    """
+    colonnes_presentes = set(df.columns)
+    manquantes = [c for c in COLONNES_OBLIGATOIRES if c not in colonnes_presentes]
+    if manquantes:
+        raise ValueError(
+            f"Colonnes manquantes: {manquantes}. "
+            f"Colonnes trouvées: {list(df.columns)}"
+        )
+
+
+def lire_csv_robuste(csv_path: Path, separator: str = ";") -> pl.DataFrame:
+    """Lit un CSV en essayant utf-8, puis latin-1 (ISO-8859-1) en fallback.
+
+    Les fichiers du Ministère de l'Intérieur sont parfois en ISO-8859-1/Windows-1252.
+    On tente d'abord UTF-8 (encodage le plus courant) ; si la lecture échoue
+    (UnicodeDecodeError ou caractères corrompus), on retente en latin-1.
+
+    Retourne un DataFrame Polars avec toutes les colonnes en chaînes de caractères
+    (infer_schema_length=0) pour éviter les problèmes de typage des pourcentages
+    (ex. « 55,08% »).
+
+    >>> lire_csv_robuste(Path("data/municipales_2026_t1_communes.csv"))  # doctest: +SKIP
+    """
+    common_kwargs = dict(
+        separator=separator,
+        infer_schema_length=0,
+        quote_char='"',
+    )
+    try:
+        return pl.read_csv(str(csv_path), encoding="utf-8", **common_kwargs)
+    except (pl.exceptions.ComputeError, UnicodeDecodeError):
+        print(f"  ⚠️ Lecture UTF-8 échouée, retry en latin-1 (ISO-8859-1)…")
+        return pl.read_csv(str(csv_path), encoding="latin1", **common_kwargs)
+
+
 def build_lignes_insertion(
     df_long: pl.DataFrame, mapping: dict[str, str]
 ) -> list[dict]:
@@ -332,16 +381,15 @@ def main() -> None:
     mapping = charger_nuances(SCRUTIN_ID, nuances_dir=NUANCES_DIR)
     print(f"Mapping nuances : {len(mapping)} nuances chargées")
 
-    # 3. Parser le fichier (Polars, UTF-8, séparateur ;)
+    # 3. Parser le fichier (Polars, séparateur ;)
+    #    L'encodage est détecté automatiquement : utf-8 d'abord, latin-1 en fallback
+    #    (les fichiers du MI sont parfois en ISO-8859-1/Windows-1252).
     print(f"Parsing : {csv_path}")
-    df = pl.read_csv(
-        str(csv_path),
-        separator=";",
-        encoding="utf-8",
-        infer_schema_length=0,
-        quote_char='"',
-    )
+    df = lire_csv_robuste(csv_path)
     print(f"  → {df.shape[0]} lignes, {df.shape[1]} colonnes")
+
+    # 3b. Vérifier que les colonnes attendues sont présentes (fail-loud)
+    verifier_colonnes(df)
 
     # 4. Pivoter en format long
     #    Les communes < 1000 hab. sont INCLUSES : les candidats nominatifs

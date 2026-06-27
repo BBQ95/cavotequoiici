@@ -27,6 +27,9 @@ from pipeline.ingest.municipales_2026 import (
     build_lignes_insertion,
     normaliser_code_insee,
     parse_resultats_commune,
+    verifier_colonnes,
+    lire_csv_robuste,
+    COLONNES_OBLIGATOIRES,
 )
 
 
@@ -543,3 +546,117 @@ class TestFiltrerCommunesConnues:
         gardees, orphelins = filtrer_communes_connues(lignes, codes_connus)
         assert len(gardees) == 0
         assert "01001" in orphelins
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests : verifier_colonnes (validation du schéma source)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestVerifierColonnes:
+    """Vérification que les colonnes obligatoires du fichier source sont présentes."""
+
+    def test_colonnes_presentes_ok(self):
+        """Toutes les colonnes obligatoires présentes → pas d'erreur."""
+        df = pl.DataFrame({
+            "Code commune": ["01001"],
+            "Exprimés": ["100"],
+            "Inscrits": ["200"],
+            "Nuance liste 1": ["LFI"],
+            "Voix 1": ["50"],
+        })
+        # Ne doit pas lever d'exception
+        verifier_colonnes(df)
+
+    def test_colonne_manquante_leve_valueerror(self):
+        """Colonne « Exprimés » manquante → ValueError avec message clair."""
+        df = pl.DataFrame({
+            "Code commune": ["01001"],
+            "Inscrits": ["200"],
+        })
+        with pytest.raises(ValueError, match="Colonnes manquantes"):
+            verifier_colonnes(df)
+
+    def test_message_erreur_contient_colonnes_trouvees(self):
+        """Le message d'erreur liste les colonnes trouvées et manquantes."""
+        df = pl.DataFrame({
+            "Code commune": ["01001"],
+            "Inscrits": ["200"],
+        })
+        with pytest.raises(ValueError) as exc_info:
+            verifier_colonnes(df)
+        msg = str(exc_info.value)
+        assert "Exprimés" in msg  # Colonne manquante dans le message
+        assert "Colonnes trouvées" in msg
+
+    def test_toutes_colonnes_manquantes(self):
+        """Aucune colonne obligatoire → ValueError avec les 3 manquantes."""
+        df = pl.DataFrame({"Colonne bidon": ["x"]})
+        with pytest.raises(ValueError, match="Colonnes manquantes"):
+            verifier_colonnes(df)
+
+    def test_colonnes_supplementaires_ok(self):
+        """Des colonnes supplémentaires ne posent pas problème."""
+        df = pl.DataFrame({
+            "Code département": ["01"],
+            "Code commune": ["01001"],
+            "Libellé commune": ["Test"],
+            "Inscrits": ["200"],
+            "Exprimés": ["100"],
+            "Nuance liste 1": ["LFI"],
+            "Voix 1": ["50"],
+        })
+        verifier_colonnes(df)  # Ne doit pas lever d'exception
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests : lire_csv_robuste (fallback d'encodage utf-8 → latin-1)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestLireCsvRobuste:
+    """Lecture robuste d'un CSV avec fallback d'encodage utf-8 → latin-1."""
+
+    def test_lit_fichier_utf8(self, tmp_path):
+        """Un fichier UTF-8 est lu correctement (chemin normal)."""
+        content = (
+            '"Code commune";"Exprimés";"Inscrits";"Nuance liste 1";"Voix 1"\r\n'
+            '"01001";"100";"200";"LFI";"50"\r\n'
+        )
+        f = tmp_path / "test_utf8.csv"
+        f.write_bytes(content.encode("utf-8"))
+        df = lire_csv_robuste(f)
+        assert df.shape[0] == 1
+        assert "Code commune" in df.columns
+        assert df["Code commune"][0] == "01001"
+
+    def test_lit_fichier_latin1(self, tmp_path):
+        """Un fichier ISO-8859-1 (latin-1) avec accents est lu correctement.
+
+        Le nom de commune « L'Abergement-Clémenciat » contient des accents.
+        En UTF-8 strict, un fichier encodé en latin-1 avec ces caractères
+        déclenche une erreur → le fallback latin-1 doit prendre le relais.
+        """
+        # L'en-tête + une ligne avec un nom de commune avec accents
+        content = (
+            '"Code commune";"Libellé commune";"Exprimés";"Inscrits";"Nuance liste 1";"Voix 1"\r\n'
+            '"01001";"L\'Abergement-Clémenciat";"345";"679";"";"345"\r\n'
+        )
+        f = tmp_path / "test_latin1.csv"
+        f.write_bytes(content.encode("latin-1"))
+        df = lire_csv_robuste(f)
+        assert df.shape[0] == 1
+        assert "Code commune" in df.columns
+        assert df["Code commune"][0] == "01001"
+        # L'accent doit être correctement décodé
+        libelle = df["Libellé commune"][0]
+        assert "Clémenciat" in libelle, f"Accent corrompu : {libelle!r}"
+
+    def test_lit_vrai_fichier_data(self):
+        """Lit le vrai fichier data/municipales_2026_t1_communes.csv s'il existe."""
+        data_path = Path(__file__).resolve().parents[1] / "data" / "municipales_2026_t1_communes.csv"
+        if not data_path.exists():
+            pytest.skip("Fichier data/municipales_2026_t1_communes.csv absent")
+        df = lire_csv_robuste(data_path)
+        assert df.shape[0] > 0
+        # Les colonnes obligatoires doivent être présentes
+        for col in COLONNES_OBLIGATOIRES:
+            assert col in df.columns, f"Colonne {col!r} absente du vrai fichier"

@@ -45,7 +45,7 @@ nuance,famille,scrutin_type,annee,date_classification,date_debut,date_fin,source
 - **Debout la France (DLF)** : le CE a jugé (2020) que la classer à l'extrême droite était une
   erreur manifeste → famille `droite`.
 - **NUPES (2022)** : le CE a enjoint au MI d'ajouter la nuance ; les candidats restaient sinon
-  ventilé en FI/SOC/VEC/COM.
+  ventilés en FI/SOC/VEC/COM.
 
 ### Municipales 2026 : agrégation des petites communes (< 1000 hab.)
 
