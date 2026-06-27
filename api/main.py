@@ -5,7 +5,10 @@ réparties en deux routeurs disjoints : `communes` (recherche, fiche, couleur,
 proximité) et `scrutins` (détail par scrutin).
 """
 
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.routers import communes, scrutins
 
@@ -13,6 +16,16 @@ app = FastAPI(
     title="CaVoteQuoiIci API",
     version="0.1.0",
     description="API de lecture : couleur politique synthétique des communes.",
+)
+
+# API publique en lecture seule (données figées, aucun secret) : CORS ouvert par
+# défaut, restreignable via CORS_ORIGINS (liste séparée par des virgules).
+_origins = os.environ.get("CORS_ORIGINS", "*")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"] if _origins == "*" else [o.strip() for o in _origins.split(",")],
+    allow_methods=["GET"],
+    allow_headers=["*"],
 )
 
 app.include_router(communes.router)
