@@ -1,0 +1,13 @@
+nuance,famille,scrutin_type,annee,date_classification,date_debut,date_fin,source
+LO,extreme_gauche,presidentielle_t1,2022,2022-04-10,,,data.gouv.fr (candidat Arthaud, Lutte ouvrière)
+NPA,extreme_gauche,presidentielle_t1,2022,2022-04-10,,,data.gouv.fr (candidat Poutou)
+FI,extreme_gauche,presidentielle_t1,2022,2022-04-10,,,"data.gouv.fr (candidat Mélenchon, La France insoumise) — classification extrême gauche débattue (contrôle CE)"
+PCF,gauche,presidentielle_t1,2022,2022-04-10,,,data.gouv.fr (candidat Roussel)
+PS,gauche,presidentielle_t1,2022,2022-04-10,,,data.gouv.fr (candidate Hidalgo)
+EELV,ecologistes,presidentielle_t1,2022,2022-04-10,,,data.gouv.fr (candidat Jadot)
+RES,divers,presidentielle_t1,2022,2022-04-10,,,data.gouv.fr (candidat Lassalle, Résistons)
+ENS,centre,presidentielle_t1,2022,2022-04-10,,,data.gouv.fr (candidat Macron, majorité présidentielle)
+LR,droite,presidentielle_t1,2022,2022-04-10,,,data.gouv.fr (candidate Pécresse, Les Républicains)
+DLF,droite,presidentielle_t1,2022,2022-04-10,,,"data.gouv.fr (candidat Dupont-Aignan, Debout la France) — classé droite (CE n° 437675, 2020-01-31 : extrême droite = erreur manifeste)"
+RN,extreme_droite,presidentielle_t1,2022,2022-04-10,,,data.gouv.fr (candidate Le Pen, Rassemblement national)
+REC,extreme_droite,presidentielle_t1,2022,2022-04-10,,,data.gouv.fr (candidat Zemmour, Reconquête)

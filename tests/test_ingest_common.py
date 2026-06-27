@@ -6,7 +6,11 @@ couverts en intégration par les parseurs de chaque scrutin (Étape 2).
 
 import pytest
 
-from pipeline.ingest.common import charger_nuances, familles_valides
+from pipeline.ingest.common import (
+    charger_nuances,
+    familles_valides,
+    filtrer_communes_connues,
+)
 
 
 @pytest.fixture
@@ -76,3 +80,15 @@ def test_charger_nuances_vide(config):
     _ecrire(nuances, "x", "")
     with pytest.raises(ValueError, match="aucune nuance"):
         charger_nuances("x", nuances_dir=nuances)
+
+
+def test_filtrer_communes_connues():
+    lignes = [
+        {"code_insee": "01001", "voix": 5},
+        {"code_insee": "99999", "voix": 3},  # inconnue
+        {"code_insee": "06088", "voix": 7},
+        {"code_insee": "99999", "voix": 1},  # même inconnue, dédupliquée
+    ]
+    gardees, orphelins = filtrer_communes_connues(lignes, {"01001", "06088"})
+    assert [g["code_insee"] for g in gardees] == ["01001", "06088"]
+    assert orphelins == {"99999"}
