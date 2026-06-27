@@ -1,0 +1,26 @@
+nuance,famille,scrutin_type,annee,date_classification,date_debut,date_fin,source,statut
+LCOM,extreme_gauche,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer)",provisoire
+LEXG,extreme_gauche,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer)",provisoire
+LFI,extreme_gauche,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) — La France insoumise ; classification extrême gauche débattue (contrôle CE)",provisoire
+LUG,gauche,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer)",provisoire
+LSOC,gauche,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (Parti socialiste)",provisoire
+LDVG,gauche,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (divers gauche)",provisoire
+LVEC,ecologistes,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (Les Écologistes / EELV)",provisoire
+LECO,ecologistes,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (écologistes divers)",provisoire
+LUC,centre,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (union du centre)",provisoire
+LUDI,centre,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (UDI)",provisoire
+LHOR,centre,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (Horizons)",provisoire
+LMDM,centre,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (Modem)",provisoire
+LDVC,centre,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (divers centre)",provisoire
+LREN,centre,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (Renaissance / majorité présidentielle)",provisoire
+LLR,droite,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (Les Républicains)",provisoire
+LDVD,droite,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (divers droite)",provisoire
+LDSV,droite,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) — droite souverainiste ; classé droite (cf. CE n° 437675 sur DLF)",provisoire
+LUDR,droite,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (union de la droite)",provisoire
+LRN,extreme_droite,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (Rassemblement national)",provisoire
+LREC,extreme_droite,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (Reconquête)",provisoire
+LEXD,extreme_droite,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (extrême droite)",provisoire
+LUXD,extreme_droite,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) — union de l'extrême droite (alliance RN / LR-Ciotti, 2024)",provisoire
+LDIV,divers,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (divers)",provisoire
+LUD,divers,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (sans étiquette)",provisoire
+LREG,divers,municipales_t1,2026,2026-03-15,,,"data.gouv.fr (municipales 2026, classification à confirmer) (régionalistes)",provisoire

@@ -35,7 +35,7 @@ nuance,famille,scrutin_type,annee,date_classification,date_debut,date_fin,source
 | Législatives 2022 | circulaire « attribution des nuances » (18 nuances) | 2022-05-13 | Légifrance id/45336 (+ injonction CE NUPES, juin 2022) |
 | Européennes 2024 | listes (nuance = parti/tête de liste) | 2024-06-09 | data.gouv.fr |
 | Législatives 2024 | instruction « attribution des nuances » (24 nuances) | 2024-06-11 | Légifrance id/45565 |
-| Municipales 2026 | circulaire « attribution des nuances » | 2026 | Légifrance id/45645 |
+| Municipales 2026 | circulaire « attribution des nuances » | 2026 | circulaire non encore publiée au 2026-06-27 (référence à confirmer : Légifrance id/45645 ou data.gouv.fr) |
 | Précédent CE | circulaire municipales 2020 partiellement suspendue (seuil 9000 hab. ; « Debout la France » mal classé extrême droite) | 2020-01-31 | CE n° 437675 |
 
 ## Remarques de classification
@@ -46,3 +46,28 @@ nuance,famille,scrutin_type,annee,date_classification,date_debut,date_fin,source
   erreur manifeste → famille `droite`.
 - **NUPES (2022)** : le CE a enjoint au MI d'ajouter la nuance ; les candidats restaient sinon
   ventilés en FI/SOC/VEC/COM.
+
+### Municipales 2026 : agrégation des petites communes (< 1000 hab.)
+
+Les communes de moins de 1 000 habitants (≈ 25 000 communes sur ~35 000 au total)
+ont des candidats **nominatifs sans nuance officielle** : dans le fichier source
+data.gouv.fr, les colonnes « Nuance liste N » sont vides pour ces communes.
+Seul le nom du candidat et son nombre de voix sont renseignés.
+
+**Décision éditoriale assumée** : toutes les voix nominatives des communes
+< 1000 hab. sont agrégées sous la nuance `LUD` (sans étiquette) → famille `divers`.
+
+**Impact** :
+- La famille `divers` est **gonflée** dans tout le rural — elle agrège indistinctement
+  des candidats de toutes obédiences (depuis l'ultra-gauche jusqu'à l'extrême droite)
+  dès lors que la commune ne publie pas de nuance officielle.
+- Cette agrégation n'affecte **que les municipales** (la présidentielle et les
+  législatives publient toujours une nuance par candidat/liste).
+- C'est un **choix conforme à la spec** : la spec exige que les communes
+  < 1000 hab. soient *incluses* dans l'analyse (pas exclues), et la nuance `LUD`
+  → `divers` est la seule option disponible dans la grille du MI pour les
+  candidats sans étiquette. L'alternative (classifier manuellement ~25 000 candidats
+  nominatifs) est hors périmètre de cette ingestion.
+
+Voir aussi le commentaire dans `pipeline/ingest/municipales_2026.py` → `main()`,
+étape 4, et la docstring de `parse_resultats_commune`.
