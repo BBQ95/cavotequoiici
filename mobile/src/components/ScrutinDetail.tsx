@@ -1,16 +1,12 @@
 import { useState } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 
 import { useDetailScrutin } from "../api/queries";
 import { libelleScrutin } from "../lib/familles";
 import { pourcent } from "../lib/color";
-import { FamilleBar } from "./FamilleBar";
+import { RepartitionBar } from "./RepartitionBar";
+import { colors, radius, space, type } from "../theme/tokens";
 import type { ScrutinInclus } from "../api/client";
 
 export function ScrutinDetail({
@@ -39,19 +35,28 @@ export function ScrutinDetail({
             {scrutin.date ?? ""} · poids {Math.round(scrutin.poids_relatif * 100)} %
           </Text>
         </View>
-        <Text style={styles.chevron}>{ouvert ? "▲" : "▼"}</Text>
+        <MaterialIcons
+          name={ouvert ? "expand-less" : "expand-more"}
+          size={22}
+          color={colors.textSecondary}
+        />
       </Pressable>
 
       {ouvert ? (
         <View style={styles.contenu}>
-          {isLoading ? <ActivityIndicator /> : null}
+          {isLoading ? <ActivityIndicator color={colors.textSecondary} /> : null}
           {isError ? <Text style={styles.err}>Détail indisponible.</Text> : null}
           {data ? (
             <>
               <Text style={styles.part}>
-                Les électeurs ont voté à {pourcent(data.participation)} de participation
+                Les électeurs ont voté à {pourcent(data.participation)} de participation.
               </Text>
-              <FamilleBar familles={data.familles} />
+              <RepartitionBar
+                segments={data.familles.map((f) => ({
+                  famille: f.famille,
+                  part: f.pourcentage,
+                }))}
+              />
             </>
           ) : null}
         </View>
@@ -63,20 +68,15 @@ export function ScrutinDetail({
 const styles = StyleSheet.create({
   bloc: {
     borderWidth: 1,
-    borderColor: "#e6e6e6",
-    borderRadius: 12,
-    marginTop: 8,
+    borderColor: colors.border,
+    borderRadius: radius.cardSm,
+    marginTop: space.sm,
     overflow: "hidden",
   },
-  entete: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-  },
-  titre: { fontSize: 15, fontWeight: "600", color: "#1a1a1a" },
-  meta: { fontSize: 12, color: "#777", marginTop: 2 },
-  chevron: { fontSize: 12, color: "#999", paddingLeft: 8 },
-  contenu: { paddingHorizontal: 14, paddingBottom: 14, gap: 10 },
-  part: { fontSize: 13, color: "#444" },
-  err: { fontSize: 13, color: "#b00" },
+  entete: { flexDirection: "row", alignItems: "center", padding: space.lg },
+  titre: { fontSize: 15, color: colors.text, ...type.label },
+  meta: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  contenu: { paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.md },
+  part: { fontSize: 13, color: colors.textLight },
+  err: { fontSize: 13, color: "#e0707a" },
 });
