@@ -16,6 +16,16 @@ from typing import Iterable, Mapping
 
 from sqlalchemy import text
 
+__all__ = [
+    "familles_valides",
+    "charger_nuances",
+    "upsert_scrutin",
+    "inserer_resultats",
+    "compter_orphelins",
+    "codes_communes",
+    "filtrer_communes_connues",
+]
+
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
 NUANCES_DIR = CONFIG_DIR / "nuances"
 
@@ -115,6 +125,31 @@ def inserer_resultats(
                 rows,
             )
     return len(rows)
+
+
+def codes_communes(engine) -> set[str]:
+    """Ensemble des codes INSEE présents dans la table `communes`."""
+    with engine.connect() as conn:
+        return {r[0] for r in conn.execute(text("SELECT code_insee FROM communes"))}
+
+
+def filtrer_communes_connues(
+    lignes: Iterable[Mapping], codes_connus: set[str]
+) -> tuple[list[Mapping], set[str]]:
+    """Sépare les lignes de résultats selon que leur commune existe (codes_connus).
+
+    Retourne (gardées, codes_orphelins). Les orphelins sont typiquement des communes
+    fusionnées/disparues entre l'année du scrutin et le millésime des contours :
+    à réintégrer plus tard via une table historique des codes INSEE (cf. doc Concept).
+    """
+    gardees: list[Mapping] = []
+    orphelins: set[str] = set()
+    for ligne in lignes:
+        if ligne["code_insee"] in codes_connus:
+            gardees.append(ligne)
+        else:
+            orphelins.add(ligne["code_insee"])
+    return gardees, orphelins
 
 
 def compter_orphelins(scrutin_id: str, engine) -> int:
