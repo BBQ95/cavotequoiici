@@ -26,9 +26,6 @@ from api.schemas.scrutins import (
 from pipeline.ingest.common import charger_nuances
 from pipeline.synthese import TYPE_VERS_POIDS
 
-# Mapping inverse : type_court -> type_long (pour joindre scrutins_inclus avec scrutins)
-_POIDS_VERS_TYPE: dict[str, str] = {v: k for k, v in TYPE_VERS_POIDS.items()}
-
 router = APIRouter(prefix="/communes", tags=["scrutins"])
 
 
@@ -122,8 +119,22 @@ def detail_scrutin(insee: str, scrutin_id: str, conn=Depends(get_conn)):
         # Pas de résultats pour ce couple (insee, scrutin_id)
         raise HTTPException(status_code=404, detail="Scrutin non trouvé pour cette commune")
 
-    # Charger le mapping nuance -> famille
-    mapping = charger_nuances(scrutin_id)
+    # couleurs_scrutin n'est écrite que pour exprimes > 0 ; une commune sans
+    # suffrages exprimés a des résultats mais pas de couleur -> 404 maîtrisé
+    # (évite un TypeError 500 en déréférençant couleur_row None).
+    if couleur_row is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Aucune couleur pour ce scrutin (participation nulle)",
+        )
+
+    # Charger le mapping nuance -> famille (CSV daté du scrutin)
+    try:
+        mapping = charger_nuances(scrutin_id)
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404, detail="Scrutin inconnu (mapping de nuances absent)"
+        )
 
     # Agréger les voix par famille
     voix_par_famille: dict[str, int] = defaultdict(int)
