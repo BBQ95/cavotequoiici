@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from "react-native";
 
 import { ScrutinDetail } from "./ScrutinDetail";
+import { colors, space, type } from "../theme/tokens";
 import type { ScrutinInclus } from "../api/client";
 
 /** Encart « comment cette couleur est calculée » : jamais une boîte noire. */
@@ -26,7 +27,7 @@ export function TransparenceEncart({
 }
 
 const styles = StyleSheet.create({
-  encart: { marginTop: 8 },
-  titre: { fontSize: 18, fontWeight: "700", color: "#1a1a1a" },
-  intro: { fontSize: 14, color: "#555", marginTop: 6, lineHeight: 20 },
+  encart: { marginTop: space.sm },
+  titre: { fontSize: 18, color: colors.text, ...type.heading },
+  intro: { fontSize: 14, color: colors.textSecondary, marginTop: space.sm, lineHeight: 20 },
 });
