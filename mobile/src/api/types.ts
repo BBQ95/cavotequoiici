@@ -231,6 +231,11 @@ export interface components {
                 string,
                 number
             ][];
+            /**
+             * Repartition
+             * @default []
+             */
+            repartition: components["schemas"]["FamilleSynthese"][];
         };
         /**
          * DetailScrutinResponse
@@ -246,6 +251,16 @@ export interface components {
             /** Participation */
             participation: number;
             couleur: components["schemas"]["CouleurScrutin"];
+        };
+        /**
+         * FamilleSynthese
+         * @description Part synthétique (pondérée) d'une famille politique dans la couleur de la ville.
+         */
+        FamilleSynthese: {
+            /** Famille */
+            famille: string;
+            /** Part */
+            part: number;
         };
         /**
          * FamilleVoix

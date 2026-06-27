@@ -13,6 +13,13 @@ class CommuneResultat(BaseModel):
     departement: str | None = None
 
 
+class FamilleSynthese(BaseModel):
+    """Part synthétique (pondérée) d'une famille politique dans la couleur de la ville."""
+
+    famille: str
+    part: float
+
+
 class CouleurSynthese(BaseModel):
     """Couleur politique synthétique d'une commune."""
 
@@ -23,6 +30,7 @@ class CouleurSynthese(BaseModel):
     hex: str
     participation_mediane: float
     scrutins_inclus: list[tuple[str, float]]
+    repartition: list[FamilleSynthese] = []
 
 
 class CommuneFiche(BaseModel):

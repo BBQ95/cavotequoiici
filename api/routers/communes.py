@@ -16,17 +16,24 @@ from api.schemas.communes import (
     CommuneProximite,
     CommuneResultat,
     CouleurSynthese,
+    FamilleSynthese,
 )
 from pipeline.couleur import OKLCH, oklch_to_hex
 
 router = APIRouter(prefix="/communes", tags=["communes"])
 
 
+def _json_col(valeur):
+    """Décode une colonne JSON qui peut arriver en str (selon le driver)."""
+    if isinstance(valeur, str):
+        return json.loads(valeur)
+    return valeur
+
+
 def _synthese(row) -> CouleurSynthese:
     """Construit une CouleurSynthese depuis une ligne couleurs_ville."""
-    scrutins = row.scrutins_inclus
-    if isinstance(scrutins, str):  # JSON sérialisé (selon le driver)
-        scrutins = json.loads(scrutins)
+    scrutins = _json_col(row.scrutins_inclus)
+    repartition = _json_col(getattr(row, "repartition", None)) or []
     return CouleurSynthese(
         code_insee=row.code_insee,
         l=row.l,
@@ -35,6 +42,9 @@ def _synthese(row) -> CouleurSynthese:
         hex=oklch_to_hex(OKLCH(L=row.l, C=row.c, H=row.h)),
         participation_mediane=row.participation_mediane,
         scrutins_inclus=[(t, p) for t, p in scrutins],
+        repartition=[
+            FamilleSynthese(famille=e["famille"], part=e["part"]) for e in repartition
+        ],
     )
 
 
@@ -95,8 +105,8 @@ def couleur(insee: str, conn=Depends(get_conn)):
     """Couleur synthétique OKLCH + participation d'une commune."""
     row = conn.execute(
         text(
-            "SELECT code_insee, l, c, h, participation_mediane, scrutins_inclus "
-            "FROM couleurs_ville WHERE code_insee = :x"
+            "SELECT code_insee, l, c, h, participation_mediane, scrutins_inclus, "
+            "repartition FROM couleurs_ville WHERE code_insee = :x"
         ),
         {"x": insee},
     ).fetchone()
@@ -111,7 +121,8 @@ def fiche(insee: str, conn=Depends(get_conn)):
     row = conn.execute(
         text(
             "SELECT c.code_insee, c.nom, c.departement, c.region, c.population, "
-            "cv.l, cv.c, cv.h, cv.participation_mediane, cv.scrutins_inclus "
+            "cv.l, cv.c, cv.h, cv.participation_mediane, cv.scrutins_inclus, "
+            "cv.repartition "
             "FROM communes c JOIN couleurs_ville cv ON cv.code_insee = c.code_insee "
             "WHERE c.code_insee = :x"
         ),

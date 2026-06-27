@@ -8,6 +8,7 @@ type Schemas = components["schemas"];
 export type CommuneResultat = Schemas["CommuneResultat"];
 export type CouleurSynthese = Schemas["CouleurSynthese"];
 export type CommuneFiche = Schemas["CommuneFiche"];
+export type FamilleSynthese = Schemas["FamilleSynthese"];
 export type CommuneProximite = Schemas["CommuneProximite"];
 export type ListeScrutinsResponse = Schemas["ListeScrutinsResponse"];
 export type ScrutinInclus = Schemas["ScrutinInclus"];

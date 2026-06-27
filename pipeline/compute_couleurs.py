@@ -169,6 +169,9 @@ def main() -> None:
                 "h": ok.H,
                 "participation_mediane": res["participation"],
                 "scrutins_inclus": json.dumps(res["scrutins_inclus"]),
+                "repartition": json.dumps(
+                    [{"famille": f, "part": p} for f, p in res["repartition"]]
+                ),
             }
         )
 
@@ -188,9 +191,10 @@ def main() -> None:
             conn.execute(
                 text(
                     "INSERT INTO couleurs_ville "
-                    "(code_insee, l, c, h, participation_mediane, scrutins_inclus) "
+                    "(code_insee, l, c, h, participation_mediane, scrutins_inclus, "
+                    "repartition) "
                     "VALUES (:code_insee, :l, :c, :h, :participation_mediane, "
-                    ":scrutins_inclus)"
+                    ":scrutins_inclus, :repartition)"
                 ),
                 lignes_ville,
             )
