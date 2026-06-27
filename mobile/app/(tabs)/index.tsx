@@ -122,7 +122,13 @@ export default function Accueil() {
         renderItem={({ item }) => (
           <Pressable
             style={styles.ligne}
-            onPress={() => ouvrir({ code_insee: item.code_insee, nom: item.nom })}
+            onPress={() =>
+              ouvrir({
+                code_insee: item.code_insee,
+                nom: item.nom,
+                departement: item.departement,
+              })
+            }
             accessibilityRole="button"
           >
             <View
