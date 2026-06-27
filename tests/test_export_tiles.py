@@ -56,6 +56,12 @@ class TestFeatureProprietes:
         props = feature_proprietes(_ligne(repartition=None))
         assert props["famille"] == "divers"
 
+    def test_repartition_en_chaine_json_est_decodee(self):
+        """Selon le driver, la colonne JSON peut revenir en chaîne (lecture via
+        text() brut) — la famille dominante doit quand même être extraite."""
+        row = _ligne(repartition='[{"famille": "gauche", "part": 0.41}]')
+        assert feature_proprietes(row)["famille"] == "gauche"
+
     def test_participation_nulle_donne_none(self):
         props = feature_proprietes(_ligne(participation_mediane=None))
         assert props["participation"] is None

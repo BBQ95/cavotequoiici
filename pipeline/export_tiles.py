@@ -28,6 +28,7 @@ from typing import Any, Iterator, Mapping
 from sqlalchemy import create_engine, text
 
 from pipeline.couleur import OKLCH, COULEURS, oklch_to_hex
+from pipeline.jsoncol import decode_json_col
 
 DEFAUT_DB_URL = "postgresql+psycopg2://postgres:cavote@localhost:5432/postgres"
 
@@ -68,7 +69,9 @@ def feature_proprietes(row: Mapping[str, Any]) -> dict[str, Any]:
     (liste de {famille, part} triée par part décroissante, telle que produite
     par `compute_couleurs`).
     """
-    repartition = row["repartition"] or []
+    # `repartition` est une colonne sa.JSON() lue via text() brut : selon le
+    # driver elle peut arriver en chaîne JSON non décodée (cf. pipeline.jsoncol).
+    repartition = decode_json_col(row["repartition"]) or []
     famille = repartition[0]["famille"] if repartition else "divers"
     # Garde-fou : une famille inconnue de la palette retomberait sur `divers`
     # côté client ; on n'invente pas de teinte ici, on transmet la famille.
