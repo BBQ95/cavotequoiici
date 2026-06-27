@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 
 import { useFiche } from "../../src/api/queries";
 import { RepartitionBar } from "../../src/components/RepartitionBar";
@@ -41,6 +42,11 @@ export default function Partager() {
     } catch {
       // partage annulé : rien à faire
     }
+  }
+
+  async function copierLien() {
+    await Clipboard.setStringAsync(lien);
+    Alert.alert("Lien copié", "Le lien vers cette commune est dans le presse-papier.");
   }
 
   function aVenir(quoi: string) {
@@ -126,7 +132,7 @@ export default function Partager() {
         <Text style={styles.apercu}>Aperçu de l'image partagée</Text>
 
         <View style={styles.actionsRow}>
-          <ActionSecondaire icone="link" label="Copier" onPress={partager} />
+          <ActionSecondaire icone="link" label="Copier" onPress={copierLien} />
           <ActionSecondaire
             icone="image"
             label="Image"

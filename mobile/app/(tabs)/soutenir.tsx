@@ -7,6 +7,8 @@ import { colors, radius, space, type } from "../../src/theme/tokens";
 
 const DEPOT = "https://github.com/BBQ95/cavotequoiici";
 // Plateformes de don (liens sortants ; pas de paiement in-app au lancement).
+// TODO produit : créer/confirmer le compte de don avant publication — cette URL
+// est un placeholder et renverrait un 404 tant que la page n'existe pas.
 const DON_URL = "https://liberapay.com/cavotequoiici";
 
 const MONTANTS = [
