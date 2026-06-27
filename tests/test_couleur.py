@@ -365,3 +365,98 @@ class TestCouleurVille:
             val = resultat[key]
             # Vérifier qu'on a au plus 3 décimales
             assert round(val, 3) == val, f"{key} non arrondi à 3 décimales : {val}"
+
+    # -- Tests de durcissement (revue Fred) ------------------------------------
+
+    def test_famille_inconnue_dominante_fallback_divers(self):
+        """Point 1 : une famille absente de COULEURS ne doit pas lever KeyError.
+
+        La couleur de fallback doit être celle de « divers » (#9AA0A6).
+        """
+        scrutins = [
+            ResultatScrutin(
+                type_scrutin="pres_t1",
+                age_annees=0.0,
+                parts_familles={"inconnue_famille": 0.70, "gauche": 0.30},
+                participation=0.60,
+            ),
+        ]
+        # Ne doit pas lever KeyError
+        resultat = couleur_ville(scrutins, participation_mediane=0.60)
+        assert resultat["famille_dominante"] == "inconnue_famille"
+        assert resultat["hex"].startswith("#")
+        assert len(resultat["hex"]) == 7
+        # La couleur produite doit correspondre au fallback « divers »
+        couleur_oklch = hex_to_oklch(resultat["hex"])
+        base_divers = hex_to_oklch(COULEURS["divers"])
+        # Le hue doit être identique à celui de divers
+        assert abs(couleur_oklch.H - base_divers.H) < 1.0
+
+    def test_participation_mediane_zero_pas_zero_division(self):
+        """Point 2 : participation_mediane == 0 ne doit pas lever ZeroDivisionError.
+
+        Le facteur_participation doit tomber au plancher 0.55.
+        """
+        scrutins = [
+            ResultatScrutin(
+                type_scrutin="pres_t1",
+                age_annees=0.0,
+                parts_familles={"gauche": 0.55, "droite": 0.45},
+                participation=0.65,
+            ),
+        ]
+        # Ne doit pas lever ZeroDivisionError
+        resultat = couleur_ville(scrutins, participation_mediane=0.0)
+        assert resultat["hex"].startswith("#")
+        assert len(resultat["hex"]) == 7
+        assert resultat["famille_dominante"] == "gauche"
+        # Vérifier que la chroma correspond au plancher 0.55
+        couleur_oklch = hex_to_oklch(resultat["hex"])
+        base_gauche = hex_to_oklch(COULEURS["gauche"])
+        # Avec facteur_participation = 0.55 et saturation_marge = 0.45 + marge*1.6
+        # marge = 0.55 - 0.45 = 0.10 → saturation_marge = 0.45 + 0.16 = 0.61
+        expected_C = base_gauche.C * 0.61 * 0.55
+        assert math.isclose(couleur_oklch.C, expected_C, rel_tol=0.01)
+
+    def test_t2_famille_absente_non_dans_repartition(self):
+        """Point 3 : une famille n'apparaissant qu'en second tour ne doit
+        pas figurer dans la repartition (qui ne somme que sur les scrutins
+        retenus, i.e. t1).
+        """
+        scrutins = [
+            ResultatScrutin(
+                type_scrutin="pres_t1",
+                age_annees=1.0,
+                parts_familles={"gauche": 0.55, "droite": 0.45},
+                participation=0.65,
+            ),
+            ResultatScrutin(
+                type_scrutin="pres_t2",
+                age_annees=0.5,
+                parts_familles={"gauche": 0.50, "ecologistes": 0.50},
+                participation=0.60,
+            ),
+        ]
+        resultat = couleur_ville(scrutins, participation_mediane=0.60)
+        familles_repartition = {f for f, _ in resultat["repartition"]}
+        # « ecologistes » n'apparaît qu'en t2 → ne doit pas figurer
+        assert "ecologistes" not in familles_repartition
+        # Les familles de t1 doivent figurer
+        assert "gauche" in familles_repartition
+        assert "droite" in familles_repartition
+
+    def test_repartition_arrondie_trois_decimales(self):
+        """Point 3 (suite) : les valeurs de repartition sont arrondies à 3 décimales."""
+        scrutins = [
+            ResultatScrutin(
+                type_scrutin="pres_t1",
+                age_annees=0.0,
+                parts_familles={"gauche": 0.523456, "droite": 0.476544},
+                participation=0.60,
+            ),
+        ]
+        resultat = couleur_ville(scrutins, participation_mediane=0.60)
+        for famille, part in resultat["repartition"]:
+            assert round(part, 3) == part, (
+                f"repartition[{famille}] non arrondi à 3 décimales : {part}"
+            )
