@@ -310,10 +310,21 @@ def lire_csv_robuste(csv_path: Path, separator: str = ";") -> pl.DataFrame:
         quote_char='"',
     )
     try:
-        return pl.read_csv(str(csv_path), encoding="utf-8", **common_kwargs)
+        df = pl.read_csv(str(csv_path), encoding="utf-8", **common_kwargs)
     except (pl.exceptions.ComputeError, UnicodeDecodeError):
-        print(f"  ⚠️ Lecture UTF-8 échouée, retry en latin-1 (ISO-8859-1)…")
+        print("  ⚠️ Lecture UTF-8 échouée, retry en latin-1 (ISO-8859-1)…")
         return pl.read_csv(str(csv_path), encoding="latin1", **common_kwargs)
+
+    # Vérifier la présence du caractère de remplacement Unicode (U+FFFD),
+    # signe que l'UTF-8 n'était pas le bon encodage → retry en latin-1.
+    for col in df.columns:
+        if df[col].dtype == pl.Utf8:
+            sample = df[col].head(100).to_list()
+            if any("\ufffd" in (v or "") for v in sample):
+                print("  ⚠️ Caractères de remplacement (U+FFFD) détectés, retry en latin-1…")
+                return pl.read_csv(str(csv_path), encoding="latin1", **common_kwargs)
+
+    return df
 
 
 def build_lignes_insertion(
@@ -402,6 +413,17 @@ def main() -> None:
     df_long = parse_resultats_commune(df)
     print(f"  → {df_long.shape[0]} lignes (commune × nuance)")
 
+    # 4b. Assertion de volume : vérifier le nombre de communes distinctes
+    #     capturées. Si nettement inférieur à ~35 000 (total des communes
+    #     françaises), les petites communes sont peut-être exclues.
+    nb_communes = df_long["code_insee"].n_unique()
+    print(f"  → {nb_communes} communes distinctes capturées")
+    if nb_communes < 30_000:
+        sys.exit(
+            f"⚠ Seulement {nb_communes} communes capturées sur ~35 000 attendues "
+            f"— les petites communes sont peut-être exclues"
+        )
+
     # 5. Agréger (sécurité : somme si doublons)
     df_agg = aggregate_voix(df_long)
     print(f"  → {df_agg.shape[0]} lignes après agrégation")
@@ -422,11 +444,14 @@ def main() -> None:
     upsert_scrutin(SCRUTIN_ID, SCRUTIN_TYPE, TOUR, DATE_SCRUTIN, POIDS, engine)
     print(f"Scrutin upserté : {SCRUTIN_ID}")
 
-    # 9. Insérer les résultats
+    # 9. Avertissement : classification provisoire
+    print("⚠ Classification municipales 2026 PROVISOIRE — à confirmer par circulaire MI")
+
+    # 10. Insérer les résultats
     nb = inserer_resultats(lignes, SCRUTIN_ID, engine)
     print(f"{nb} résultats insérés")
 
-    # 10. Vérifier qu'il ne reste aucun orphelin
+    # 11. Vérifier qu'il ne reste aucun orphelin
     orphelins = compter_orphelins(SCRUTIN_ID, engine)
     print(f"Orphelins : {orphelins}")
     if orphelins > 0:

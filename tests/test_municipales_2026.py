@@ -651,12 +651,99 @@ class TestLireCsvRobuste:
         assert "Clémenciat" in libelle, f"Accent corrompu : {libelle!r}"
 
     def test_lit_vrai_fichier_data(self):
-        """Lit le vrai fichier data/municipales_2026_t1_communes.csv s'il existe."""
+        """Lit le vrai fichier data/municipales_2026_t1_communes.csv.
+
+        Test NON skippé : si le fichier est absent, le test ÉCHOUE (pas skip),
+        car cela signifie que le fichier de données n'a pas été téléchargé.
+        """
         data_path = Path(__file__).resolve().parents[1] / "data" / "municipales_2026_t1_communes.csv"
-        if not data_path.exists():
-            pytest.skip("Fichier data/municipales_2026_t1_communes.csv absent")
+        assert data_path.exists(), (
+            f"Fichier de données absent : {data_path} — téléchargez-le avant de lancer les tests"
+        )
         df = lire_csv_robuste(data_path)
         assert df.shape[0] > 0
         # Les colonnes obligatoires doivent être présentes
         for col in COLONNES_OBLIGATOIRES:
             assert col in df.columns, f"Colonne {col!r} absente du vrai fichier"
+
+    def test_utf8_replacement_char_triggers_latin1_fallback(self, tmp_path):
+        """Si la lecture UTF-8 produit des caractères de remplacement (U+FFFD),
+        lire_csv_robuste doit retenter en latin-1."""
+        # Un fichier contenant des bytes latin-1 mal interprétés en UTF-8
+        # produira des U+FFFD si polars les remplace au lieu de lever une erreur.
+        # Simulons un cas où la lecture UTF-8 réussit mais produit des U+FFFD.
+        # (Ce test vérifie la logique du fallback U+FFFD.)
+        # Cas réel : un fichier avec un caractère non-ASCII en latin-1 qui n'est
+        # pas de l'UTF-8 valide mais que polars lit sans lever d'erreur.
+        # On construit un CSV avec un byte 0xE9 (é en latin-1) qui n'est pas
+        # de l'UTF-8 valide — selon le comportement de polars, ça peut lever
+        # une ComputeError (déjà couvert par test_lit_fichier_latin1) ou
+        # produire des U+FFFD.
+        # Ici on teste surtout que la fonction ne crash pas sur du contenu
+        # avec U+FFFD explicite.
+        content = (
+            '"Code commune";"Libellé commune";"Exprimés";"Inscrits";"Nuance liste 1";"Voix 1"\r\n'
+            '"01001";"Test\ufffd";"100";"200";"LFI";"50"\r\n'
+        )
+        f = tmp_path / "test_replacement.csv"
+        f.write_bytes(content.encode("utf-8"))
+        df = lire_csv_robuste(f)
+        assert df.shape[0] == 1
+        assert df["Code commune"][0] == "01001"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests : validation sur le vrai fichier data.gouv.fr
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestVraiFichierDataGouv:
+    """Tests non-skippés sur le vrai fichier data/municipales_2026_t1_communes.csv.
+
+    Ces tests ÉCHOIENT (pas skip) si le fichier est absent, car son absence
+    signifie que l'environnement de test n'est pas complet.
+    """
+
+    DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "municipales_2026_t1_communes.csv"
+
+    def _load_df(self) -> pl.DataFrame:
+        """Charge le vrai fichier (helper partagé)."""
+        assert self.DATA_PATH.exists(), (
+            f"Fichier de données absent : {self.DATA_PATH} — "
+            f"téléchargez-le avant de lancer les tests"
+        )
+        return lire_csv_robuste(self.DATA_PATH)
+
+    def test_parse_vrai_fichier_capture_communes_avec_nuance(self):
+        """parse_resultats_commune capture des communes AVEC nuance officielle
+        (communes ≥ 1000 hab.) sur le vrai fichier."""
+        df = self._load_df()
+        df_long = parse_resultats_commune(df)
+        # Il doit y avoir des lignes avec une nuance autre que LUD
+        nuances_officielles = df_long.filter(pl.col("nuance") != "LUD")
+        assert nuances_officielles.shape[0] > 0, (
+            "Aucune commune avec nuance officielle capturée — "
+            "les communes ≥ 1000 hab. sont peut-être exclues"
+        )
+
+    def test_parse_vrai_fichier_capture_communes_sans_nuance(self):
+        """parse_resultats_commune capture des communes SANS nuance officielle
+        (communes < 1000 hab., attribuées à LUD) sur le vrai fichier."""
+        df = self._load_df()
+        df_long = parse_resultats_commune(df)
+        # Il doit y avoir des lignes avec la nuance LUD (petites communes)
+        lud_rows = df_long.filter(pl.col("nuance") == "LUD")
+        assert lud_rows.shape[0] > 0, (
+            "Aucune commune sans nuance officielle (LUD) capturée — "
+            "les communes < 1000 hab. sont peut-être exclues"
+        )
+
+    def test_parse_vrai_fichier_volume_communes(self):
+        """Le parsing du vrai fichier doit capturer un nombre significatif de
+        communes distinctes (au moins 30 000 sur ~35 000 attendues)."""
+        df = self._load_df()
+        df_long = parse_resultats_commune(df)
+        nb_communes = df_long["code_insee"].n_unique()
+        assert nb_communes >= 30_000, (
+            f"Seulement {nb_communes} communes capturées sur ~35 000 attendues — "
+            f"les petites communes sont peut-être exclues"
+        )
