@@ -35,7 +35,7 @@ nuance,famille,scrutin_type,annee,date_classification,date_debut,date_fin,source
 | Législatives 2022 | circulaire « attribution des nuances » (18 nuances) | 2022-05-13 | Légifrance id/45336 (+ injonction CE NUPES, juin 2022) |
 | Européennes 2024 | listes (nuance = parti/tête de liste) | 2024-06-09 | data.gouv.fr |
 | Législatives 2024 | instruction « attribution des nuances » (24 nuances) | 2024-06-11 | Légifrance id/45565 |
-| Municipales 2026 | circulaire « attribution des nuances » | 2026 | data.gouv.fr (classification à confirmer) |
+| Municipales 2026 | circulaire « attribution des nuances » | 2026 | circulaire non encore publiée au 2026-06-27 (référence à confirmer : Légifrance id/45645 ou data.gouv.fr) |
 | Précédent CE | circulaire municipales 2020 partiellement suspendue (seuil 9000 hab. ; « Debout la France » mal classé extrême droite) | 2020-01-31 | CE n° 437675 |
 
 ## Remarques de classification

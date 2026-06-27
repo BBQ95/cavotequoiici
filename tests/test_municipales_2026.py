@@ -650,11 +650,12 @@ class TestLireCsvRobuste:
         libelle = df["Libellé commune"][0]
         assert "Clémenciat" in libelle, f"Accent corrompu : {libelle!r}"
 
+    @pytest.mark.integration
     def test_lit_vrai_fichier_data(self):
         """Lit le vrai fichier data/municipales_2026_t1_communes.csv.
 
-        Test NON skippé : si le fichier est absent, le test ÉCHOUE (pas skip),
-        car cela signifie que le fichier de données n'a pas été téléchargé.
+        Test d'intégration : nécessite le fichier de données (non committé).
+        Skippé par défaut (cf. conftest.py). Lancer avec: pytest -m integration
         """
         data_path = Path(__file__).resolve().parents[1] / "data" / "municipales_2026_t1_communes.csv"
         assert data_path.exists(), (
@@ -696,11 +697,12 @@ class TestLireCsvRobuste:
 # Tests : validation sur le vrai fichier data.gouv.fr
 # ──────────────────────────────────────────────────────────────────────────────
 
+@pytest.mark.integration
 class TestVraiFichierDataGouv:
-    """Tests non-skippés sur le vrai fichier data/municipales_2026_t1_communes.csv.
+    """Tests d'intégration sur le vrai fichier data/municipales_2026_t1_communes.csv.
 
-    Ces tests ÉCHOIENT (pas skip) si le fichier est absent, car son absence
-    signifie que l'environnement de test n'est pas complet.
+    Ces tests nécessitent le fichier de données (non committé, ~plusieurs Mo).
+    Skippés par défaut (cf. conftest.py). Lancer avec: pytest -m integration
     """
 
     DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "municipales_2026_t1_communes.csv"
