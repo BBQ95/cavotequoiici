@@ -1,0 +1,23 @@
+nuance,famille,scrutin_type,annee,date_classification,date_debut,date_fin,source
+EXG,extreme_gauche,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (instruction nuances 2024)
+FI,extreme_gauche,legislatives_t1,2024,2024-06-11,,,"Légifrance id/45565 — La France insoumise ; classification extrême gauche débattue (contrôle CE)"
+COM,gauche,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (Parti communiste)
+UG,gauche,legislatives_t1,2024,2024-06-11,,,"Légifrance id/45565 — Union de la gauche (Nouveau Front populaire)"
+SOC,gauche,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (Parti socialiste)
+RDG,gauche,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (radicaux de gauche)
+DVG,gauche,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (divers gauche)
+VEC,ecologistes,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (Les Écologistes / EELV)
+ECO,ecologistes,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (écologistes divers)
+ENS,centre,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (Ensemble, majorité présidentielle)
+DVC,centre,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (divers centre)
+HOR,centre,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (Horizons)
+UDI,centre,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (UDI)
+LR,droite,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (Les Républicains)
+DVD,droite,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (divers droite)
+DSV,droite,legislatives_t1,2024,2024-06-11,,,"Légifrance id/45565 — droite souverainiste ; classé droite (cf. CE n° 437675 sur DLF)"
+REG,divers,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (régionalistes)
+DIV,divers,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (divers)
+RN,extreme_droite,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (Rassemblement national)
+REC,extreme_droite,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (Reconquête)
+UXD,extreme_droite,legislatives_t1,2024,2024-06-11,,,"Légifrance id/45565 — Union de l'extrême droite (alliance RN / LR-Ciotti, 2024)"
+EXD,extreme_droite,legislatives_t1,2024,2024-06-11,,,Légifrance id/45565 (extrême droite)
