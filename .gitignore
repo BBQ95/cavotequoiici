@@ -1,0 +1,41 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / Expo (mobile)
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.tsbuildinfo
+
+# Secrets & env
+*.env
+.env
+.env.*
+!*.env.example
+
+# Données brutes & artefacts du pipeline (volumineux, non versionnés)
+data/
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.csv.gz
+tiles/*.pmtiles
+tiles/*.mbtiles
+/tmp/
+
+# OS / éditeurs
+.DS_Store
+*.swp
+.idea/
+.vscode/

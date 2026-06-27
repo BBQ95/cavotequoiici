@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+polars
+psycopg2-binary
+SQLAlchemy
+alembic
+geopandas
+pyyaml
+pytest

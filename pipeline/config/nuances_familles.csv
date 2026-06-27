@@ -1,0 +1,34 @@
+# SQUELETTE — à compléter par type de scrutin et par année (les nuances officielles du
+# Ministère de l'Intérieur évoluent d'une élection à l'autre).
+# Document canonique : Outline "CaVoteQuoiIci" — "Concept & modèle de couleur politique" §2.
+# Colonnes : type_scrutin ; annee ; nuance (code officiel) ; famille (cf. familles.csv).
+# Les lignes ci-dessous sont des EXEMPLES non exhaustifs (à valider/compléter avant ingestion).
+type_scrutin,annee,nuance,famille
+presidentielle_t1,2022,LO,extreme_gauche
+presidentielle_t1,2022,NPA,extreme_gauche
+presidentielle_t1,2022,LFI,extreme_gauche
+presidentielle_t1,2022,PCF,gauche
+presidentielle_t1,2022,PS,gauche
+presidentielle_t1,2022,EELV,ecologistes
+presidentielle_t1,2022,ENS,centre
+presidentielle_t1,2022,LR,droite
+presidentielle_t1,2022,RN,extreme_droite
+presidentielle_t1,2022,REC,extreme_droite
+legislatives_t1,2024,UG,gauche
+legislatives_t1,2024,ECO,ecologistes
+legislatives_t1,2024,ENS,centre
+legislatives_t1,2024,LR,droite
+legislatives_t1,2024,RN,extreme_droite
+legislatives_t1,2024,DVD,droite
+legislatives_t1,2024,DVG,gauche
+europeennes,2024,LFI,extreme_gauche
+europeennes,2024,PS,gauche
+europeennes,2024,EELV,ecologistes
+europeennes,2024,REN,centre
+europeennes,2024,LR,droite
+europeennes,2024,RN,extreme_droite
+europeennes,2024,REC,extreme_droite
+municipales_t1,2026,LDIV,divers
+municipales_t1,2026,LUG,gauche
+municipales_t1,2026,LRN,extreme_droite
+municipales_t1,2026,LREG,divers
