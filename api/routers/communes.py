@@ -5,8 +5,6 @@ Lecture seule sur les tables précalculées (`communes`, `couleurs_ville`).
 
 from __future__ import annotations
 
-import json
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 
@@ -19,15 +17,14 @@ from api.schemas.communes import (
     FamilleSynthese,
 )
 from pipeline.couleur import OKLCH, oklch_to_hex
+from pipeline.jsoncol import decode_json_col
 
 router = APIRouter(prefix="/communes", tags=["communes"])
 
 
 def _json_col(valeur):
     """Décode une colonne JSON qui peut arriver en str (selon le driver)."""
-    if isinstance(valeur, str):
-        return json.loads(valeur)
-    return valeur
+    return decode_json_col(valeur)
 
 
 def _synthese(row) -> CouleurSynthese:

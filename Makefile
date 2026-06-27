@@ -1,6 +1,6 @@
 PY := .venv/bin/python
 
-.PHONY: help venv db-up db-down migrate data couleurs api types test fresh
+.PHONY: help venv db-up db-down migrate data couleurs tiles api types test fresh
 
 help:  ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -26,6 +26,9 @@ data:  ## Pipeline complet : contours + 4 scrutins + couleurs
 
 couleurs:  ## Recalcule uniquement les couleurs
 	$(PY) -m pipeline.compute_couleurs
+
+tiles:  ## Génère les tuiles vectorielles PMTiles (Étape 6 ; nécessite tippecanoe)
+	$(PY) -m pipeline.export_tiles
 
 # NB : port 8200 — le 8000 est RÉSERVÉ à workspace-mcp (intégration Google de Boss), ne pas l'utiliser.
 api:  ## Lance l'API en développement (rechargement auto)
