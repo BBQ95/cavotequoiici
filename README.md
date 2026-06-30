@@ -25,12 +25,71 @@
 | `tiles/` | Génération des tuiles vectorielles (tippecanoe → PMTiles) — V1 |
 | `docs/` | Documentation complémentaire |
 
+```
+┌─────────────────────────────────────────────────┐
+│  MOBILE (React Native / Expo — TypeScript)       │
+│  ┌─────────┐ ┌──────┐ ┌────────┐ ┌─────────┐     │
+│  │ Maison  │ │ Carte│ │Méthode │ │Soutenir │     │
+│  └─────────┘ └──────┘ └────────┘ └─────────┘     │
+│  Components: ColorHero, RepartitionBar,          │
+│  ScrutinDetail, TransparenceEncart               │
+│  Data: TanStack Query → client.ts                │
+└──────────────────┬──────────────────────────────┘
+                   │ REST API
+┌──────────────────▼──────────────────────────────┐
+│  BACKEND API (FastAPI — Python)                 │
+│  Routers:                                       │
+│  • communes.py → GET /communes/{insee}          │
+│    GET /communes/{insee}/couleur                │
+│  • scrutins.py → GET /communes/{insee}/scrutins │
+│    GET /communes/{insee}/scrutins/{id}          │
+│  Pydantic schemas · SQLAlchemy + psycopg2       │
+└──────────────────┬──────────────────────────────┘
+                   │ SQL queries
+┌──────────────────▼──────────────────────────────┐
+│  BASE DE DONNÉES (PostgreSQL)                   │
+│  • communes (code_insee, nom, geom)             │
+│  • scrutins (id, type, date, poids)             │
+│  • resultats_scrutin (insee, scrutin_id,         │
+│    nuance, voix, exprimes, inscrits)             │
+│  • couleurs_ville (insee, hex, famille_dominante,│
+│    scrutins_inclus JSON)                         │
+│  • couleurs_scrutin (insee, scrutin_id, L,C,H)  │
+└──────────────────┬──────────────────────────────┘
+                   │ pipeline Python
+┌──────────────────▼──────────────────────────────┐
+│  PIPELINE DE DONNÉES (Python — Polars)          │
+│                                                  │
+│  Ingestion:                  Config:             │
+│  • presidentielle_2022.py    • nuances/*.csv     │
+│  • legislatives_2024.py        (nuance→famille)  │
+│  • europeennes_2024.py       • poids_scrutins.yaml│
+│  • municipales_2026.py                           │
+│      ↓ data.gouv.fr CSV                          │
+│                                                  │
+│  Calcul:                                          │
+│  • couleur.py (OKLCH: clamp, poids_recence,     │
+│    poids_scrutin, couleur_ville, hex↔oklch)      │
+│  • compute_couleurs.py → couleurs_ville/         │
+│    couleurs_scrutin                              │
+│  • synthese.py → synthèse pondérée              │
+│  • run_all.py → orchestration                    │
+│  • export_tiles.py → tuiles vectorielles (V1)   │
+└─────────────────────────────────────────────────┘
+
+Flux de données (bottom → top):
+CSV data.gouv.fr → Ingest Polars → PostgreSQL →
+Compute couleurs OKLCH → API FastAPI → Mobile app
+```
+
 ## Stack
 
 - **Mobile** : React Native + Expo (TypeScript), MapLibre Native, TanStack Query
-- **Backend** : Python + FastAPI, PostgreSQL + PostGIS
-- **Données** : pipeline Python (Polars) ingérant les CSV du Ministère de l'Intérieur (data.gouv.fr)
+- **Backend** : Python + FastAPI, Pydantic, SQLAlchemy + psycopg2
+- **Base de données** : PostgreSQL + PostGIS
+- **Pipeline** : Python, Polars, Alembic (migrations)
 - **Cartographie** : tuiles vectorielles précalculées (tippecanoe → PMTiles)
+- **Données** : data.gouv.fr (Ministère de l'Intérieur)
 
 ## Méthodologie
 
