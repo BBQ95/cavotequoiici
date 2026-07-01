@@ -28,9 +28,9 @@
 ```
 ┌─────────────────────────────────────────────────┐
 │  MOBILE (React Native / Expo — TypeScript)       │
-│  ┌─────────┐ ┌──────┐ ┌────────┐ ┌─────────┐     │
-│  │ Maison  │ │ Carte│ │Méthode │ │Soutenir │     │
-│  └─────────┘ └──────┘ └────────┘ └─────────┘     │
+│  ┌─────────┐ ┌──────┐ ┌────────┐                 │
+│  │ Maison  │ │ Carte│ │Méthode │                 │
+│  └─────────┘ └──────┘ └────────┘                 │
 │  Components: ColorHero, RepartitionBar,          │
 │  ScrutinDetail, TransparenceEncart               │
 │  Data: TanStack Query → client.ts                │

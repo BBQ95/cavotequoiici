@@ -4,7 +4,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { colors } from "../../src/theme/tokens";
 
 /**
- * Barre d'onglets persistante (cf. maquettes) : Rechercher · Carte · Soutenir · Méthode.
+ * Barre d'onglets persistante (cf. maquettes) : Rechercher · Carte · Méthode.
  * Fiche commune (poussée) et Partager (modale) ne sont pas des onglets.
  */
 export default function TabsLayout() {
@@ -36,15 +36,6 @@ export default function TabsLayout() {
           title: "Carte",
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="map" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="soutenir"
-        options={{
-          title: "Soutenir",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="volunteer-activism" size={size} color={color} />
           ),
         }}
       />
