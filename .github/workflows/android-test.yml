@@ -28,7 +28,7 @@ jobs:
   build:
     name: Build APK + distribution Firebase
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     env:
       # URL publique des tuiles (Funnel) embarquée dans le bundle release.
       # Donnée publique (couleurs électorales), pas un secret. Requise car le
@@ -50,6 +50,7 @@ jobs:
         with:
           java-version: "17"
           distribution: temurin
+          cache: gradle
 
       - name: Dépendances JS
         working-directory: mobile
@@ -61,9 +62,12 @@ jobs:
 
       - name: Build APK release (JS embarqué, signé debug)
         working-directory: mobile/android
+        # arm64-v8a seulement : téléphones courants pour la QA. Éviter la
+        # compilation native RN (New Architecture, C++) des 4 ABIs, bien trop
+        # longue sur un runner 2 cœurs (>40 min).
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
 
       - name: Artefact APK (filet de sécurité, téléchargeable depuis le run)
         uses: actions/upload-artifact@v4
