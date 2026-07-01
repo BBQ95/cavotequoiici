@@ -50,7 +50,8 @@ jobs:
         with:
           java-version: "17"
           distribution: temurin
-          cache: gradle
+          # Pas de `cache: gradle` : le projet Android n'existe qu'après le
+          # prebuild, il n'y a rien à hasher au checkout (setup-java échouerait).
 
       - name: Dépendances JS
         working-directory: mobile
