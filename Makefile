@@ -36,7 +36,7 @@ api:  ## Lance l'API en développement (rechargement auto)
 
 types:  ## Régénère les types TypeScript du mobile depuis l'OpenAPI
 	$(PY) -m api.openapi_export openapi.json
-	npx --yes openapi-typescript openapi.json -o mobile/src/api/types.ts
+	npx --yes openapi-typescript@7.13.0 openapi.json -o mobile/src/api/types.ts
 
 test:  ## Lance la suite de tests
 	$(PY) -m pytest -q

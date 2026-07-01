@@ -7,7 +7,14 @@ Couvre :
   - Structure des réponses
 """
 
+import os
+
 import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("DATABASE_URL"),
+    reason="DATABASE_URL non définie (test d'intégration BDD)",
+)
 
 
 # ---------------------------------------------------------------------------
