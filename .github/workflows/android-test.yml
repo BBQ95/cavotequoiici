@@ -1,0 +1,90 @@
+name: Android — build & distribute
+
+# Construit un APK installable de l'app Expo/React Native et le distribue via
+# Firebase App Distribution (groupe `testeurs`) pour la QA sur téléphone réel —
+# le VPS ne peut pas builder/émuler (pas de device/KVM/NDK). Adapté du runbook
+# Hermès « Tester les apps Android » (là un projet Kotlin natif ; ici Expo, d'où
+# le `expo prebuild` + `assembleRelease` avec JS embarqué).
+#
+# L'APK release utilise la signature debug (config générée par Expo) → autonome
+# et installable pour test, sans keystore de release.
+#
+# Sans secrets Firebase/Telegram, le build tourne quand même : l'APK reste
+# téléchargeable en artefact du run (filet de sécurité) ; distribution et
+# notification s'activent dès que les secrets sont posés.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build APK + distribution Firebase
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      # URL publique des tuiles (Funnel) embarquée dans le bundle release.
+      # Donnée publique (couleurs électorales), pas un secret. Requise car le
+      # fallback dev de src/lib/tiles.ts n'agit que sous __DEV__.
+      EXPO_PUBLIC_TILES_URL: https://hermes-vps.tail5957ae.ts.net/tiles
+      # Secrets remontés en env pour pouvoir tester leur présence dans `if:`.
+      HAS_FIREBASE: ${{ secrets.FIREBASE_APP_ID != '' && secrets.CREDENTIAL_FILE_CONTENT != '' }}
+      HAS_TELEGRAM: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+
+      - name: Dépendances JS
+        working-directory: mobile
+        run: npm ci
+
+      - name: Prebuild Android (génère mobile/android)
+        working-directory: mobile
+        run: npx expo prebuild -p android --no-install
+
+      - name: Build APK release (JS embarqué, signé debug)
+        working-directory: mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Artefact APK (filet de sécurité, téléchargeable depuis le run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: cavotequoiici-release-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Firebase App Distribution
+        if: env.HAS_FIREBASE == 'true'
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+          groups: testeurs
+          file: mobile/android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Notifier Telegram
+        if: ${{ always() && env.HAS_TELEGRAM == 'true' }}
+        run: |
+          curl -s -X POST \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="CaVoteQuoiIci — build Android ${{ job.status }} sur ${{ github.ref_name }} (${{ github.sha }}). Si succès : APK sur Firebase App Distribution (groupe testeurs) + artefact du run."
