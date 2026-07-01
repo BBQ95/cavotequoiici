@@ -9,7 +9,12 @@ name: Android — build & distribute
 # L'APK release utilise la signature debug (config générée par Expo) → autonome
 # et installable pour test, sans keystore de release.
 #
-# Sans secrets Firebase/Telegram, le build tourne quand même : l'APK reste
+# Notification : POST signé HMAC vers l'adaptateur webhook Hermès
+# (/webhooks/build-status) → Boss annonce dans Telegram ET délègue à Richard en
+# cas d'échec (runbook « Notifications de build → Boss », qui supersède l'étape
+# Telegram directe du runbook « Tester les apps Android »).
+#
+# Sans secrets (Firebase / webhook), le build tourne quand même : l'APK reste
 # téléchargeable en artefact du run (filet de sécurité) ; distribution et
 # notification s'activent dès que les secrets sont posés.
 
@@ -36,7 +41,7 @@ jobs:
       EXPO_PUBLIC_TILES_URL: https://hermes-vps.tail5957ae.ts.net/tiles
       # Secrets remontés en env pour pouvoir tester leur présence dans `if:`.
       HAS_FIREBASE: ${{ secrets.FIREBASE_APP_ID != '' && secrets.CREDENTIAL_FILE_CONTENT != '' }}
-      HAS_TELEGRAM: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
+      HAS_WEBHOOK: ${{ secrets.HERMES_WEBHOOK_SECRET != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -86,17 +91,23 @@ jobs:
           groups: testeurs
           file: mobile/android/app/build/outputs/apk/release/app-release.apk
 
-      - name: Notifier Telegram
-        if: ${{ always() && env.HAS_TELEGRAM == 'true' }}
-        # Secrets via env (pas d'interpolation dans la ligne de commande).
+      - name: Notifier Boss (webhook Hermès, signé HMAC)
+        if: ${{ always() && env.HAS_WEBHOOK == 'true' }}
+        # Corps = champs structurés seulement (pas de message de commit :
+        # surface d'injection dans le prompt de Boss). Signature = HMAC-SHA256
+        # hex brut du corps exact, en-tête X-Webhook-Signature (source générique).
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          HERMES_WEBHOOK_SECRET: ${{ secrets.HERMES_WEBHOOK_SECRET }}
           STATUT: ${{ job.status }}
-          REF: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          BRANCHE: ${{ github.ref_name }}
           SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          curl -s -X POST \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" \
-            -d text="CaVoteQuoiIci — build Android ${STATUT} sur ${REF} (${SHA}). Si succès : APK sur Firebase App Distribution (groupe testeurs) + artefact du run."
+          BODY=$(printf '{"status":"%s","repo":"%s","branch":"%s","sha":"%s","run_url":"%s"}' \
+            "$STATUT" "$REPO" "$BRANCHE" "$SHA" "$RUN_URL")
+          SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$HERMES_WEBHOOK_SECRET" | sed 's/^.* //')
+          curl -s -X POST "https://hermes-vps.tail5957ae.ts.net/webhooks/build-status" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Signature: $SIG" \
+            --data "$BODY"
