@@ -1,6 +1,7 @@
 PY := .venv/bin/python
 
-.PHONY: help venv db-up db-down migrate data couleurs tiles api types test fresh
+.PHONY: help venv db-up db-down migrate data couleurs tiles api types test fresh \
+	compose-up compose-migrate compose-down
 
 help:  ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -43,3 +44,13 @@ test:  ## Lance la suite de tests
 
 fresh: db-up migrate data  ## De zéro à base peuplée (db + migrations + pipeline)
 	@echo "Base prête. Lancer l'API : make api"
+
+# --- Stack conteneurisée (db + api) : cible de l'hébergement prod ------------
+compose-up:  ## Build + démarre la stack backend en conteneurs (db + api)
+	docker compose up -d --build
+
+compose-migrate:  ## Applique les migrations Alembic dans le conteneur api
+	docker compose run --rm api sh -c "cd api && python -m alembic upgrade head"
+
+compose-down:  ## Arrête la stack conteneurisée (conserve le volume de données)
+	docker compose down

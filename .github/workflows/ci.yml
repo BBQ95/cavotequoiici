@@ -101,9 +101,38 @@ jobs:
       - name: Export web (valide le bundle Metro sans device)
         run: npx expo export --platform web
 
+  docker-api:
+    name: Image API — build + smoke-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Valide le Dockerfile et l'installation de requirements-api.txt.
+      - name: Build de l'image API
+        run: docker build -t cavote-api:ci .
+      # /healthz ne touche pas la base : pas besoin de PostGIS ici. Mais uvicorn
+      # importe api.main (et donc tous les routeurs) au démarrage — si un import
+      # de l'API tire une dépendance absente de requirements-api.txt, le conteneur
+      # ne démarre pas et /healthz ne répond jamais. Ce smoke-test attrape donc la
+      # dérive requirements-api.txt ↔ requirements.txt (remarque de revue #30).
+      - name: Démarre le conteneur
+        run: docker run -d --name cavote-api-ci -p 8200:8200 cavote-api:ci
+      - name: Smoke-test /healthz
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8200/healthz || true)
+            if [ "$code" = "200" ]; then echo "healthz OK"; exit 0; fi
+            sleep 1
+          done
+          echo "::error::/healthz n'a pas répondu 200 — l'API n'a pas démarré (dépendance manquante dans requirements-api.txt ?)"
+          docker logs cavote-api-ci
+          exit 1
+      - name: Logs du conteneur (toujours)
+        if: ${{ always() }}
+        run: docker logs cavote-api-ci || true
+
   notify:
     name: Notifier Boss (webhook Hermès)
-    needs: [python-unit, migrations, openapi-types, mobile]
+    needs: [python-unit, migrations, openapi-types, mobile, docker-api]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     env:
