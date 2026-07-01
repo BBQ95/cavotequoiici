@@ -15,8 +15,17 @@ export type ScrutinInclus = Schemas["ScrutinInclus"];
 export type DetailScrutinResponse = Schemas["DetailScrutinResponse"];
 export type FamilleVoix = Schemas["FamilleVoix"];
 
+/**
+ * En prod : `EXPO_PUBLIC_API_URL` **doit** pointer vers l'API pérenne (la variable
+ * est inlinée au build). Le fallback vers le serveur de dev (Funnel) n'est appliqué
+ * qu'en développement (`__DEV__`) : un build de prod sans la variable donne une base
+ * vide (requêtes vers un chemin relatif = échec visible) plutôt que de taper
+ * silencieusement `localhost:8200`, inatteignable depuis un device. Même pattern que
+ * `src/lib/tiles.ts`.
+ */
 const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:8200";
+  process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ??
+  (__DEV__ ? "https://hermes-vps.tail5957ae.ts.net/api" : "");
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`);
