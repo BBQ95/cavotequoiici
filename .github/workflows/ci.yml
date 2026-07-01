@@ -100,3 +100,33 @@ jobs:
         run: npx tsc --noEmit
       - name: Export web (valide le bundle Metro sans device)
         run: npx expo export --platform web
+
+  notify:
+    name: Notifier Boss (webhook Hermès)
+    needs: [python-unit, migrations, openapi-types, mobile]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    env:
+      HAS_WEBHOOK: ${{ secrets.HERMES_WEBHOOK_SECRET != '' }}
+    steps:
+      # POST signé HMAC vers l'adaptateur webhook Hermès → Boss annonce dans
+      # Telegram et délègue à Richard si échec (runbook « Notifications de
+      # build → Boss »). Sauté si le secret n'est pas posé.
+      - name: POST signé vers /webhooks/build-status
+        if: ${{ env.HAS_WEBHOOK == 'true' }}
+        env:
+          HERMES_WEBHOOK_SECRET: ${{ secrets.HERMES_WEBHOOK_SECRET }}
+          # Statut agrégé des 4 jobs requis (failure si l'un échoue/annulé).
+          STATUT: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'failure' || 'success' }}
+          REPO: ${{ github.repository }}
+          BRANCHE: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          BODY=$(printf '{"status":"%s","repo":"%s","branch":"%s","sha":"%s","run_url":"%s"}' \
+            "$STATUT" "$REPO" "$BRANCHE" "$SHA" "$RUN_URL")
+          SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$HERMES_WEBHOOK_SECRET" | sed 's/^.* //')
+          curl -s -X POST "https://hermes-vps.tail5957ae.ts.net/webhooks/build-status" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Signature: $SIG" \
+            --data "$BODY"
