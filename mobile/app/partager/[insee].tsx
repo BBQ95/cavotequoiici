@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +13,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import { captureRef } from "react-native-view-shot";
+import * as Sharing from "expo-sharing";
 
 import { useFiche } from "../../src/api/queries";
 import { RepartitionBar } from "../../src/components/RepartitionBar";
@@ -25,6 +28,8 @@ export default function Partager() {
   const insets = useSafeAreaInsets();
   const fiche = useFiche(insee);
   const data = fiche.data;
+  // Vue capturée en image (l'aperçu de la carte de partage).
+  const carteRef = useRef<View>(null);
 
   const lien = `cavotequoiici://commune/${insee}`;
 
@@ -47,6 +52,25 @@ export default function Partager() {
   async function copierLien() {
     await Clipboard.setStringAsync(lien);
     Alert.alert("Lien copié", "Le lien vers cette commune est dans le presse-papier.");
+  }
+
+  async function exporterImage() {
+    if (!data) return;
+    try {
+      // Capture l'aperçu de la carte en PNG, puis ouvre la feuille de partage
+      // native pour l'enregistrer ou l'envoyer.
+      const uri = await captureRef(carteRef, { format: "png", quality: 1 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "image/png",
+          dialogTitle: `Partager ${data.nom}`,
+        });
+      } else {
+        Alert.alert("Partage indisponible", "Le partage d'image n'est pas disponible ici.");
+      }
+    } catch {
+      Alert.alert("Export impossible", "La carte n'a pas pu être capturée.");
+    }
   }
 
   function aVenir(quoi: string) {
@@ -95,8 +119,13 @@ export default function Partager() {
           paddingBottom: insets.bottom + space.xxl,
         }}
       >
-        {/* Carte de partage (aperçu de l'image). */}
-        <View style={[styles.carte, { backgroundColor: couleur.hex }]}>
+        {/* Carte de partage (aperçu ET vue capturée en image). collapsable=false :
+            requis pour que react-native-view-shot puisse la capturer sur Android. */}
+        <View
+          ref={carteRef}
+          collapsable={false}
+          style={[styles.carte, { backgroundColor: couleur.hex }]}
+        >
           <Text style={[styles.wordmark, { color: txt, opacity: 0.85 }]}>
             CaVoteQuoiIci
           </Text>
@@ -133,11 +162,7 @@ export default function Partager() {
 
         <View style={styles.actionsRow}>
           <ActionSecondaire icone="link" label="Copier" onPress={copierLien} />
-          <ActionSecondaire
-            icone="image"
-            label="Image"
-            onPress={() => aVenir("Export image")}
-          />
+          <ActionSecondaire icone="image" label="Image" onPress={exporterImage} />
           <ActionSecondaire
             icone="qr-code-2"
             label="QR code"
