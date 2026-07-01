@@ -138,11 +138,14 @@ def generer_tuiles(geojson_path: Path, pmtiles_path: Path) -> None:
         f"--minimum-zoom={ZOOM_MIN}",
         f"--maximum-zoom={ZOOM_MAX}",
         # Polygones administratifs : on préserve les frontières (faible
-        # simplification) et on laisse tomber les communes les plus denses aux
-        # zooms bas (invisibles à l'échelle France) plutôt que de fusionner des
-        # communes distinctes — chaque commune doit rester identifiable au tap.
+        # simplification). Aux zooms bas, on **fusionne** les communes les plus
+        # denses (coalesce) au lieu de les **supprimer** (drop) : supprimer
+        # laissait des trous dans les zones urbaines denses (Île-de-France…) à
+        # l'échelle France. Coalesce garde une couverture pleine ; l'identité
+        # exacte au tap se retrouve en zoomant (couverture complète à maxzoom via
+        # --extend-zooms-if-still-dropping).
         "--simplification=4",
-        "--drop-densest-as-needed",
+        "--coalesce-densest-as-needed",
         "--extend-zooms-if-still-dropping",
         str(geojson_path),
     ]
