@@ -19,8 +19,9 @@ const queryClient = new QueryClient({
 });
 
 // Maintient le splash tant que les polices de marque ne sont pas prêtes (évite
-// un flash en police système). Idempotent, au chargement du module.
-SplashScreen.preventAutoHideAsync();
+// un flash en police système). Idempotent, au chargement du module. Le .catch
+// absorbe un rejet natif bénin (ex. splash déjà masqué).
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   // Variantes utilisées par les rôles de src/theme/tokens.ts (title/heading =
@@ -33,7 +34,7 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) SplashScreen.hideAsync();
+    if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => {});
   }, [fontsLoaded, fontError]);
 
   // Rien tant que les polices chargent. En cas d'échec (fontError), on affiche
