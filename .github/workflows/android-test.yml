@@ -42,6 +42,10 @@ jobs:
       # URL publique de l'API (Funnel /api → 8200) embarquée dans le bundle :
       # sans elle, l'app tape localhost:8200 (le téléphone) → recherche/fiche KO.
       EXPO_PUBLIC_API_URL: https://hermes-vps.tail5957ae.ts.net/api
+      # Numéro de build monotone injecté dans app.config.js → versionCode (Android)
+      # et buildNumber (iOS) : le « (N) » s'incrémente à chaque run. run_number est
+      # séquentiel et jamais réinitialisé (exigence Play Store).
+      EXPO_BUILD_NUMBER: ${{ github.run_number }}
       # Secrets remontés en env pour pouvoir tester leur présence dans `if:`.
       HAS_FIREBASE: ${{ secrets.FIREBASE_APP_ID != '' && secrets.CREDENTIAL_FILE_CONTENT != '' }}
       HAS_WEBHOOK: ${{ secrets.HERMES_WEBHOOK_SECRET != '' }}
