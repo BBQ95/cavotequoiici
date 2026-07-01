@@ -6,12 +6,15 @@
  * feature porte : `insee`, `nom`, `hex` (sRGB, OKLCH de synthèse déjà désaturé
  * par la participation — même couleur que la fiche), `famille`, `participation`.
  *
- * En prod : pointer `EXPO_PUBLIC_TILES_URL` vers un CDN servant le même schéma.
- * Défaut : le serveur de dev exposé via Tailscale Funnel.
+ * En prod : `EXPO_PUBLIC_TILES_URL` **doit** pointer vers un CDN servant le même
+ * schéma (la variable est inlinée au build). Le fallback vers le serveur de dev
+ * (Funnel) n'est appliqué qu'en développement (`__DEV__`) : un build de prod sans
+ * la variable donne une base vide (carte sans tuiles = échec visible) plutôt que
+ * de taper silencieusement l'infra de dev.
  */
 const TILES_BASE =
   process.env.EXPO_PUBLIC_TILES_URL?.replace(/\/$/, "") ??
-  "https://hermes-vps.tail5957ae.ts.net/tiles";
+  (__DEV__ ? "https://hermes-vps.tail5957ae.ts.net/tiles" : "");
 
 /** Templates de tuiles vectorielles (MVT) pour la `VectorSource` MapLibre. */
 export const TUILES_COMMUNES = [`${TILES_BASE}/communes/{z}/{x}/{y}.mvt`];
