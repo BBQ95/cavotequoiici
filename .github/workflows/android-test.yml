@@ -88,8 +88,15 @@ jobs:
 
       - name: Notifier Telegram
         if: ${{ always() && env.HAS_TELEGRAM == 'true' }}
+        # Secrets via env (pas d'interpolation dans la ligne de commande).
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          STATUT: ${{ job.status }}
+          REF: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
         run: |
           curl -s -X POST \
-            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="CaVoteQuoiIci — build Android ${{ job.status }} sur ${{ github.ref_name }} (${{ github.sha }}). Si succès : APK sur Firebase App Distribution (groupe testeurs) + artefact du run."
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="CaVoteQuoiIci — build Android ${STATUT} sur ${REF} (${SHA}). Si succès : APK sur Firebase App Distribution (groupe testeurs) + artefact du run."
