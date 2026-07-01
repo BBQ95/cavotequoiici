@@ -50,12 +50,14 @@ export const space = {
 } as const;
 
 /**
- * Rôles typographiques. Cible : Archivo (titres 800–900) + Public Sans (labels).
- * Les polices ne sont pas encore chargées (suivi) ; on s'appuie sur la police
- * système avec les graisses correspondantes. Centraliser ici facilite le swap.
+ * Rôles typographiques : Archivo (titres) + Public Sans (labels & corps).
+ * Les polices sont chargées au démarrage par `app/_layout.tsx` (expo-font) ;
+ * la graisse est intégrée à chaque variante, donc pas de `fontWeight` ici.
+ * Source unique : tout écran lit ces rôles, jamais une famille en dur.
  */
 export const type = {
-  title: { fontWeight: "900" as const },
-  heading: { fontWeight: "800" as const },
-  label: { fontWeight: "600" as const },
+  title: { fontFamily: "Archivo_900Black" },
+  heading: { fontFamily: "Archivo_800ExtraBold" },
+  label: { fontFamily: "PublicSans_600SemiBold" },
+  body: { fontFamily: "PublicSans_400Regular" },
 } as const;

@@ -26,7 +26,8 @@
     },
     "plugins": [
       "expo-router",
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "expo-splash-screen"
     ]
   }
 }
