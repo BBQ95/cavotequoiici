@@ -1,0 +1,119 @@
+name: Android — build & distribute
+
+# Construit un APK installable de l'app Expo/React Native et le distribue via
+# Firebase App Distribution (groupe `testeurs`) pour la QA sur téléphone réel —
+# le VPS ne peut pas builder/émuler (pas de device/KVM/NDK). Adapté du runbook
+# Hermès « Tester les apps Android » (là un projet Kotlin natif ; ici Expo, d'où
+# le `expo prebuild` + `assembleRelease` avec JS embarqué).
+#
+# L'APK release utilise la signature debug (config générée par Expo) → autonome
+# et installable pour test, sans keystore de release.
+#
+# Notification : POST signé HMAC vers l'adaptateur webhook Hermès
+# (/webhooks/build-status) → Boss annonce dans Telegram ET délègue à Richard en
+# cas d'échec (runbook « Notifications de build → Boss », qui supersède l'étape
+# Telegram directe du runbook « Tester les apps Android »).
+#
+# Sans secrets (Firebase / webhook), le build tourne quand même : l'APK reste
+# téléchargeable en artefact du run (filet de sécurité) ; distribution et
+# notification s'activent dès que les secrets sont posés.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build APK + distribution Firebase
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # URL publique des tuiles (Funnel) embarquée dans le bundle release.
+      # Donnée publique (couleurs électorales), pas un secret. Requise car le
+      # fallback dev de src/lib/tiles.ts n'agit que sous __DEV__.
+      EXPO_PUBLIC_TILES_URL: https://hermes-vps.tail5957ae.ts.net/tiles
+      # Secrets remontés en env pour pouvoir tester leur présence dans `if:`.
+      HAS_FIREBASE: ${{ secrets.FIREBASE_APP_ID != '' && secrets.CREDENTIAL_FILE_CONTENT != '' }}
+      HAS_WEBHOOK: ${{ secrets.HERMES_WEBHOOK_SECRET != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+          # Pas de `cache: gradle` : le projet Android n'existe qu'après le
+          # prebuild, il n'y a rien à hasher au checkout (setup-java échouerait).
+
+      - name: Dépendances JS
+        working-directory: mobile
+        run: npm ci
+
+      - name: Prebuild Android (génère mobile/android)
+        working-directory: mobile
+        run: npx expo prebuild -p android --no-install
+
+      - name: Build APK release (JS embarqué, signé debug)
+        working-directory: mobile/android
+        # arm64-v8a seulement : téléphones courants pour la QA. Éviter la
+        # compilation native RN (New Architecture, C++) des 4 ABIs, bien trop
+        # longue sur un runner 2 cœurs (>40 min).
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+
+      - name: Artefact APK (filet de sécurité, téléchargeable depuis le run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: cavotequoiici-release-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      # Distribution Firebase : ne doit pas faire échouer le build.
+      # Le build APK (étape précédente) et l'artefact sont le livrable réel ;
+      # la distribution Firebase est une commodité de QA (filet de sécurité :
+      # l'APK reste téléchargeable depuis l'onglet Actions même si cette étape
+      # échoue — secret manquant, credentials invalides, problème réseau…).
+      - name: Firebase App Distribution
+        if: env.HAS_FIREBASE == 'true'
+        continue-on-error: true
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+          groups: testeurs-bbq95
+          file: mobile/android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Notifier Boss (webhook Hermès, signé HMAC)
+        if: ${{ always() && env.HAS_WEBHOOK == 'true' }}
+        # Corps = champs structurés seulement (pas de message de commit :
+        # surface d'injection dans le prompt de Boss). Signature = HMAC-SHA256
+        # hex brut du corps exact, en-tête X-Webhook-Signature (source générique).
+        env:
+          HERMES_WEBHOOK_SECRET: ${{ secrets.HERMES_WEBHOOK_SECRET }}
+          STATUT: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          BRANCHE: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          BODY=$(printf '{"status":"%s","repo":"%s","branch":"%s","sha":"%s","run_url":"%s"}' \
+            "$STATUT" "$REPO" "$BRANCHE" "$SHA" "$RUN_URL")
+          SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$HERMES_WEBHOOK_SECRET" | sed 's/^.* //')
+          curl -s -X POST "https://hermes-vps.tail5957ae.ts.net/webhooks/build-status" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Signature: $SIG" \
+            --data "$BODY"
