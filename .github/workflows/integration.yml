@@ -1,0 +1,47 @@
+name: Integration (données réelles)
+
+# Passe lourde : télécharge ~400 Mo depuis data.gouv.fr (source externe, parfois
+# instable), exécute le pipeline complet puis valide le critère bloquant des
+# communes repères (Saint-Denis rouge, Nice marine) et les endpoints API sur une
+# BDD réellement peuplée. Volontairement HORS du garde-fou PR (ci.yml), à cause
+# du coût et de la dépendance à un tiers.
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # tous les jours à 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  reperes:
+    name: Pipeline complet + tests repères/API
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: cavote
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:cavote@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: alembic upgrade head
+        working-directory: api
+        run: python -m alembic upgrade head
+      - name: Pipeline complet (contours + 4 scrutins + couleurs)
+        run: python -m pipeline.run_all
+      # DATABASE_URL est défini → les tests repères + API tournent sur données réelles.
+      - name: Tests d'intégration (repères, API)
+        run: python -m pytest -q

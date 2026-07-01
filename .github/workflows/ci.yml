@@ -1,0 +1,102 @@
+name: CI
+
+# Garde-fou rapide et déterministe sur chaque PR (et sur push vers main).
+# Aucune donnée réelle n'est téléchargée ici : la validation « repères »
+# (Saint-Denis rouge, Nice marine), qui exige le pipeline complet, vit dans
+# integration.yml (nocturne / manuel).
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-unit:
+    name: Tests unitaires Python (sans BDD)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      # Sans DATABASE_URL, les tests d'intégration BDD (test_reperes,
+      # test_api_communes, test_api_scrutins) skippent proprement.
+      - name: pytest
+        run: python -m pytest -q
+
+  migrations:
+    name: Migrations Alembic sur base neuve
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Image PostGIS obligatoire : la migration 0001 fait CREATE EXTENSION postgis.
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: cavote
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:cavote@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: alembic upgrade head
+        working-directory: api
+        run: python -m alembic upgrade head
+
+  openapi-types:
+    name: Types TS à jour avec le schéma API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: pip install -r requirements.txt
+      # Régénère openapi.json (introspection Pydantic, pas de BDD) puis les types.
+      # Version openapi-typescript épinglée pour un rendu reproductible.
+      - name: Régénère les types TS
+        run: |
+          python -m api.openapi_export openapi.json
+          npx --yes openapi-typescript@7.13.0 openapi.json -o mobile/src/api/types.ts
+      - name: Échoue si mobile/src/api/types.ts a dérivé (make types oublié)
+        run: git diff --exit-code mobile/src/api/types.ts
+
+  mobile:
+    name: Mobile — typecheck + export web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - name: Typecheck strict
+        run: npx tsc --noEmit
+      - name: Export web (valide le bundle Metro sans device)
+        run: npx expo export --platform web
