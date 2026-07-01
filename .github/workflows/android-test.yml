@@ -82,8 +82,14 @@ jobs:
           path: mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
+      # Distribution Firebase : ne doit pas faire échouer le build.
+      # Le build APK (étape précédente) et l'artefact sont le livrable réel ;
+      # la distribution Firebase est une commodité de QA (filet de sécurité :
+      # l'APK reste téléchargeable depuis l'onglet Actions même si cette étape
+      # échoue — secret manquant, credentials invalides, problème réseau…).
       - name: Firebase App Distribution
         if: env.HAS_FIREBASE == 'true'
+        continue-on-error: true
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
           appId: ${{ secrets.FIREBASE_APP_ID }}
