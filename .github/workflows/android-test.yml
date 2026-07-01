@@ -94,7 +94,7 @@ jobs:
         with:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
-          groups: testeurs
+          groups: testeurs-bbq95
           file: mobile/android/app/build/outputs/apk/release/app-release.apk
 
       - name: Notifier Boss (webhook Hermès, signé HMAC)
