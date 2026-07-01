@@ -34,12 +34,18 @@ const FOND_SOMBRE: StyleSpecification = {
 // Vue initiale : France métropolitaine.
 const CENTRE_FRANCE: [number, number] = [2.4, 46.6];
 const ZOOM_INITIAL = 4.4;
+// Zoom minimal : empêche de dézoomer au point de « perdre » la carte —
+// la France reste toujours visible et remplit l'écran.
+const ZOOM_MIN = 4;
 
 export function CommunesMap() {
   return (
     <View style={styles.plein}>
       <Map style={styles.plein} mapStyle={FOND_SOMBRE}>
-        <Camera initialViewState={{ center: CENTRE_FRANCE, zoom: ZOOM_INITIAL }} />
+        <Camera
+          initialViewState={{ center: CENTRE_FRANCE, zoom: ZOOM_INITIAL }}
+          minZoom={ZOOM_MIN}
+        />
         <VectorSource
           id="communes"
           tiles={TUILES_COMMUNES}

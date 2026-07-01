@@ -39,6 +39,9 @@ jobs:
       # Donnée publique (couleurs électorales), pas un secret. Requise car le
       # fallback dev de src/lib/tiles.ts n'agit que sous __DEV__.
       EXPO_PUBLIC_TILES_URL: https://hermes-vps.tail5957ae.ts.net/tiles
+      # URL publique de l'API (Funnel /api → 8200) embarquée dans le bundle :
+      # sans elle, l'app tape localhost:8200 (le téléphone) → recherche/fiche KO.
+      EXPO_PUBLIC_API_URL: https://hermes-vps.tail5957ae.ts.net/api
       # Secrets remontés en env pour pouvoir tester leur présence dans `if:`.
       HAS_FIREBASE: ${{ secrets.FIREBASE_APP_ID != '' && secrets.CREDENTIAL_FILE_CONTENT != '' }}
       HAS_WEBHOOK: ${{ secrets.HERMES_WEBHOOK_SECRET != '' }}
