@@ -1,6 +1,11 @@
-# Base de données de développement (PostgreSQL + PostGIS).
-# Lancement : docker compose up -d db
-# La base est ensuite migrée (make migrate) puis peuplée (make data).
+# Stack backend CaVoteQuoiIci : base PostGIS + API FastAPI (lecture seule).
+#
+#   docker compose up -d --build        # db + api
+#   docker compose run --rm api sh -c "cd api && python -m alembic upgrade head"
+#
+# La base doit ensuite être peuplée (pipeline d'ingestion) : celui-ci est lourd
+# (geopandas/tippecanoe) et vit hors image → `make data` sur l'hôte, ou restaurer
+# un dump. Sans données, /healthz répond mais les endpoints métier renvoient vide.
 services:
   db:
     image: postgis/postgis:16-3.4
@@ -17,6 +22,31 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  api:
+    build: .
+    image: cavote-api
+    container_name: cavote-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Dans le réseau compose, la base est joignable par le nom de service `db`.
+      DATABASE_URL: postgresql+psycopg2://postgres:cavote@db:5432/postgres
+      # CORS ouvert par défaut (API publique en lecture seule) ; restreignable.
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    ports:
+      - "8200:8200"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request,sys;
+          sys.exit(0 if urllib.request.urlopen('http://localhost:8200/healthz').status==200 else 1)"
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
 volumes:
   cavote_pgdata:
