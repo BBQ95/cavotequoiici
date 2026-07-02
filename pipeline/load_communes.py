@@ -81,6 +81,9 @@ def upsert_communes(gdf: gpd.GeoDataFrame, engine) -> int:
     par code INSEE. Les communes absentes de `gdf` (contours retirés d'un
     millésime) sont purgées avec leurs données liées. La géométrie est écrite
     dans la colonne `geom`. Retourne le nombre de lignes chargées.
+
+    Suppose `gdf` dédupliqué par code INSEE (garanti par `prepare_communes`) :
+    un doublon ferait échouer l'ON CONFLICT (« cannot affect row a second time »).
     """
     gdf.rename_geometry("geom").to_postgis(
         "communes_transit", engine, if_exists="replace", index=False

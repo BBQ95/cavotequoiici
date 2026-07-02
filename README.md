@@ -110,7 +110,7 @@ cp .env.example .env          # DATABASE_URL (défaut = base docker locale)
 make venv                     # crée .venv (uv) + dépendances Python
 make fresh                    # db PostGIS + migrations + pipeline complet (contours, 4 scrutins, couleurs)
 make api                      # API sur http://localhost:8200  (doc : /docs)
-make test                     # suite de tests
+make test                     # suite de tests (les tests BDD supposent la base de make fresh démarrée)
 ```
 
 `make help` liste toutes les cibles (`db-up`, `migrate`, `data`, `couleurs`, `types`…).

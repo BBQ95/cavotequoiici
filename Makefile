@@ -2,7 +2,9 @@ PY := .venv/bin/python
 
 # Charge le .env s'il existe (DATABASE_URL, REFERENCE_DATE…) et exporte les
 # variables aux recettes : le README fait copier .env.example, ce fichier doit
-# être effectif quand on passe par make.
+# être effectif quand on passe par make. NB : `export` couvre toutes les
+# variables make — si docker-compose.yml substitue un jour `${DATABASE_URL}`,
+# le DSN localhost du .env fuirait vers la cible prod.
 -include .env
 export
 
