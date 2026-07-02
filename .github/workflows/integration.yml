@@ -45,3 +45,8 @@ jobs:
       # DATABASE_URL est défini → les tests repères + API tournent sur données réelles.
       - name: Tests d'intégration (repères, API)
         run: python -m pytest -q
+      # Les tests marqués `integration` sont skippés par défaut (conftest.py) ;
+      # ce job est le seul endroit où leurs préconditions (base peuplée,
+      # contours et CSV téléchargés par run_all) sont réunies.
+      - name: Tests marqués integration (rejouabilité, municipales)
+        run: python -m pytest -q -m integration

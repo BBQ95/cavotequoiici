@@ -1,5 +1,13 @@
 PY := .venv/bin/python
 
+# Charge le .env s'il existe (DATABASE_URL, REFERENCE_DATE…) et exporte les
+# variables aux recettes : le README fait copier .env.example, ce fichier doit
+# être effectif quand on passe par make. NB : `export` couvre toutes les
+# variables make — si docker-compose.yml substitue un jour `${DATABASE_URL}`,
+# le DSN localhost du .env fuirait vers la cible prod.
+-include .env
+export
+
 .PHONY: help venv db-up db-down migrate data couleurs tiles api types test fresh \
 	compose-up compose-migrate compose-down
 
@@ -10,11 +18,19 @@ venv:  ## Crée le venv (uv) et installe les dépendances
 	uv venv .venv
 	uv pip install --python $(PY) -r requirements.txt
 
-db-up:  ## Démarre PostGIS (conteneur docker ; réutilise cavote-db s'il existe)
+db-up:  ## Démarre PostGIS (conteneur docker ; réutilise cavote-db s'il existe) et attend qu'il soit prêt
 	@docker start cavote-db 2>/dev/null || docker run -d --name cavote-db \
 		-e POSTGRES_PASSWORD=cavote -p 5432:5432 \
 		-v cavote_pgdata:/var/lib/postgresql/data --restart unless-stopped \
 		postgis/postgis:16-3.4
+	@# -h localhost force un test en TCP : au premier démarrage (volume vierge),
+	@# l'image lance un serveur d'init temporaire qui n'écoute que sur la socket
+	@# unix — ce test ne passe donc qu'une fois le serveur définitif démarré.
+	@for i in $$(seq 1 60); do \
+		docker exec cavote-db pg_isready -h localhost -U postgres -q 2>/dev/null && exit 0; \
+		sleep 1; \
+	done; \
+	echo "PostGIS toujours injoignable après 60 s (voir : docker logs cavote-db)" >&2; exit 1
 
 db-down:  ## Arrête PostGIS
 	docker stop cavote-db
