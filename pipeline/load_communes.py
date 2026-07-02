@@ -73,20 +73,52 @@ def prepare_communes(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def upsert_communes(gdf: gpd.GeoDataFrame, engine) -> int:
-    """Remplace le contenu de la table `communes` par `gdf`.
+    """Remplace le contenu de la table `communes` par `gdf`, rejouable.
 
-    Chargement de référence en bloc : on vide la table (les tables filles sont
-    encore vides à ce stade) puis on insère. La géométrie est écrite dans la
-    colonne `geom`. Retourne le nombre de lignes insérées.
+    Un `DELETE FROM communes` global violerait les clés étrangères de
+    `resultats_scrutin` / `couleurs_scrutin` / `couleurs_ville` dès qu'un
+    scrutin a été ingéré : on passe par une table de transit puis un upsert
+    par code INSEE. Les communes absentes de `gdf` (contours retirés d'un
+    millésime) sont purgées avec leurs données liées. La géométrie est écrite
+    dans la colonne `geom`. Retourne le nombre de lignes chargées.
     """
-    with engine.begin() as conn:
-        conn.execute(text("DELETE FROM communes"))
     gdf.rename_geometry("geom").to_postgis(
-        "communes", engine, if_exists="append", index=False
+        "communes_transit", engine, if_exists="replace", index=False
     )
-    # Répare les géométries invalides (auto-intersections introduites par la
-    # simplification) en conservant le type MultiPolygon attendu par la colonne.
     with engine.begin() as conn:
+        # Index + stats indispensables : les purges anti-jointure ci-dessous
+        # balaient resultats_scrutin (~1 M de lignes).
+        conn.execute(
+            text("CREATE INDEX ix_communes_transit ON communes_transit (code_insee)")
+        )
+        conn.execute(text("ANALYZE communes_transit"))
+        conn.execute(
+            text(
+                "INSERT INTO communes (code_insee, nom, departement, region, geom) "
+                "SELECT code_insee, nom, departement, region, geom "
+                "FROM communes_transit "
+                "ON CONFLICT (code_insee) DO UPDATE SET "
+                "nom = EXCLUDED.nom, departement = EXCLUDED.departement, "
+                "region = EXCLUDED.region, geom = EXCLUDED.geom"
+            )
+        )
+        # Purge des communes disparues du référentiel, tables filles d'abord.
+        for table in (
+            "resultats_scrutin",
+            "couleurs_scrutin",
+            "couleurs_ville",
+            "communes",
+        ):
+            conn.execute(
+                text(
+                    f"DELETE FROM {table} x WHERE NOT EXISTS "
+                    "(SELECT 1 FROM communes_transit t "
+                    "WHERE t.code_insee = x.code_insee)"
+                )
+            )
+        conn.execute(text("DROP TABLE communes_transit"))
+        # Répare les géométries invalides (auto-intersections introduites par la
+        # simplification) en conservant le type MultiPolygon attendu par la colonne.
         conn.execute(
             text(
                 "UPDATE communes "

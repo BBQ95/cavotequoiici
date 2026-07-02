@@ -38,6 +38,8 @@ POIDS = 0.7
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 COMMUNE_CSV = DATA_DIR / "europeennes_2024_commune.csv"
 
+DEFAUT_DB_URL = "postgresql+psycopg2://postgres:cavote@localhost:5432/postgres"
+
 # Timestamp de version du fichier sur data.gouv.fr (segment dans l'URL).
 # Si data.gouv.fr met à jour le fichier, ce timestamp change et l'URL aussi.
 TIMESTAMP_DATA_GOUV = "20240613-154634"
@@ -249,9 +251,7 @@ def build_lignes_insertion(
 
 def main() -> None:
     """Point d'entrée : télécharge, parse, insère."""
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL non définie. Exportez-la avant de lancer l'ingestion.")
+    database_url = os.environ.get("DATABASE_URL", DEFAUT_DB_URL)
     engine = create_engine(database_url)
 
     # 1. Télécharger
