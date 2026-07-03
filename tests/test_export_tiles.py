@@ -5,10 +5,22 @@ logique pure (`feature_proprietes`, `feature`) ; l'export PostGIS et l'appel
 tippecanoe sont des effets de bord vérifiés à l'exécution réelle (`make tiles`).
 """
 
+from pathlib import Path
+
 import pytest
 
 from pipeline.couleur import OKLCH, oklch_to_hex
-from pipeline.export_tiles import feature_proprietes, feature
+from pipeline.export_tiles import (
+    ZOOM_MAX,
+    commande_tile_join,
+    commande_tippecanoe_communes,
+    commande_tippecanoe_etiquettes,
+    feature,
+    feature_etiquette,
+    feature_proprietes,
+    minzoom_pour_rang,
+    tranche_etiquettes,
+)
 
 
 def _ligne(**overrides):
@@ -126,3 +138,154 @@ class TestFeature:
         geom = {"type": "MultiPolygon", "coordinates": [[[[2.35, 48.93]]]]}
         feat = feature(_ligne(), geom, {"europeennes_2024": OKLCH(L=0.8, C=0.05, H=100.0)})
         assert "hex_europeennes_2024" in feat["properties"]
+
+
+class TestMinzoomPourRang:
+    """Étagement des étiquettes de villes par zoom : le rang national (proxy
+    MAX(inscrits)) détermine le zoom d'apparition — grandes villes d'abord."""
+
+    @pytest.mark.parametrize(
+        ("rang", "minzoom"),
+        [
+            (1, 4),
+            (10, 4),
+            (11, 5),
+            (40, 5),
+            (41, 6),
+            (120, 6),
+            (121, 7),
+            (400, 7),
+            (401, 8),
+            (1200, 8),
+            (1201, 9),
+            (4000, 9),
+            (4001, 10),
+            (12000, 10),
+            (12001, 11),
+            (35012, 11),
+        ],
+    )
+    def test_bornes_des_seuils(self, rang, minzoom):
+        assert minzoom_pour_rang(rang) == minzoom
+
+    def test_jamais_au_dela_de_maxzoom(self):
+        """Toute commune, même la dernière, apparaît au plus tard à maxzoom."""
+        assert minzoom_pour_rang(10**6) == ZOOM_MAX
+
+
+class TestFeatureEtiquette:
+    """Feature de point d'étiquette (couche `etiquettes` des tuiles).
+
+    PAS de clé `tippecanoe` par feature : avec tippecanoe 2.49.0, un minzoom
+    par feature réactive un dot-dropping qui ignore `-r1` (une seule ville
+    survivait par tuile, Marseille n'apparaissait jamais). L'étagement par
+    zoom se fait par TRANCHES : une archive par zoom (cf. tranche_etiquettes
+    + commande_tippecanoe_etiquettes), fusionnées par tile-join.
+    """
+
+    GEOM = {"type": "Point", "coordinates": [2.3522, 48.8566]}
+
+    def _ligne(self, **overrides):
+        base = {"code_insee": "75056", "nom": "Paris", "rang": 1}
+        base.update(overrides)
+        return base
+
+    def test_pas_de_cle_tippecanoe(self):
+        feat = feature_etiquette(self._ligne(), self.GEOM)
+        assert set(feat) == {"type", "geometry", "properties"}
+
+    def test_proprietes_minimales(self):
+        """Exactement nom + insee + rang : `insee` pour que le tap sur un nom
+        ouvre la fiche, `rang` pour la priorité de collision côté client."""
+        props = feature_etiquette(self._ligne(), self.GEOM)["properties"]
+        assert props == {"nom": "Paris", "insee": "75056", "rang": 1}
+
+    def test_geometrie_transmise(self):
+        feat = feature_etiquette(self._ligne(), self.GEOM)
+        assert feat["type"] == "Feature"
+        assert feat["geometry"] == self.GEOM
+
+
+class TestTrancheEtiquettes:
+    """La tranche du zoom z contient toutes les étiquettes déjà visibles à z
+    (minzoom_pour_rang(rang) <= z) — chaque commune apparaît donc dans toutes
+    les tranches de son zoom d'apparition jusqu'à ZOOM_MAX."""
+
+    GEOM = {"type": "Point", "coordinates": [0.0, 0.0]}
+
+    def _feat(self, rang):
+        return feature_etiquette({"code_insee": "x", "nom": "X", "rang": rang}, self.GEOM)
+
+    def test_filtre_par_rang(self):
+        feats = [self._feat(1), self._feat(11), self._feat(41), self._feat(12001)]
+        assert [f["properties"]["rang"] for f in tranche_etiquettes(feats, 4)] == [1]
+        assert [f["properties"]["rang"] for f in tranche_etiquettes(feats, 5)] == [1, 11]
+        assert [f["properties"]["rang"] for f in tranche_etiquettes(feats, 6)] == [1, 11, 41]
+
+    def test_tranche_maxzoom_contient_tout(self):
+        feats = [self._feat(1), self._feat(35012)]
+        assert tranche_etiquettes(feats, ZOOM_MAX) == feats
+
+
+class TestCommandeTippecanoeCommunes:
+    """Commande de l'archive des polygones (couche communes seule)."""
+
+    CMD = commande_tippecanoe_communes(Path("/t/communes.geojson"), Path("/t/poly.pmtiles"))
+
+    def test_couche_nommee(self):
+        assert "communes:/t/communes.geojson" in self.CMD
+
+    def test_options_existantes_conservees(self):
+        for opt in (
+            "--force",
+            "--minimum-zoom=4",
+            "--maximum-zoom=11",
+            "--simplification=4",
+            "--coalesce-densest-as-needed",
+            "--extend-zooms-if-still-dropping",
+        ):
+            assert opt in self.CMD
+
+    def test_sortie_pmtiles(self):
+        i = self.CMD.index("-o")
+        assert self.CMD[i + 1] == "/t/poly.pmtiles"
+
+
+class TestCommandeTippecanoeEtiquettes:
+    """Commande d'une tranche d'étiquettes : un seul niveau de zoom, sans
+    aucun dropping (-r1) — l'étagement est déjà dans le contenu de la tranche."""
+
+    CMD = commande_tippecanoe_etiquettes(Path("/t/etiq-z6.geojson"), Path("/t/etiq-z6.pmtiles"), 6)
+
+    def test_un_seul_zoom(self):
+        assert "--minimum-zoom=6" in self.CMD
+        assert "--maximum-zoom=6" in self.CMD
+
+    def test_sans_dropping(self):
+        assert "-r1" in self.CMD
+
+    def test_couche_et_sortie(self):
+        assert "etiquettes:/t/etiq-z6.geojson" in self.CMD
+        i = self.CMD.index("-o")
+        assert self.CMD[i + 1] == "/t/etiq-z6.pmtiles"
+
+
+class TestCommandeTileJoin:
+    """Fusion des archives (polygones + une tranche d'étiquettes par zoom)."""
+
+    CMD = commande_tile_join(
+        [Path("/t/poly.pmtiles"), Path("/t/etiq-z4.pmtiles")], Path("/t/out.pmtiles")
+    )
+
+    def test_sortie_et_entrees_dans_l_ordre(self):
+        i = self.CMD.index("-o")
+        assert self.CMD[i + 1] == "/t/out.pmtiles"
+        assert self.CMD[-2:] == ["/t/poly.pmtiles", "/t/etiq-z4.pmtiles"]
+
+    def test_pas_de_relimitation_de_taille(self):
+        """-pk : tile-join a sa propre limite de 500 Ko par tuile — sans -pk il
+        re-élaguerait les tuiles z4-z6 déjà passées au coalesce par tippecanoe."""
+        assert "-pk" in self.CMD
+
+    def test_force(self):
+        assert "--force" in self.CMD
