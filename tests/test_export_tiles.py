@@ -5,10 +5,19 @@ logique pure (`feature_proprietes`, `feature`) ; l'export PostGIS et l'appel
 tippecanoe sont des effets de bord vérifiés à l'exécution réelle (`make tiles`).
 """
 
+from pathlib import Path
+
 import pytest
 
 from pipeline.couleur import OKLCH, oklch_to_hex
-from pipeline.export_tiles import feature_proprietes, feature
+from pipeline.export_tiles import (
+    ZOOM_MAX,
+    commande_tippecanoe,
+    feature,
+    feature_etiquette,
+    feature_proprietes,
+    minzoom_pour_rang,
+)
 
 
 def _ligne(**overrides):
@@ -126,3 +135,98 @@ class TestFeature:
         geom = {"type": "MultiPolygon", "coordinates": [[[[2.35, 48.93]]]]}
         feat = feature(_ligne(), geom, {"europeennes_2024": OKLCH(L=0.8, C=0.05, H=100.0)})
         assert "hex_europeennes_2024" in feat["properties"]
+
+
+class TestMinzoomPourRang:
+    """Étagement des étiquettes de villes par zoom : le rang national (proxy
+    MAX(inscrits)) détermine le zoom d'apparition — grandes villes d'abord."""
+
+    @pytest.mark.parametrize(
+        ("rang", "minzoom"),
+        [
+            (1, 4),
+            (10, 4),
+            (11, 5),
+            (40, 5),
+            (41, 6),
+            (120, 6),
+            (121, 7),
+            (400, 7),
+            (401, 8),
+            (1200, 8),
+            (1201, 9),
+            (4000, 9),
+            (4001, 10),
+            (12000, 10),
+            (12001, 11),
+            (35012, 11),
+        ],
+    )
+    def test_bornes_des_seuils(self, rang, minzoom):
+        assert minzoom_pour_rang(rang) == minzoom
+
+    def test_jamais_au_dela_de_maxzoom(self):
+        """Toute commune, même la dernière, apparaît au plus tard à maxzoom."""
+        assert minzoom_pour_rang(10**6) == ZOOM_MAX
+
+
+class TestFeatureEtiquette:
+    """Feature de point d'étiquette (couche `etiquettes` des tuiles)."""
+
+    GEOM = {"type": "Point", "coordinates": [2.3522, 48.8566]}
+
+    def _ligne(self, **overrides):
+        base = {"code_insee": "75056", "nom": "Paris", "rang": 1}
+        base.update(overrides)
+        return base
+
+    def test_minzoom_tippecanoe_au_niveau_feature(self):
+        """La clé `tippecanoe` doit être SŒUR de `properties` (c'est là que
+        tippecanoe lit le minzoom par feature), pas dans les propriétés."""
+        feat = feature_etiquette(self._ligne(), self.GEOM)
+        assert feat["tippecanoe"] == {"minzoom": minzoom_pour_rang(1)}
+        assert "tippecanoe" not in feat["properties"]
+
+    def test_proprietes_minimales(self):
+        """Exactement nom + insee + rang : `insee` pour que le tap sur un nom
+        ouvre la fiche, `rang` pour la priorité de collision côté client."""
+        props = feature_etiquette(self._ligne(), self.GEOM)["properties"]
+        assert props == {"nom": "Paris", "insee": "75056", "rang": 1}
+
+    def test_geometrie_transmise(self):
+        feat = feature_etiquette(self._ligne(), self.GEOM)
+        assert feat["type"] == "Feature"
+        assert feat["geometry"] == self.GEOM
+
+    def test_dernier_rang_borne_a_maxzoom(self):
+        feat = feature_etiquette(self._ligne(rang=35012), self.GEOM)
+        assert feat["tippecanoe"] == {"minzoom": ZOOM_MAX}
+
+
+class TestCommandeTippecanoe:
+    """Construction pure de la commande tippecanoe (deux couches nommées)."""
+
+    CMD = commande_tippecanoe(
+        Path("/t/communes.geojson"), Path("/t/etiquettes.geojson"), Path("/t/out.pmtiles")
+    )
+
+    def test_deux_couches_nommees(self):
+        assert "-L" in self.CMD
+        assert "communes:/t/communes.geojson" in self.CMD
+        assert "etiquettes:/t/etiquettes.geojson" in self.CMD
+        assert "--layer" not in self.CMD
+
+    def test_options_existantes_conservees(self):
+        for opt in (
+            "--force",
+            "--minimum-zoom=4",
+            "--maximum-zoom=11",
+            "--simplification=4",
+            "--coalesce-densest-as-needed",
+            "--extend-zooms-if-still-dropping",
+        ):
+            assert opt in self.CMD
+
+    def test_sortie_pmtiles(self):
+        i = self.CMD.index("-o")
+        assert self.CMD[i + 1] == "/t/out.pmtiles"
