@@ -73,15 +73,14 @@ jobs:
         working-directory: mobile
         run: npx expo prebuild -p android --no-install
 
-      - name: Pin Gradle 8.2 (compatibilité kotlin-serialization 1.9.24)
-        # expo prebuild copie la version Gradle de @react-native/gradle-plugin
-        # (9.3.1), mais le plugin kotlin-serialization 1.9.24 d'expo-modules-
-        # autolinking n'a pas de variante Gradle 9 dans ses metadata → résolution
-        # échoue. Gradle 8.2 est la plus haute version avec une variante compatible.
+      - name: Vérifier la version Gradle (générée par expo prebuild)
+        # expo prebuild génère gradle-wrapper.properties avec la version Gradle
+        # attendue par @react-native/gradle-plugin (9.3.1 pour RN 0.85). Les
+        # plugins Kotlin de RN 0.85 et Expo SDK 56 utilisent des APIs Gradle 9.x
+        # (settings.layout, org.gradle.internal.cc.base, settings.extensions,
+        # gradle.extra) → Gradle 8.x casse la compilation. Ne PAS pinner à 8.x.
         working-directory: mobile/android
-        run: |
-          sed -i 's|gradle-[^-]*-bin\.zip|gradle-8.2-bin.zip|' gradle/wrapper/gradle-wrapper.properties
-          cat gradle/wrapper/gradle-wrapper.properties
+        run: cat gradle/wrapper/gradle-wrapper.properties
 
       - name: Build APK release (JS embarqué, signé debug)
         working-directory: mobile/android
