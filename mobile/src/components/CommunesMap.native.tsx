@@ -13,9 +13,10 @@ import {
 
 /**
  * Carte choroplèthe des 35 012 communes (Étape 6). Tuiles vectorielles servies
- * en XYZ/MVT ; chaque commune est remplie par sa propriété `hex` (OKLCH de
- * synthèse désaturé par la participation — cohérent avec la fiche). Tap sur une
- * commune → fiche `commune/[insee]`.
+ * en XYZ/MVT ; chaque commune est remplie par la propriété `couleurProperty`
+ * (`hex` = synthèse, `hex_<scrutin_id>` = couleur d'un scrutin — carte v2,
+ * cf. `lib/tiles.ts` COUCHES_COULEUR). Tap sur une commune → fiche
+ * `commune/[insee]`.
  *
  * Implémentation NATIVE uniquement (module natif MapLibre). La variante
  * `CommunesMap.web.tsx` reste un placeholder pour que `expo export web` — et
@@ -38,7 +39,11 @@ const ZOOM_INITIAL = 4.4;
 // la France reste toujours visible et remplit l'écran.
 const ZOOM_MIN = 4;
 
-export function CommunesMap() {
+// Teinte des communes sans donnée pour la couche choisie (scrutin non disputé
+// dans la commune → pas de propriété `hex_<scrutin_id>` dans la tuile).
+const COULEUR_SANS_DONNEE = colors.surface;
+
+export function CommunesMap({ couleurProperty = "hex" }: { couleurProperty?: string }) {
   return (
     <View style={styles.plein}>
       <Map style={styles.plein} mapStyle={FOND_SOMBRE}>
@@ -65,7 +70,10 @@ export function CommunesMap() {
             type="fill"
             source="communes"
             source-layer={SOURCE_LAYER_COMMUNES}
-            paint={{ "fill-color": ["get", "hex"], "fill-opacity": 0.92 }}
+            paint={{
+              "fill-color": ["coalesce", ["get", couleurProperty], COULEUR_SANS_DONNEE],
+              "fill-opacity": 0.92,
+            }}
           />
           <Layer
             id="communes-line"
