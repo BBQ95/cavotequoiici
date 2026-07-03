@@ -35,22 +35,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      # URL publique des tuiles (Funnel) embarquée dans le bundle release.
-      # Donnée publique (couleurs électorales), pas un secret. Requise car le
-      # fallback dev de src/lib/tiles.ts n'agit que sous __DEV__.
-      EXPO_PUBLIC_TILES_URL: https://hermes-vps.tail5957ae.ts.net/tiles
-      # URL publique de l'API (Funnel /api → 8200) embarquée dans le bundle :
-      # sans elle, l'app tape localhost:8200 (le téléphone) → recherche/fiche KO.
-      EXPO_PUBLIC_API_URL: https://hermes-vps.tail5957ae.ts.net/api
+      # URLs publiques de l'instance QA (tuiles + API) embarquées dans le bundle
+      # release. Données publiques, pas des secrets — mais propres à l'infra du
+      # mainteneur, donc posées en variables de dépôt (Settings → Variables) :
+      # un fork met les siennes. Sans elles, l'APK se construit quand même,
+      # recherche et carte restent inertes (voir le step « Configuration QA »).
+      EXPO_PUBLIC_TILES_URL: ${{ vars.QA_TILES_URL }}
+      EXPO_PUBLIC_API_URL: ${{ vars.QA_API_URL }}
       # Numéro de build monotone injecté dans app.config.js → versionCode (Android)
       # et buildNumber (iOS) : le « (N) » s'incrémente à chaque run. run_number est
       # séquentiel et jamais réinitialisé (exigence Play Store).
       EXPO_BUILD_NUMBER: ${{ github.run_number }}
       # Secrets remontés en env pour pouvoir tester leur présence dans `if:`.
       HAS_FIREBASE: ${{ secrets.FIREBASE_APP_ID != '' && secrets.CREDENTIAL_FILE_CONTENT != '' }}
-      HAS_WEBHOOK: ${{ secrets.HERMES_WEBHOOK_SECRET != '' }}
+      HAS_WEBHOOK: ${{ secrets.HERMES_WEBHOOK_SECRET != '' && vars.HERMES_WEBHOOK_URL != '' }}
     steps:
       - uses: actions/checkout@v4
+
+      # Avertit sans échouer : un fork sans variables doit pouvoir builder
+      # (même philosophie que les secrets Firebase/webhook ci-dessus).
+      - name: Configuration QA
+        if: ${{ vars.QA_API_URL == '' || vars.QA_TILES_URL == '' }}
+        run: echo "::warning::QA_API_URL / QA_TILES_URL non définies (Settings → Variables) — l'APK sera construit sans URL backend (recherche et carte inertes)."
 
       - uses: actions/setup-node@v4
         with:
@@ -111,6 +117,7 @@ jobs:
         # hex brut du corps exact, en-tête X-Webhook-Signature (source générique).
         env:
           HERMES_WEBHOOK_SECRET: ${{ secrets.HERMES_WEBHOOK_SECRET }}
+          HERMES_WEBHOOK_URL: ${{ vars.HERMES_WEBHOOK_URL }}
           STATUT: ${{ job.status }}
           REPO: ${{ github.repository }}
           BRANCHE: ${{ github.ref_name }}
@@ -120,7 +127,7 @@ jobs:
           BODY=$(printf '{"status":"%s","repo":"%s","branch":"%s","sha":"%s","run_url":"%s"}' \
             "$STATUT" "$REPO" "$BRANCHE" "$SHA" "$RUN_URL")
           SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$HERMES_WEBHOOK_SECRET" | sed 's/^.* //')
-          curl -s -X POST "https://hermes-vps.tail5957ae.ts.net/webhooks/build-status" \
+          curl -s -X POST "$HERMES_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Webhook-Signature: $SIG" \
             --data "$BODY"
