@@ -50,11 +50,12 @@ tiles:  ## Génère les tuiles vectorielles PMTiles (Étape 6 ; nécessite tippe
 	PYTHONUNBUFFERED=1 $(PY) -m pipeline.export_tiles
 
 # Servir le répertoire tiles/ expose /communes/{z}/{x}/{y}.mvt — le schéma
-# attendu par mobile/src/lib/tiles.ts (TILES_BASE = http://IP:8300).
+# attendu par mobile/src/lib/tiles.ts. Côté app, pointer le téléphone dessus
+# via EXPO_PUBLIC_TILES_URL=http://<IP LAN>:8300 (inlinée au build Expo).
 tiles-serve:  ## Sert tiles/communes.pmtiles en {z}/{x}/{y}.mvt sur :8300 (binaire pmtiles requis)
 	@command -v pmtiles >/dev/null || { echo "pmtiles introuvable — binaire go-pmtiles : https://github.com/protomaps/go-pmtiles/releases" >&2; exit 1; }
 	@test -f tiles/communes.pmtiles || { echo "tiles/communes.pmtiles absent — lancer : make tiles" >&2; exit 1; }
-	pmtiles serve tiles --port 8300 --cors=*
+	pmtiles serve tiles --port 8300 --cors='*'
 
 # Convention du projet : API sur 8200, tuiles sur 8300 (le 8000 peut être occupé
 # par d'autres services locaux).
