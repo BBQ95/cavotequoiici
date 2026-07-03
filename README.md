@@ -143,6 +143,9 @@ Les types TypeScript du client mobile sont générés depuis l'OpenAPI : `make t
 cd mobile && npm install && npx expo start
 ```
 
+Pour tester sur un téléphone (Expo Go SDK 56, backend sur le LAN, limites d'Expo Go,
+APK de QA) : voir [`mobile/README.md`](mobile/README.md).
+
 ## État d'avancement (MVP)
 
 Étapes 0→5 faites (fondations, contours, ingestion des scrutins, calcul des couleurs,
