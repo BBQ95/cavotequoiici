@@ -6,15 +6,19 @@
  * feature porte : `insee`, `nom`, `hex` (sRGB, OKLCH de synthèse déjà désaturé
  * par la participation — même couleur que la fiche), `famille`, `participation`.
  *
- * En prod : `EXPO_PUBLIC_TILES_URL` **doit** pointer vers un CDN servant le même
- * schéma (la variable est inlinée au build). Le fallback vers le serveur de dev
- * (Funnel) n'est appliqué qu'en développement (`__DEV__`) : un build de prod sans
- * la variable donne une base vide (carte sans tuiles = échec visible) plutôt que
- * de taper silencieusement l'infra de dev.
+ * `EXPO_PUBLIC_TILES_URL` **doit** être définie (variable inlinée au build — voir
+ * `mobile/.env.example`, chargé nativement par Expo ; en dev local :
+ * `make tiles-serve`). Sans elle, la base reste vide (carte sans tuiles = échec
+ * visible) plutôt qu'un fallback codé en dur vers l'infra d'un mainteneur.
  */
-const TILES_BASE =
-  process.env.EXPO_PUBLIC_TILES_URL?.replace(/\/$/, "") ??
-  (__DEV__ ? "https://hermes-vps.tail5957ae.ts.net/tiles" : "");
+const TILES_BASE = process.env.EXPO_PUBLIC_TILES_URL?.replace(/\/$/, "") ?? "";
+
+if (__DEV__ && !TILES_BASE) {
+  console.warn(
+    "EXPO_PUBLIC_TILES_URL non définie : la carte restera vide " +
+      "(copier mobile/.env.example vers mobile/.env avec l'IP LAN du backend).",
+  );
+}
 
 /** Templates de tuiles vectorielles (MVT) pour la `VectorSource` MapLibre. */
 export const TUILES_COMMUNES = [`${TILES_BASE}/communes/{z}/{x}/{y}.mvt`];
