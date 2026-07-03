@@ -136,15 +136,19 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     env:
-      HAS_WEBHOOK: ${{ secrets.HERMES_WEBHOOK_SECRET != '' }}
+      # Une variable/secret absent vaut '' dans les expressions : le POST est
+      # sauté si le secret HMAC ou l'URL (variable de dépôt) manque — un fork
+      # sans configuration Hermès passe sans bruit.
+      HAS_WEBHOOK: ${{ secrets.HERMES_WEBHOOK_SECRET != '' && vars.HERMES_WEBHOOK_URL != '' }}
     steps:
       # POST signé HMAC vers l'adaptateur webhook Hermès → Boss annonce dans
       # Telegram et délègue à Richard si échec (runbook « Notifications de
-      # build → Boss »). Sauté si le secret n'est pas posé.
-      - name: POST signé vers /webhooks/build-status
+      # build → Boss »).
+      - name: POST signé vers le webhook build-status
         if: ${{ env.HAS_WEBHOOK == 'true' }}
         env:
           HERMES_WEBHOOK_SECRET: ${{ secrets.HERMES_WEBHOOK_SECRET }}
+          HERMES_WEBHOOK_URL: ${{ vars.HERMES_WEBHOOK_URL }}
           # Statut agrégé des 4 jobs requis (failure si l'un échoue/annulé).
           STATUT: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'failure' || 'success' }}
           REPO: ${{ github.repository }}
@@ -155,7 +159,7 @@ jobs:
           BODY=$(printf '{"status":"%s","repo":"%s","branch":"%s","sha":"%s","run_url":"%s"}' \
             "$STATUT" "$REPO" "$BRANCHE" "$SHA" "$RUN_URL")
           SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$HERMES_WEBHOOK_SECRET" | sed 's/^.* //')
-          curl -s -X POST "https://hermes-vps.tail5957ae.ts.net/webhooks/build-status" \
+          curl -s -X POST "$HERMES_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Webhook-Signature: $SIG" \
             --data "$BODY"
