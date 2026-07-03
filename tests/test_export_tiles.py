@@ -77,6 +77,43 @@ class TestFeatureProprietes:
         assert props["participation"] is None
 
 
+class TestCouleursParScrutin:
+    """Carte v2 : chaque feature porte aussi un hex par scrutin (`hex_<scrutin_id>`),
+    calculé depuis couleurs_scrutin, pour que la carte puisse basculer
+    synthèse ↔ scrutin sans re-télécharger de données."""
+
+    def test_hex_par_scrutin_precalcule_depuis_oklch(self):
+        couleurs = {
+            "presidentielle_2022_t1": OKLCH(L=0.65, C=0.12, H=250.0),
+            "europeennes_2024": OKLCH(L=0.80, C=0.05, H=100.0),
+        }
+        props = feature_proprietes(_ligne(), couleurs)
+        assert props["hex_presidentielle_2022_t1"] == oklch_to_hex(
+            OKLCH(L=0.65, C=0.12, H=250.0)
+        )
+        assert props["hex_europeennes_2024"] == oklch_to_hex(
+            OKLCH(L=0.80, C=0.05, H=100.0)
+        )
+
+    def test_scrutin_absent_pas_de_cle(self):
+        """Une commune sans couleur pour un scrutin n'émet PAS de clé (feature
+        plus légère ; côté client, `coalesce` retombe sur une teinte neutre)."""
+        props = feature_proprietes(_ligne(), {"europeennes_2024": OKLCH(L=0.8, C=0.05, H=100.0)})
+        assert "hex_presidentielle_2022_t1" not in props
+
+    def test_sans_couleurs_scrutin_proprietes_inchangees(self):
+        """Compatibilité : sans le paramètre, seules les propriétés v1 sortent."""
+        props = feature_proprietes(_ligne())
+        assert set(props) == {"insee", "nom", "hex", "famille", "participation"}
+
+    def test_hex_synthese_non_ecrase(self):
+        """La clé `hex` (synthèse) reste celle de couleurs_ville même si des
+        couleurs par scrutin sont fournies."""
+        attendu = oklch_to_hex(OKLCH(L=0.72, C=0.10, H=28.8))
+        props = feature_proprietes(_ligne(), {"europeennes_2024": OKLCH(L=0.8, C=0.05, H=100.0)})
+        assert props["hex"] == attendu
+
+
 class TestFeature:
     def test_feature_geojson_bien_formee(self):
         geom = {"type": "MultiPolygon", "coordinates": [[[[2.35, 48.93]]]]}
@@ -84,3 +121,8 @@ class TestFeature:
         assert feat["type"] == "Feature"
         assert feat["geometry"] == geom
         assert feat["properties"]["insee"] == "93066"
+
+    def test_feature_transmet_les_couleurs_par_scrutin(self):
+        geom = {"type": "MultiPolygon", "coordinates": [[[[2.35, 48.93]]]]}
+        feat = feature(_ligne(), geom, {"europeennes_2024": OKLCH(L=0.8, C=0.05, H=100.0)})
+        assert "hex_europeennes_2024" in feat["properties"]
