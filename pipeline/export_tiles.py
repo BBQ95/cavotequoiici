@@ -6,9 +6,16 @@ puis produit `tiles/communes.pmtiles` via tippecanoe.
 
 L'archive contient DEUX couches :
   - `communes`   : polygones colorés (choroplèthe) ;
-  - `etiquettes` : points de noms de villes (ST_PointOnSurface), avec un
-    minzoom PAR FEATURE étagé par rang national (proxy MAX(inscrits)) —
-    grandes villes aux zooms bas, petites communes en zoomant.
+  - `etiquettes` : points de noms de villes (ST_PointOnSurface), étagés par
+    rang national (proxy MAX(inscrits)) — grandes villes aux zooms bas,
+    petites communes en zoomant.
+
+L'étagement des étiquettes se fait par TRANCHES DE ZOOM fusionnées par
+tile-join (une mini-archive mono-zoom par niveau, la tranche du zoom z
+contenant toutes les communes déjà visibles à z). On n'utilise PAS le minzoom
+par feature de tippecanoe (`"tippecanoe": {"minzoom": N}`) : avec la version
+2.49.0, il réactive un dot-dropping qui ignore -r1 — une seule ville
+survivait par tuile et par zoom (Marseille n'apparaissait jamais).
 
 Pourquoi figer le hex dans la tuile plutôt que transporter L/C/H ?
   - MapLibre GL ne sait pas interpoler en OKLCH ; convertir côté client
@@ -42,6 +49,8 @@ RACINE = Path(__file__).resolve().parent.parent
 GEOJSON_PATH = RACINE / "tiles" / "communes.geojson"
 ETIQUETTES_GEOJSON_PATH = RACINE / "tiles" / "etiquettes.geojson"
 PMTILES_PATH = RACINE / "tiles" / "communes.pmtiles"
+# Artefacts intermédiaires (gitignorés comme le reste de tiles/).
+POLYGONES_PMTILES_PATH = RACINE / "tiles" / "communes-polygones.pmtiles"
 
 # Les couches dans lesquelles MapLibre trouvera les données (source-layer).
 NOM_COUCHE = "communes"
@@ -120,16 +129,15 @@ def minzoom_pour_rang(rang: int) -> int:
 
 
 def feature_etiquette(row: Mapping[str, Any], geometry: Mapping[str, Any]) -> dict[str, Any]:
-    """Feature de point d'étiquette, avec minzoom par feature.
+    """Feature de point d'étiquette.
 
-    La clé `tippecanoe` (sœur de `properties`) est lue par tippecanoe pour le
-    minzoom individuel : l'étiquette est préservée dès ce zoom malgré le
-    dot-dropping. Propriétés minimales : `nom` (texte affiché), `insee` (tap
-    sur un nom → fiche commune), `rang` (priorité de collision côté client).
+    Propriétés minimales : `nom` (texte affiché), `insee` (tap sur un nom →
+    fiche commune), `rang` (priorité de collision côté client). L'étagement
+    par zoom n'est PAS porté par la feature (cf. docstring du module) : il
+    vient du découpage en tranches (`tranche_etiquettes`).
     """
     return {
         "type": "Feature",
-        "tippecanoe": {"minzoom": minzoom_pour_rang(row["rang"])},
         "geometry": geometry,
         "properties": {
             "nom": row["nom"],
@@ -137,6 +145,20 @@ def feature_etiquette(row: Mapping[str, Any], geometry: Mapping[str, Any]) -> di
             "rang": row["rang"],
         },
     }
+
+
+def tranche_etiquettes(
+    features: list[dict[str, Any]], zoom: int
+) -> list[dict[str, Any]]:
+    """Étiquettes déjà visibles au zoom donné (minzoom_pour_rang(rang) <= zoom).
+
+    Chaque commune figure donc dans toutes les tranches de son zoom
+    d'apparition jusqu'à ZOOM_MAX — chaque tranche devient une archive
+    mono-zoom autosuffisante.
+    """
+    return [
+        f for f in features if minzoom_pour_rang(f["properties"]["rang"]) <= zoom
+    ]
 
 
 def iter_etiquettes(conn) -> Iterator[dict[str, Any]]:
@@ -236,10 +258,8 @@ def ecrire_geojson(features: Iterable[dict[str, Any]], chemin: Path) -> int:
     return n
 
 
-def commande_tippecanoe(
-    geojson_communes: Path, geojson_etiquettes: Path, pmtiles_path: Path
-) -> list[str]:
-    """Commande tippecanoe : deux couches nommées dans une seule archive."""
+def commande_tippecanoe_communes(geojson_communes: Path, pmtiles_path: Path) -> list[str]:
+    """Commande tippecanoe de l'archive des polygones (couche `communes`)."""
     return [
         "tippecanoe",
         "-o", str(pmtiles_path),
@@ -256,28 +276,76 @@ def commande_tippecanoe(
         "--simplification=4",
         "--coalesce-densest-as-needed",
         "--extend-zooms-if-still-dropping",
-        # Les points d'étiquette ne subissent PAS le dot-dropping : leur
-        # minzoom par feature (clé GeoJSON `tippecanoe`) les préserve dès le
-        # zoom voulu (comportement documenté de tippecanoe).
         "-L", f"{NOM_COUCHE}:{geojson_communes}",
-        "-L", f"{NOM_COUCHE_ETIQUETTES}:{geojson_etiquettes}",
     ]
 
 
-def generer_tuiles(
-    geojson_communes: Path, geojson_etiquettes: Path, pmtiles_path: Path
-) -> None:
-    """Lance tippecanoe pour produire le PMTiles depuis les GeoJSON."""
-    if shutil.which("tippecanoe") is None:
-        raise RuntimeError(
-            "tippecanoe introuvable. Installer le binaire : `apt install tippecanoe` "
-            "(Debian/Ubuntu récents), `brew install tippecanoe` (macOS), paquet AUR, "
-            "ou compilation depuis https://github.com/felt/tippecanoe "
-            "(cf. tiles/README.md)."
-        )
-    cmd = commande_tippecanoe(geojson_communes, geojson_etiquettes, pmtiles_path)
-    print("→ tippecanoe", " ".join(cmd[1:]))
+def commande_tippecanoe_etiquettes(
+    geojson_tranche: Path, pmtiles_path: Path, zoom: int
+) -> list[str]:
+    """Commande tippecanoe d'UNE tranche d'étiquettes (archive mono-zoom).
+
+    -r1 : aucun dot-dropping — l'étagement est déjà dans le contenu de la
+    tranche, chaque point de la tranche doit apparaître à son zoom.
+    """
+    return [
+        "tippecanoe",
+        "-o", str(pmtiles_path),
+        "--force",
+        f"--minimum-zoom={zoom}",
+        f"--maximum-zoom={zoom}",
+        "-r1",
+        "-L", f"{NOM_COUCHE_ETIQUETTES}:{geojson_tranche}",
+    ]
+
+
+def commande_tile_join(entrees: list[Path], pmtiles_path: Path) -> list[str]:
+    """Commande tile-join fusionnant les archives en une seule.
+
+    -pk : tile-join a sa propre limite de 500 Ko par tuile — sans lui il
+    re-élaguerait les tuiles z4-z6 déjà passées au coalesce de tippecanoe.
+    """
+    return [
+        "tile-join",
+        "--force",
+        "-pk",
+        "-o", str(pmtiles_path),
+        *[str(p) for p in entrees],
+    ]
+
+
+def _lancer(cmd: list[str]) -> None:
+    print("→", cmd[0], " ".join(cmd[1:]))
     subprocess.run(cmd, check=True)
+
+
+def generer_tuiles(
+    geojson_communes: Path, etiquettes: list[dict[str, Any]], pmtiles_path: Path
+) -> None:
+    """Produit l'archive finale : polygones + une tranche d'étiquettes par zoom.
+
+    Toutes les archives intermédiaires vivent dans tiles/ (gitignorées) puis
+    sont fusionnées par tile-join dans `pmtiles_path`.
+    """
+    for binaire in ("tippecanoe", "tile-join"):
+        if shutil.which(binaire) is None:
+            raise RuntimeError(
+                f"{binaire} introuvable. Installer tippecanoe (fournit aussi "
+                "tile-join) : `apt install tippecanoe` (Debian/Ubuntu récents), "
+                "`brew install tippecanoe` (macOS), paquet AUR, ou compilation "
+                "depuis https://github.com/felt/tippecanoe (cf. tiles/README.md)."
+            )
+    _lancer(commande_tippecanoe_communes(geojson_communes, POLYGONES_PMTILES_PATH))
+    archives = [POLYGONES_PMTILES_PATH]
+    for zoom in range(ZOOM_MIN, ZOOM_MAX + 1):
+        tranche = tranche_etiquettes(etiquettes, zoom)
+        geojson = RACINE / "tiles" / f"etiquettes-z{zoom}.geojson"
+        pmtiles = RACINE / "tiles" / f"etiquettes-z{zoom}.pmtiles"
+        ecrire_geojson(iter(tranche), geojson)
+        _lancer(commande_tippecanoe_etiquettes(geojson, pmtiles, zoom))
+        archives.append(pmtiles)
+        print(f"✓ tranche z{zoom} : {len(tranche)} étiquettes")
+    _lancer(commande_tile_join(archives, pmtiles_path))
 
 
 def main() -> None:
@@ -285,14 +353,15 @@ def main() -> None:
     engine = create_engine(url)
     with engine.connect() as conn:
         n = ecrire_geojson(iter_features(conn), GEOJSON_PATH)
-        n_etiquettes = ecrire_geojson(iter_etiquettes(conn), ETIQUETTES_GEOJSON_PATH)
+        etiquettes = list(iter_etiquettes(conn))
+        ecrire_geojson(iter(etiquettes), ETIQUETTES_GEOJSON_PATH)
     taille_mo = GEOJSON_PATH.stat().st_size / 1e6
     print(f"✓ {n} communes écrites dans {GEOJSON_PATH} ({taille_mo:.1f} Mo)")
-    print(f"✓ {n_etiquettes} étiquettes écrites dans {ETIQUETTES_GEOJSON_PATH}")
+    print(f"✓ {len(etiquettes)} étiquettes écrites dans {ETIQUETTES_GEOJSON_PATH}")
     if n == 0:
         print("✗ aucune commune — la table couleurs_ville est-elle peuplée ?", file=sys.stderr)
         sys.exit(1)
-    generer_tuiles(GEOJSON_PATH, ETIQUETTES_GEOJSON_PATH, PMTILES_PATH)
+    generer_tuiles(GEOJSON_PATH, etiquettes, PMTILES_PATH)
     taille_mo = PMTILES_PATH.stat().st_size / 1e6
     print(f"✓ tuiles générées : {PMTILES_PATH} ({taille_mo:.1f} Mo)")
 

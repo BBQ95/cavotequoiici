@@ -126,6 +126,10 @@ jobs:
           echo "::error::/healthz n'a pas répondu 200 — l'API n'a pas démarré (dépendance manquante dans requirements-api.txt ?)"
           docker logs cavote-api-ci
           exit 1
+      # Les glyphes des étiquettes de la carte doivent voyager dans l'image
+      # (attrape un .dockerignore qui exclurait les .pbf ou un mount cassé).
+      - name: Smoke-test /fonts (glyphes carte)
+        run: curl -sf -o /dev/null "http://localhost:8200/fonts/Noto%20Sans%20Medium/0-255.pbf"
       - name: Logs du conteneur (toujours)
         if: ${{ always() }}
         run: docker logs cavote-api-ci || true
