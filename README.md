@@ -122,6 +122,17 @@ make test                     # suite de tests (les tests BDD supposent la base 
 législatives 2024, européennes 2024, municipales 2026), couleurs synthétiques calculées
 (repères validés : Saint-Denis rouge, Nice marine).
 
+> **Base de dev sans pipeline** : si vous ne touchez pas à l'ingestion, un dump prêt à l'emploi
+> (~27 Mo) est publié dans les [releases GitHub](https://github.com/BBQ95/cavotequoiici/releases)
+> (la révision Alembic correspondante est notée dans chaque release). Restauration :
+>
+> ```bash
+> make db-up && make migrate
+> make db-restore DUMP=chemin/vers/cavote-<ts>.dump
+> ```
+>
+> `make db-dump` fait l'opération inverse (export vers `backups/`, hors git).
+
 ## API (lecture seule)
 
 | Méthode | Route | Rôle |
