@@ -35,6 +35,20 @@ db-up:  ## Démarre PostGIS (conteneur docker ; réutilise cavote-db s'il existe
 db-down:  ## Arrête PostGIS
 	docker stop cavote-db
 
+.PHONY: db-dump db-restore
+db-dump:  ## Exporte la base (pg_dump -Fc) vers backups/cavote-<horodatage>.dump
+	@mkdir -p backups
+	docker exec cavote-db pg_dump -U postgres -Fc -d postgres > backups/cavote-$$(date +%Y%m%d-%H%M%S).dump
+	@ls -lh backups/ | tail -1
+
+# --clean --if-exists : les objets existants sont remplacés — restauration
+# rejouable sur une base déjà peuplée. Les 3 warnings « schema tiger/topology
+# already exists » sont bénins (schémas créés par l'image PostGIS).
+db-restore:  ## Restaure un dump : make db-restore DUMP=backups/cavote-<ts>.dump
+	@test -n "$(DUMP)" || { echo "Usage : make db-restore DUMP=chemin/vers/fichier.dump" >&2; exit 1; }
+	@test -f "$(DUMP)" || { echo "Fichier introuvable : $(DUMP)" >&2; exit 1; }
+	docker exec -i cavote-db pg_restore -U postgres --clean --if-exists --no-owner -d postgres < $(DUMP)
+
 migrate:  ## Applique les migrations Alembic
 	cd api && ../$(PY) -m alembic upgrade head
 
