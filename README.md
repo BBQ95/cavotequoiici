@@ -94,8 +94,8 @@ Compute couleurs OKLCH → API FastAPI → Mobile app
 ## Méthodologie
 
 Le modèle de couleur (familles politiques, palette, pondération des scrutins, demi-vie de récence,
-désaturation par l'abstention, algorithme complet) est **public et discutable**. Documentation
-canonique dans la collection Outline *CaVoteQuoiIci*.
+désaturation par l'abstention, algorithme complet) est **public et discutable** : il est décrit
+dans [`docs/methodologie.md`](docs/methodologie.md).
 
 Paramètres versionnés :
 - `pipeline/config/poids_scrutins.yaml` — poids des scrutins, demi-vie, plancher de désaturation
@@ -145,10 +145,15 @@ cd mobile && npm install && npx expo start
 
 ## État d'avancement (MVP)
 
-Étapes 0→5 faites (fondations, contours, ingestion des scrutins, calcul des couleurs,
-API, application mobile). **Étape 6 — tuiles vectorielles** : génération des PMTiles
-opérationnelle (`make tiles`, voir [`tiles/README.md`](tiles/README.md)).
-Reste de l'Étape 6 : intégration MapLibre dans l'app + hébergement CDN. Étape 7 : CI/CD + stores.
+**Étapes 0→6 faites** : fondations, contours, ingestion des scrutins, calcul des couleurs, API,
+application mobile, tuiles vectorielles (`make tiles`, voir [`tiles/README.md`](tiles/README.md))
+**et carte MapLibre intégrée** (onglet Carte : choroplèthe des ~35 000 communes, tap → fiche).
+
+**Étape 7 en cours** : la CI/CD est en place — `ci.yml` (garde-fou de PR : tests, migrations,
+dérive des types TS, bundle mobile, image API), `integration.yml` (nocturne, pipeline complet sur
+données réelles + communes repères), `android-test.yml` (APK de QA + distribution Firebase).
+Restent : l'hébergement de production (tuiles sur CDN, API conteneurisée à déployer) et la
+publication sur les stores.
 
 ## Licence
 
