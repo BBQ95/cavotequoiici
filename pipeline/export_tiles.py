@@ -127,8 +127,10 @@ def generer_tuiles(geojson_path: Path, pmtiles_path: Path) -> None:
     """Lance tippecanoe pour produire le PMTiles depuis le GeoJSON."""
     if shutil.which("tippecanoe") is None:
         raise RuntimeError(
-            "tippecanoe introuvable. Installer le binaire système "
-            "(ex. `apt install tippecanoe`) avant de générer les tuiles."
+            "tippecanoe introuvable. Installer le binaire : `apt install tippecanoe` "
+            "(Debian/Ubuntu récents), `brew install tippecanoe` (macOS), paquet AUR, "
+            "ou compilation depuis https://github.com/felt/tippecanoe "
+            "(cf. tiles/README.md)."
         )
     cmd = [
         "tippecanoe",
