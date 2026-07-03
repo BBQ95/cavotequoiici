@@ -24,6 +24,13 @@ export type FamilleVoix = Schemas["FamilleVoix"];
  */
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
 
+/**
+ * Base de l'API, exposée pour la carte : le style MapLibre construit son
+ * endpoint de glyphes (`/fonts/{fontstack}/{range}.pbf`) dessus. Vide si
+ * `EXPO_PUBLIC_API_URL` n'est pas définie (la carte omet alors les étiquettes).
+ */
+export const API_BASE = BASE_URL;
+
 if (__DEV__ && !BASE_URL) {
   console.warn(
     "EXPO_PUBLIC_API_URL non définie : copier mobile/.env.example vers mobile/.env " +

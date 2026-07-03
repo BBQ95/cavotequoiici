@@ -4,8 +4,11 @@ import type { StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
 import { Camera, Layer, Map, VectorSource } from "@maplibre/maplibre-react-native";
 
 import { colors } from "../theme/tokens";
+import { API_BASE } from "../api/client";
 import {
+  FONTSTACK_ETIQUETTES,
   SOURCE_LAYER_COMMUNES,
+  SOURCE_LAYER_ETIQUETTES,
   TUILES_COMMUNES,
   TUILES_MAXZOOM,
   TUILES_MINZOOM,
@@ -23,9 +26,15 @@ import {
  * donc le job CI `mobile` — n'importe jamais MapLibre et reste vert.
  */
 
+// Glyphes des étiquettes (rendu texte MapLibre), servis par l'API. Sans
+// EXPO_PUBLIC_API_URL, on omet la clé `glyphs` ET la couche symbol : carte
+// colorée sans noms, plutôt que des erreurs de fetch natives.
+const GLYPHS_URL = API_BASE ? `${API_BASE}/fonts/{fontstack}/{range}.pbf` : null;
+
 // Fond sombre sans basemap externe : seules les communes sont dessinées.
 const FOND_SOMBRE: StyleSpecification = {
   version: 8,
+  ...(GLYPHS_URL ? { glyphs: GLYPHS_URL } : {}),
   sources: {},
   layers: [
     { id: "fond", type: "background", paint: { "background-color": colors.bgFull } },
@@ -57,9 +66,12 @@ export function CommunesMap({ couleurProperty = "hex" }: { couleurProperty?: str
           minzoom={TUILES_MINZOOM}
           maxzoom={TUILES_MAXZOOM}
           onPress={(event) => {
-            const insee = event.nativeEvent.features?.[0]?.properties?.insee as
-              | string
-              | undefined;
+            // Le tap remonte les features de TOUTES les couches de la source
+            // (polygones ET points d'étiquette) : on prend la première qui
+            // porte un insee — taper un nom de ville ouvre aussi sa fiche.
+            const insee = event.nativeEvent.features?.find(
+              (f) => f?.properties?.insee,
+            )?.properties?.insee as string | undefined;
             if (insee) {
               router.push(`/commune/${insee}`);
             }
@@ -86,6 +98,33 @@ export function CommunesMap({ couleurProperty = "hex" }: { couleurProperty?: str
               "line-opacity": 0.5,
             }}
           />
+          {GLYPHS_URL != null && (
+            <Layer
+              id="communes-etiquettes"
+              type="symbol"
+              source="communes"
+              source-layer={SOURCE_LAYER_ETIQUETTES}
+              layout={{
+                "text-field": ["get", "nom"],
+                "text-font": [FONTSTACK_ETIQUETTES],
+                // Priorité de placement à la collision : rang national
+                // croissant (valeur basse = placée en premier) — la grande
+                // ville gagne toujours sur ses voisines.
+                "symbol-sort-key": ["get", "rang"],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 4, 10.5, 7, 12, 11, 15],
+                "text-max-width": 8,
+                "text-padding": 2,
+              }}
+              paint={{
+                // Texte clair + halo de la couleur du fond : lisible quelle
+                // que soit la teinte de la commune, sans couleur par feature.
+                "text-color": colors.text,
+                "text-halo-color": colors.bgFull,
+                "text-halo-width": 1.2,
+                "text-halo-blur": 0.4,
+              }}
+            />
+          )}
         </VectorSource>
       </Map>
     </View>

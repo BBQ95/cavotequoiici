@@ -51,6 +51,16 @@ export const COUCHES_COULEUR: readonly CoucheCouleur[] = [
 /** Nom de la couche interne aux tuiles (fixé par le pipeline tippecanoe). */
 export const SOURCE_LAYER_COMMUNES = "communes";
 
+/**
+ * Couche de points d'étiquettes (noms de communes) de la même archive PMTiles :
+ * propriétés `nom`, `insee`, `rang` (rang national, priorité de collision),
+ * minzoom par feature côté pipeline (grandes villes d'abord).
+ */
+export const SOURCE_LAYER_ETIQUETTES = "etiquettes";
+
+/** Fontstack des glyphes servis par l'API (`/fonts/{fontstack}/{range}.pbf`). */
+export const FONTSTACK_ETIQUETTES = "Noto Sans Medium";
+
 /** Bornes de zoom des tuiles (cf. `pipeline/export_tiles.py`). */
 export const TUILES_MINZOOM = 4;
 export const TUILES_MAXZOOM = 11;
