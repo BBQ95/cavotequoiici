@@ -61,13 +61,41 @@ _SQL = text(
     """
 )
 
+# Couleur OKLCH de chaque commune pour CHAQUE scrutin (carte v2 : la carte
+# bascule synthèse ↔ scrutin sans re-télécharger — tout vit dans la tuile).
+_SQL_COULEURS_SCRUTIN = text(
+    "SELECT code_insee, scrutin_id, l, c, h FROM couleurs_scrutin"
+)
 
-def feature_proprietes(row: Mapping[str, Any]) -> dict[str, Any]:
+
+def charger_couleurs_scrutin(conn) -> dict[str, dict[str, OKLCH]]:
+    """Charge couleurs_scrutin en mémoire : code_insee → {scrutin_id: OKLCH}.
+
+    ~4 scrutins × 35 000 communes : tient largement en mémoire, et évite une
+    jointure agrégée par ligne dans la requête principale streamée.
+    """
+    couleurs: dict[str, dict[str, OKLCH]] = {}
+    for row in conn.execute(_SQL_COULEURS_SCRUTIN).mappings():
+        couleurs.setdefault(row["code_insee"], {})[row["scrutin_id"]] = OKLCH(
+            L=row["l"], C=row["c"], H=row["h"]
+        )
+    return couleurs
+
+
+def feature_proprietes(
+    row: Mapping[str, Any],
+    couleurs_par_scrutin: Mapping[str, OKLCH] | None = None,
+) -> dict[str, Any]:
     """Propriétés d'une commune pour la tuile, depuis une ligne de la jointure.
 
     `row` expose : code_insee, nom, l, c, h, participation_mediane, repartition
     (liste de {famille, part} triée par part décroissante, telle que produite
     par `compute_couleurs`).
+
+    `couleurs_par_scrutin` (scrutin_id → OKLCH, depuis couleurs_scrutin) ajoute
+    une clé `hex_<scrutin_id>` par scrutin disputé dans la commune. Un scrutin
+    absent n'émet PAS de clé (feature plus légère ; le client retombe sur une
+    teinte neutre via `coalesce`).
     """
     # `repartition` est une colonne sa.JSON() lue via text() brut : selon le
     # driver elle peut arriver en chaîne JSON non décodée (cf. pipeline.jsoncol).
@@ -80,29 +108,37 @@ def feature_proprietes(row: Mapping[str, Any]) -> dict[str, Any]:
         famille = "divers"
 
     participation = row["participation_mediane"]
-    return {
+    props = {
         "insee": row["code_insee"],
         "nom": row["nom"],
         "hex": oklch_to_hex(OKLCH(L=row["l"], C=row["c"], H=row["h"])),
         "famille": famille,
         "participation": round(participation, 3) if participation is not None else None,
     }
+    for scrutin_id, oklch in (couleurs_par_scrutin or {}).items():
+        props[f"hex_{scrutin_id}"] = oklch_to_hex(oklch)
+    return props
 
 
-def feature(row: Mapping[str, Any], geometry: Mapping[str, Any]) -> dict[str, Any]:
+def feature(
+    row: Mapping[str, Any],
+    geometry: Mapping[str, Any],
+    couleurs_par_scrutin: Mapping[str, OKLCH] | None = None,
+) -> dict[str, Any]:
     """Assemble une Feature GeoJSON à partir d'une ligne et de sa géométrie."""
     return {
         "type": "Feature",
         "geometry": geometry,
-        "properties": feature_proprietes(row),
+        "properties": feature_proprietes(row, couleurs_par_scrutin),
     }
 
 
 def iter_features(conn) -> Iterator[dict[str, Any]]:
     """Itère les Features GeoJSON des communes ayant une couleur de synthèse."""
+    couleurs_scrutin = charger_couleurs_scrutin(conn)
     for row in conn.execute(_SQL).mappings():
         geometry = json.loads(row["geom"])
-        yield feature(row, geometry)
+        yield feature(row, geometry, couleurs_scrutin.get(row["code_insee"]))
 
 
 def ecrire_geojson(conn, chemin: Path) -> int:
