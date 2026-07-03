@@ -8,8 +8,8 @@ PY := .venv/bin/python
 -include .env
 export
 
-.PHONY: help venv db-up db-down migrate data couleurs tiles api types test fresh \
-	compose-up compose-migrate compose-down
+.PHONY: help venv db-up db-down migrate data couleurs tiles tiles-serve api api-lan \
+	types test fresh compose-up compose-migrate compose-down
 
 help:  ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -38,18 +38,32 @@ db-down:  ## Arrête PostGIS
 migrate:  ## Applique les migrations Alembic
 	cd api && ../$(PY) -m alembic upgrade head
 
+# PYTHONUNBUFFERED : les tracebacks du pipeline sortent immédiatement quand la
+# sortie est redirigée (tee, CI) au lieu d'être noyées par le buffering stdout.
 data:  ## Pipeline complet : contours + 4 scrutins + couleurs
-	$(PY) -m pipeline.run_all
+	PYTHONUNBUFFERED=1 $(PY) -m pipeline.run_all
 
 couleurs:  ## Recalcule uniquement les couleurs
-	$(PY) -m pipeline.compute_couleurs
+	PYTHONUNBUFFERED=1 $(PY) -m pipeline.compute_couleurs
 
 tiles:  ## Génère les tuiles vectorielles PMTiles (Étape 6 ; nécessite tippecanoe)
-	$(PY) -m pipeline.export_tiles
+	PYTHONUNBUFFERED=1 $(PY) -m pipeline.export_tiles
 
-# NB : port 8200 — le 8000 est RÉSERVÉ à workspace-mcp (intégration Google de Boss), ne pas l'utiliser.
+# Servir le répertoire tiles/ expose /communes/{z}/{x}/{y}.mvt — le schéma
+# attendu par mobile/src/lib/tiles.ts. Côté app, pointer le téléphone dessus
+# via EXPO_PUBLIC_TILES_URL=http://<IP LAN>:8300 (inlinée au build Expo).
+tiles-serve:  ## Sert tiles/communes.pmtiles en {z}/{x}/{y}.mvt sur :8300 (binaire pmtiles requis)
+	@command -v pmtiles >/dev/null || { echo "pmtiles introuvable — binaire go-pmtiles : https://github.com/protomaps/go-pmtiles/releases" >&2; exit 1; }
+	@test -f tiles/communes.pmtiles || { echo "tiles/communes.pmtiles absent — lancer : make tiles" >&2; exit 1; }
+	pmtiles serve tiles --port 8300 --cors='*'
+
+# Convention du projet : API sur 8200, tuiles sur 8300 (le 8000 peut être occupé
+# par d'autres services locaux).
 api:  ## Lance l'API en développement (rechargement auto)
 	$(PY) -m uvicorn api.main:app --reload --port 8200
+
+api-lan:  ## Lance l'API accessible depuis le LAN (test sur device — réseau de confiance uniquement)
+	$(PY) -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8200
 
 types:  ## Régénère les types TypeScript du mobile depuis l'OpenAPI
 	$(PY) -m api.openapi_export openapi.json
