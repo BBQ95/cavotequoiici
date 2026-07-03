@@ -35,9 +35,10 @@ officielles attribuées par le Ministère de l'Intérieur (codes type `LFI`, `RN
 | Divers / régionalistes | REG, DIV, sans étiquette | Gris `#9AA0A6` |
 
 Cette table est un **paramètre de configuration, pas une vérité absolue**. Le mapping
-nuance → famille est maintenu par type de scrutin et par année
-([`pipeline/config/nuances_familles.csv`](../pipeline/config/nuances_familles.csv)), car les
-nuances officielles évoluent d'un scrutin à l'autre.
+nuance → famille est maintenu **par scrutin** — un CSV daté par élection dans
+[`pipeline/config/nuances/`](../pipeline/config/nuances/) — car les nuances officielles
+évoluent d'un scrutin à l'autre ; la liste canonique famille → couleur vit dans
+[`pipeline/config/familles.csv`](../pipeline/config/familles.csv).
 
 > Nuance d'affichage : dans l'app, les barres de répartition et les légendes utilisent une
 > palette propre (`mobile/src/lib/familles.ts`), légèrement ajustée pour la lisibilité sur fond
@@ -140,6 +141,9 @@ discutables** — ouvrez une issue pour les contester ou proposer mieux :
 
 - [`pipeline/config/poids_scrutins.yaml`](../pipeline/config/poids_scrutins.yaml) — poids par
   type de scrutin, demi-vie de récence, plancher de désaturation, panier de scrutins.
-- [`pipeline/config/nuances_familles.csv`](../pipeline/config/nuances_familles.csv) —
-  correspondance nuance officielle → famille, par scrutin.
+- [`pipeline/config/nuances/`](../pipeline/config/nuances/) — correspondance nuance
+  officielle → famille, un CSV par scrutin (voir son
+  [README](../pipeline/config/nuances/README.md) pour les choix de classification).
+- [`pipeline/config/familles.csv`](../pipeline/config/familles.csv) — familles politiques
+  et couleurs canoniques.
 - `pipeline/couleur.py` — l'algorithme complet (OKLCH, marge, participation).

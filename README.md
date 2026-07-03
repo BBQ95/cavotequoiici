@@ -99,7 +99,8 @@ dans [`docs/methodologie.md`](docs/methodologie.md).
 
 Paramètres versionnés :
 - `pipeline/config/poids_scrutins.yaml` — poids des scrutins, demi-vie, plancher de désaturation
-- `pipeline/config/nuances_familles.csv` — correspondance nuance officielle → famille politique
+- `pipeline/config/nuances/` — correspondance nuance officielle → famille politique (un CSV par scrutin)
+- `pipeline/config/familles.csv` — familles politiques et couleurs canoniques
 
 ## Démarrage rapide
 
