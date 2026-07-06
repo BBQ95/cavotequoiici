@@ -13,7 +13,12 @@ export interface paths {
         };
         /**
          * Search
-         * @description Autocomplétion par nom de commune.
+         * @description Autocomplétion par nom, insensible aux accents et à la casse.
+         *
+         *     Matche en préfixe ou en milieu de nom sur `nom_recherche` (normalisé comme
+         *     la saisie : « nim » → Nîmes, « denis » → Saint-Denis) ; les préfixes sortent
+         *     en premier. Chaque résultat porte la couleur de synthèse (pastille) et la
+         *     famille dominante quand elles existent.
          */
         get: operations["search_communes_search_get"];
         put?: never;
@@ -188,6 +193,9 @@ export interface components {
         /**
          * CommuneResultat
          * @description Élément d'autocomplétion / de recherche.
+         *
+         *     `hex` (couleur de synthèse) et `famille` (dominante) sont nuls pour une
+         *     commune sans couleur calculée.
          */
         CommuneResultat: {
             /** Code Insee */
@@ -196,6 +204,10 @@ export interface components {
             nom: string;
             /** Departement */
             departement?: string | null;
+            /** Hex */
+            hex?: string | null;
+            /** Famille */
+            famille?: string | null;
         };
         /**
          * CouleurScrutin
@@ -328,7 +340,7 @@ export interface operations {
     search_communes_search_get: {
         parameters: {
             query: {
-                /** @description Début du nom de commune */
+                /** @description Nom (ou partie du nom) de commune */
                 q: string;
                 limite?: number;
             };

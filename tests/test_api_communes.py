@@ -17,6 +17,46 @@ def test_search(client):
     assert "93066" in codes
 
 
+def test_search_insensible_aux_accents(client):
+    """Cas rapporté : « nim » doit proposer Nîmes (30189)."""
+    r = client.get("/communes/search", params={"q": "nim"})
+    assert r.status_code == 200
+    body = r.json()
+    assert "30189" in {c["code_insee"] for c in body}
+    # Les préfixes sortent en premier : le 1er résultat commence par « nim ».
+    assert body[0]["nom"].lower().replace("î", "i").startswith("nim")
+
+
+def test_search_milieu_de_nom(client):
+    """« denis » (sans « saint- ») trouve Saint-Denis."""
+    r = client.get("/communes/search", params={"q": "denis", "limite": 50})
+    assert r.status_code == 200
+    assert "93066" in {c["code_insee"] for c in r.json()}
+
+
+def test_search_espace_pour_tiret(client):
+    """« saint denis » (espace) matche « Saint-Denis » (tiret)."""
+    r = client.get("/communes/search", params={"q": "saint denis"})
+    assert r.status_code == 200
+    assert "93066" in {c["code_insee"] for c in r.json()}
+
+
+def test_search_renvoie_couleur_et_famille(client):
+    """Chaque résultat porte hex + famille dominante (pastille de la liste)."""
+    r = client.get("/communes/search", params={"q": "saint denis"})
+    assert r.status_code == 200
+    saint_denis = next(c for c in r.json() if c["code_insee"] == "93066")
+    assert saint_denis["hex"].startswith("#")
+    assert saint_denis["famille"] == "extreme_gauche"
+
+
+def test_search_metacaracteres_like_neutralises(client):
+    """Un « % » saisi ne doit pas matcher toutes les communes."""
+    r = client.get("/communes/search", params={"q": "%"})
+    assert r.status_code == 200
+    assert r.json() == []
+
+
 def test_couleur(client):
     r = client.get("/communes/93066/couleur")
     assert r.status_code == 200

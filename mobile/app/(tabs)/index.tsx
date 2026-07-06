@@ -16,6 +16,7 @@ import * as Location from "expo-location";
 
 import { useSearch } from "../../src/api/queries";
 import { api } from "../../src/api/client";
+import { familleInfo } from "../../src/lib/familles";
 import { getRecents, addRecent, type Recent } from "../../src/lib/recents";
 import { colors, radius, space, type } from "../../src/theme/tokens";
 
@@ -61,7 +62,10 @@ export default function Accueil() {
   }
 
   const listeRecherche = q.trim().length >= 2;
-  const donnees: Recent[] = listeRecherche ? (resultats ?? []) : recents;
+  // Résultats de recherche (avec `famille` API) ou récents (avec `tendance` déjà libellée).
+  const donnees: (Recent & { famille?: string | null })[] = listeRecherche
+    ? (resultats ?? [])
+    : recents;
 
   return (
     <View style={[styles.page, { paddingTop: insets.top + space.sm }]}>
@@ -119,33 +123,39 @@ export default function Accueil() {
             <Text style={styles.vide}>Aucune commune trouvée.</Text>
           ) : null
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.ligne}
-            onPress={() =>
-              ouvrir({
-                code_insee: item.code_insee,
-                nom: item.nom,
-                departement: item.departement,
-              })
-            }
-            accessibilityRole="button"
-          >
-            <View
-              style={[
-                styles.pastille,
-                { backgroundColor: item.hex ?? colors.border },
-              ]}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.ligneNom}>{item.nom}</Text>
-              <Text style={styles.ligneMeta}>
-                {[item.departement, item.tendance].filter(Boolean).join(" · ")}
-              </Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
-          </Pressable>
-        )}
+        renderItem={({ item }) => {
+          const tendance =
+            item.tendance ?? (item.famille ? familleInfo(item.famille).label : null);
+          return (
+            <Pressable
+              style={styles.ligne}
+              onPress={() =>
+                ouvrir({
+                  code_insee: item.code_insee,
+                  nom: item.nom,
+                  departement: item.departement,
+                  hex: item.hex,
+                  tendance,
+                })
+              }
+              accessibilityRole="button"
+            >
+              <View
+                style={[
+                  styles.pastille,
+                  { backgroundColor: item.hex ?? colors.border },
+                ]}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ligneNom}>{item.nom}</Text>
+                <Text style={styles.ligneMeta}>
+                  {[item.departement, tendance].filter(Boolean).join(" · ")}
+                </Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
+            </Pressable>
+          );
+        }}
       />
     </View>
   );
