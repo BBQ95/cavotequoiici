@@ -37,7 +37,7 @@ export type AlgoInfo = {
 };
 
 /** Ordre d'affichage du sélecteur : du plus brut au plus interprété. */
-export const ALGOS: readonly AlgoInfo[] = [
+export const ALGOS = [
   {
     id: "complet",
     label: "Synthèse complète",
@@ -62,7 +62,16 @@ export const ALGOS: readonly AlgoInfo[] = [
       "un camp divisé en plusieurs familles ne perd plus la première place " +
       "face à un camp uni.",
   },
-] as const;
+] as const satisfies readonly AlgoInfo[];
+
+/**
+ * Garde d'exhaustivité (remarque de revue #49) : si le contrat API gagne un
+ * algo, `Record<Algo, string>` (tiles.ts) le signale déjà, mais rien ne
+ * forçait le sélecteur à le proposer. tsc échoue ici tant que `ALGOS` ne
+ * couvre pas toute l'union `Algo`.
+ */
+type Verifie<T extends never> = T;
+type _AlgosTousProposes = Verifie<Exclude<Algo, (typeof ALGOS)[number]["id"]>>;
 
 function estAlgo(v: unknown): v is Algo {
   return ALGOS.some((a) => a.id === v);
