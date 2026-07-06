@@ -53,8 +53,9 @@ Les fichiers produits sont **volumineux et regénérables** → non versionnés
 |-----|---------|----------------|
 | `insee` | `"93066"` | navigation `commune/[insee]` au tap |
 | `nom` | `"Saint-Denis"` | libellé |
-| `hex` | `"#AB564B"` | `fill-color` du polygone (synthèse) |
+| `hex` | `"#AB564B"` | `fill-color` du polygone (synthèse, algo « complet ») |
 | `hex_<scrutin_id>` | `"#5A6FA3"` | `fill-color` de la couche d'un scrutin (absent si scrutin non disputé) |
+| `hex_algo_<algo>` | `"#1C2535"` | `fill-color` selon l'algo de dominance (`tendance`, `blocs` ; « complet » = clé `hex`) — cf. `pipeline.couleur.ALGOS` |
 | `famille` | `"extreme_gauche"` | légende / filtres (famille dominante) |
 | `participation` | `0.507` | infobulle / désaturation déjà intégrée au hex |
 

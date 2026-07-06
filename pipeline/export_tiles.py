@@ -98,6 +98,13 @@ _SQL_COULEURS_SCRUTIN = text(
     "SELECT code_insee, scrutin_id, l, c, h FROM couleurs_scrutin"
 )
 
+# Couleur de synthèse par algo de dominance (P1.2 : la carte bascule d'algo
+# sans re-télécharger). « complet » est exclu : c'est déjà la clé `hex`.
+_SQL_COULEURS_ALGO = text(
+    "SELECT code_insee, algo, l, c, h FROM couleurs_ville_algo "
+    "WHERE algo != 'complet'"
+)
+
 # Points d'étiquette : même univers que les polygones (jointure couleurs_ville).
 # Priorité = rang national par MAX(inscrits) (proxy de population ; le tiebreak
 # code_insee rend le rang déterministe). ST_PointOnSurface garantit un point
@@ -184,6 +191,7 @@ def charger_couleurs_scrutin(conn) -> dict[str, dict[str, OKLCH]]:
 def feature_proprietes(
     row: Mapping[str, Any],
     couleurs_par_scrutin: Mapping[str, OKLCH] | None = None,
+    couleurs_par_algo: Mapping[str, OKLCH] | None = None,
 ) -> dict[str, Any]:
     """Propriétés d'une commune pour la tuile, depuis une ligne de la jointure.
 
@@ -195,6 +203,11 @@ def feature_proprietes(
     une clé `hex_<scrutin_id>` par scrutin disputé dans la commune. Un scrutin
     absent n'émet PAS de clé (feature plus légère ; le client retombe sur une
     teinte neutre via `coalesce`).
+
+    `couleurs_par_algo` (algo → OKLCH, depuis couleurs_ville_algo) ajoute une
+    clé `hex_algo_<algo>` par algo de dominance alternatif ; « complet » est
+    ignoré (c'est la clé `hex`), même absence de clé pour une commune sans
+    ligne.
     """
     # `repartition` est une colonne sa.JSON() lue via text() brut : selon le
     # driver elle peut arriver en chaîne JSON non décodée (cf. pipeline.jsoncol).
@@ -216,6 +229,9 @@ def feature_proprietes(
     }
     for scrutin_id, oklch in (couleurs_par_scrutin or {}).items():
         props[f"hex_{scrutin_id}"] = oklch_to_hex(oklch)
+    for algo, oklch in (couleurs_par_algo or {}).items():
+        if algo != "complet":
+            props[f"hex_algo_{algo}"] = oklch_to_hex(oklch)
     return props
 
 
@@ -223,21 +239,42 @@ def feature(
     row: Mapping[str, Any],
     geometry: Mapping[str, Any],
     couleurs_par_scrutin: Mapping[str, OKLCH] | None = None,
+    couleurs_par_algo: Mapping[str, OKLCH] | None = None,
 ) -> dict[str, Any]:
     """Assemble une Feature GeoJSON à partir d'une ligne et de sa géométrie."""
     return {
         "type": "Feature",
         "geometry": geometry,
-        "properties": feature_proprietes(row, couleurs_par_scrutin),
+        "properties": feature_proprietes(row, couleurs_par_scrutin, couleurs_par_algo),
     }
+
+
+def charger_couleurs_algo(conn) -> dict[str, dict[str, OKLCH]]:
+    """Charge couleurs_ville_algo (hors complet) : code_insee → {algo: OKLCH}.
+
+    2 algos × 35 000 communes : même stratégie en mémoire que
+    `charger_couleurs_scrutin`.
+    """
+    couleurs: dict[str, dict[str, OKLCH]] = {}
+    for row in conn.execute(_SQL_COULEURS_ALGO).mappings():
+        couleurs.setdefault(row["code_insee"], {})[row["algo"]] = OKLCH(
+            L=row["l"], C=row["c"], H=row["h"]
+        )
+    return couleurs
 
 
 def iter_features(conn) -> Iterator[dict[str, Any]]:
     """Itère les Features GeoJSON des communes ayant une couleur de synthèse."""
     couleurs_scrutin = charger_couleurs_scrutin(conn)
+    couleurs_algo = charger_couleurs_algo(conn)
     for row in conn.execute(_SQL).mappings():
         geometry = json.loads(row["geom"])
-        yield feature(row, geometry, couleurs_scrutin.get(row["code_insee"]))
+        yield feature(
+            row,
+            geometry,
+            couleurs_scrutin.get(row["code_insee"]),
+            couleurs_algo.get(row["code_insee"]),
+        )
 
 
 def ecrire_geojson(features: Iterable[dict[str, Any]], chemin: Path) -> int:

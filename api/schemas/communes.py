@@ -27,13 +27,21 @@ class FamilleSynthese(BaseModel):
 
 
 class CouleurSynthese(BaseModel):
-    """Couleur politique synthétique d'une commune."""
+    """Couleur politique synthétique d'une commune.
+
+    `algo` = algo de dominance servi (cf. pipeline.couleur.ALGOS) ;
+    `famille_dominante` en dépend — pour « tendance »/« blocs » elle peut
+    différer de la première entrée de `repartition` (qui reste le classement
+    complet, divers inclus, identique pour tous les algos).
+    """
 
     code_insee: str
     l: float
     c: float
     h: float
     hex: str
+    algo: str = "complet"
+    famille_dominante: str | None = None
     participation_mediane: float
     scrutins_inclus: list[tuple[str, float]]
     repartition: list[FamilleSynthese] = []

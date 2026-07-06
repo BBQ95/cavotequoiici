@@ -289,3 +289,42 @@ class TestCommandeTileJoin:
 
     def test_force(self):
         assert "--force" in self.CMD
+
+
+class TestCouleursParAlgo:
+    """P1.2 : chaque feature porte aussi un hex par algo de dominance
+    (`hex_algo_<algo>`, depuis couleurs_ville_algo) pour que la carte puisse
+    basculer d'algo sans re-télécharger. « complet » n'émet pas de clé : c'est
+    déjà la clé `hex` (synthèse historique)."""
+
+    def test_hex_par_algo_precalcule_depuis_oklch(self):
+        algos = {
+            "tendance": OKLCH(L=0.30, C=0.04, H=262.0),
+            "blocs": OKLCH(L=0.28, C=0.06, H=262.0),
+        }
+        props = feature_proprietes(_ligne(), None, algos)
+        assert props["hex_algo_tendance"] == oklch_to_hex(OKLCH(L=0.30, C=0.04, H=262.0))
+        assert props["hex_algo_blocs"] == oklch_to_hex(OKLCH(L=0.28, C=0.06, H=262.0))
+
+    def test_complet_pas_de_cle_dediee(self):
+        """L'algo complet est la clé `hex` : pas de doublon hex_algo_complet,
+        même si le chargeur le fournissait par erreur."""
+        props = feature_proprietes(_ligne(), None, {"complet": OKLCH(L=0.7, C=0.1, H=28.8)})
+        assert "hex_algo_complet" not in props
+
+    def test_commune_sans_algo_pas_de_cle(self):
+        props = feature_proprietes(_ligne(), None, None)
+        assert not [k for k in props if k.startswith("hex_algo_")]
+
+    def test_hex_synthese_non_ecrase_par_algos(self):
+        attendu = oklch_to_hex(OKLCH(L=0.72, C=0.10, H=28.8))
+        props = feature_proprietes(_ligne(), None, {"tendance": OKLCH(L=0.3, C=0.04, H=262.0)})
+        assert props["hex"] == attendu
+
+    def test_cumul_scrutins_et_algos(self):
+        props = feature_proprietes(
+            _ligne(),
+            {"europeennes_2024": OKLCH(L=0.8, C=0.05, H=100.0)},
+            {"tendance": OKLCH(L=0.3, C=0.04, H=262.0)},
+        )
+        assert "hex_europeennes_2024" in props and "hex_algo_tendance" in props
