@@ -109,11 +109,11 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   point: { flexDirection: "row", gap: space.md, alignItems: "flex-start" },
-  pointTxt: { flex: 1, fontSize: 14, color: colors.textLight, lineHeight: 21 },
+  pointTxt: { flex: 1, fontSize: 14, color: colors.textLight, lineHeight: 21, ...type.body },
   b: { color: colors.text, ...type.label },
   familleLigne: { flexDirection: "row", alignItems: "center", gap: space.md },
   pastille: { width: 14, height: 14, borderRadius: 4 },
-  familleTxt: { fontSize: 15, color: colors.textLight },
+  familleTxt: { fontSize: 15, color: colors.textLight, ...type.body },
   lienBtn: {
     flexDirection: "row",
     alignItems: "center",

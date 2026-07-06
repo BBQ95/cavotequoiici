@@ -75,8 +75,8 @@ const styles = StyleSheet.create({
   },
   entete: { flexDirection: "row", alignItems: "center", padding: space.lg },
   titre: { fontSize: 15, color: colors.text, ...type.label },
-  meta: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  meta: { fontSize: 12, color: colors.textSecondary, marginTop: 2, ...type.body },
   contenu: { paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.md },
-  part: { fontSize: 13, color: colors.textLight },
-  err: { fontSize: 13, color: "#e0707a" },
+  part: { fontSize: 13, color: colors.textLight, ...type.body },
+  err: { fontSize: 13, color: "#e0707a", ...type.body },
 });

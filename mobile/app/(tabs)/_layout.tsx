@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 
-import { colors } from "../../src/theme/tokens";
+import { colors, type } from "../../src/theme/tokens";
 
 /**
  * Barre d'onglets persistante (cf. maquettes) : Rechercher · Carte · Méthode.
@@ -18,7 +18,7 @@ export default function TabsLayout() {
           backgroundColor: colors.bg,
           borderTopColor: colors.separator,
         },
-        tabBarLabelStyle: { fontSize: 11 },
+        tabBarLabelStyle: { fontSize: 11, ...type.label },
       }}
     >
       <Tabs.Screen
