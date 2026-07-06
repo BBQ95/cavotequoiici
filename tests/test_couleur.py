@@ -460,3 +460,180 @@ class TestCouleurVille:
             assert round(part, 3) == part, (
                 f"repartition[{famille}] non arrondi à 3 décimales : {part}"
             )
+
+
+# ---------------------------------------------------------------------------
+# couleur_ville — algos alternatifs de dominance (P1 Todo)
+# ---------------------------------------------------------------------------
+
+
+class TestCouleurVilleAlgos:
+    """Trois algos sélectionnables : « complet » (statu quo, pluralité 7 familles),
+    « tendance » (divers exclu de la dominance, renormalisation sur les familles
+    politiques) et « blocs » (gauche/centre/droite agrégés avant dominance).
+    La répartition retournée reste TOUJOURS le classement complet (transparence).
+    """
+
+    @pytest.fixture
+    def saint_urcize(self):
+        """Commune rurale < 1000 hab. : municipales 100 % sans étiquette (LUD →
+        divers). Profil calqué sur Saint-Urcize (15216), cf. doc Outline « Détails
+        de calcul » : divers remporte la pluralité d'un cheveu → quasi-gris en
+        algo complet, alors que les scrutins nationaux penchent à droite.
+        """
+        return [
+            ResultatScrutin(
+                type_scrutin="pres_t1",
+                age_annees=4.2,
+                parts_familles={
+                    "centre": 0.33,
+                    "extreme_droite": 0.26,
+                    "divers": 0.15,
+                    "gauche": 0.11,
+                    "droite": 0.08,
+                    "extreme_gauche": 0.04,
+                    "ecologistes": 0.03,
+                },
+                participation=0.79,
+            ),
+            ResultatScrutin(
+                type_scrutin="leg_t1",
+                age_annees=2.0,
+                parts_familles={
+                    "droite": 0.37,
+                    "extreme_droite": 0.33,
+                    "centre": 0.15,
+                    "gauche": 0.15,
+                },
+                participation=0.75,
+            ),
+            ResultatScrutin(
+                type_scrutin="mun_t1",
+                age_annees=0.3,
+                parts_familles={"divers": 1.0},
+                participation=0.85,
+            ),
+        ]
+
+    # -- algo « complet » (défaut) : comportement inchangé ---------------------
+
+    def test_defaut_est_complet(self, saint_urcize):
+        implicite = couleur_ville(saint_urcize, participation_mediane=0.74)
+        explicite = couleur_ville(saint_urcize, participation_mediane=0.74, algo="complet")
+        assert implicite == explicite
+
+    def test_complet_saint_urcize_quasi_gris(self, saint_urcize):
+        resultat = couleur_ville(saint_urcize, participation_mediane=0.74)
+        assert resultat["famille_dominante"] == "divers"
+        ok = hex_to_oklch(resultat["hex"])
+        assert ok.C < 0.06  # quasi-gris : le problème rapporté
+
+    # -- algo « tendance » : divers exclu de la dominance ----------------------
+
+    def test_tendance_saint_urcize_colore(self, saint_urcize):
+        resultat = couleur_ville(saint_urcize, participation_mediane=0.74, algo="tendance")
+        assert resultat["famille_dominante"] == "extreme_droite"
+        # Teinte de l'extrême droite (bleu marine), pas du gris
+        attendu = hex_to_oklch(COULEURS["extreme_droite"])
+        ok = hex_to_oklch(resultat["hex"])
+        assert abs(ok.H - attendu.H) < 15
+        # Et nettement plus saturé que le quasi-gris de l'algo complet
+        gris = hex_to_oklch(couleur_ville(saint_urcize, participation_mediane=0.74)["hex"])
+        assert ok.C > gris.C * 3
+
+    def test_tendance_part_et_marge_renormalisees(self, saint_urcize):
+        """part/marge sont renormalisées sur les familles politiques (hors divers)."""
+        complet = couleur_ville(saint_urcize, participation_mediane=0.74)
+        tendance = couleur_ville(saint_urcize, participation_mediane=0.74, algo="tendance")
+        # La part renormalisée de l'ED dépasse sa part brute du classement complet
+        part_brute_ed = dict(complet["repartition"])["extreme_droite"]
+        assert tendance["part_synthetique"] > part_brute_ed
+        assert 0.0 < tendance["marge"] <= 1.0
+
+    def test_tendance_repartition_reste_complete(self, saint_urcize):
+        """Transparence : divers reste visible dans la répartition retournée."""
+        resultat = couleur_ville(saint_urcize, participation_mediane=0.74, algo="tendance")
+        assert "divers" in dict(resultat["repartition"])
+
+    def test_tendance_sans_famille_politique_reste_divers(self):
+        """Une commune 100 % divers reste grise (rien à renormaliser)."""
+        scrutins = [
+            ResultatScrutin(
+                type_scrutin="mun_t1",
+                age_annees=0.3,
+                parts_familles={"divers": 1.0},
+                participation=0.85,
+            ),
+        ]
+        resultat = couleur_ville(scrutins, participation_mediane=0.74, algo="tendance")
+        assert resultat["famille_dominante"] == "divers"
+
+    def test_tendance_identique_sans_divers(self):
+        """Sans voix divers, tendance == complet (même hex)."""
+        scrutins = [
+            ResultatScrutin(
+                type_scrutin="pres_t1",
+                age_annees=2.0,
+                parts_familles={"gauche": 0.55, "droite": 0.45},
+                participation=0.65,
+            ),
+        ]
+        complet = couleur_ville(scrutins, participation_mediane=0.60)
+        tendance = couleur_ville(scrutins, participation_mediane=0.60, algo="tendance")
+        assert complet["hex"] == tendance["hex"]
+        assert complet["famille_dominante"] == tendance["famille_dominante"]
+
+    # -- algo « blocs » : gauche/centre/droite agrégés --------------------------
+
+    def test_blocs_saint_urcize_bloc_droite(self, saint_urcize):
+        resultat = couleur_ville(saint_urcize, participation_mediane=0.74, algo="blocs")
+        # Bloc droite (droite + extrême droite) gagne ; la teinte vient de la
+        # sous-famille dominante du bloc (ici l'extrême droite).
+        assert resultat["famille_dominante"] == "extreme_droite"
+        tendance = couleur_ville(saint_urcize, participation_mediane=0.74, algo="tendance")
+        assert resultat["marge"] >= tendance["marge"]
+
+    def test_blocs_camp_divise_gagne_uni(self):
+        """Un camp divisé en deux familles ne perd plus face à un camp uni
+        (limite « blocs divisés » de la méthodologie)."""
+        scrutins = [
+            ResultatScrutin(
+                type_scrutin="pres_t1",
+                age_annees=1.0,
+                parts_familles={
+                    "extreme_gauche": 0.28,
+                    "gauche": 0.27,
+                    "droite": 0.40,
+                    "centre": 0.05,
+                },
+                participation=0.65,
+            ),
+        ]
+        complet = couleur_ville(scrutins, participation_mediane=0.60)
+        blocs = couleur_ville(scrutins, participation_mediane=0.60, algo="blocs")
+        assert complet["famille_dominante"] == "droite"
+        # Bloc gauche = 0.55 > bloc droite = 0.40 ; sous-famille max = EG
+        assert blocs["famille_dominante"] == "extreme_gauche"
+
+    def test_blocs_sans_famille_politique_reste_divers(self):
+        scrutins = [
+            ResultatScrutin(
+                type_scrutin="mun_t1",
+                age_annees=0.3,
+                parts_familles={"divers": 1.0},
+                participation=0.85,
+            ),
+        ]
+        resultat = couleur_ville(scrutins, participation_mediane=0.74, algo="blocs")
+        assert resultat["famille_dominante"] == "divers"
+
+    # -- garde-fous -------------------------------------------------------------
+
+    def test_algo_inconnu_leve_valueerror(self, saint_urcize):
+        with pytest.raises(ValueError):
+            couleur_ville(saint_urcize, participation_mediane=0.74, algo="magique")
+
+    def test_resultat_porte_l_algo(self, saint_urcize):
+        for algo in ("complet", "tendance", "blocs"):
+            resultat = couleur_ville(saint_urcize, participation_mediane=0.74, algo=algo)
+            assert resultat["algo"] == algo

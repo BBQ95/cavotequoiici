@@ -24,7 +24,7 @@ from datetime import date
 import polars as pl
 from sqlalchemy import create_engine, text
 
-from pipeline.couleur import ResultatScrutin, couleur_ville, hex_to_oklch
+from pipeline.couleur import ALGOS, ResultatScrutin, couleur_ville, hex_to_oklch
 from pipeline.ingest.common import charger_nuances
 from pipeline.synthese import TYPE_VERS_POIDS, age_annees, participation, parts_familles
 
@@ -158,22 +158,39 @@ def main() -> None:
             )
 
     lignes_ville = []
+    lignes_algo = []
     for code, rs in rs_cache.items():
-        res = couleur_ville(rs, med_nationale)
-        ok = hex_to_oklch(res["hex"])
-        lignes_ville.append(
-            {
-                "code_insee": code,
-                "l": ok.L,
-                "c": ok.C,
-                "h": ok.H,
-                "participation_mediane": res["participation"],
-                "scrutins_inclus": json.dumps(res["scrutins_inclus"]),
-                "repartition": json.dumps(
-                    [{"famille": f, "part": p} for f, p in res["repartition"]]
-                ),
-            }
-        )
+        # Une couleur par algo de dominance ; « complet » alimente aussi
+        # couleurs_ville (synthèse historique servie par défaut à l'app).
+        for algo in ALGOS:
+            res = couleur_ville(rs, med_nationale, algo=algo)
+            ok = hex_to_oklch(res["hex"])
+            lignes_algo.append(
+                {
+                    "code_insee": code,
+                    "algo": algo,
+                    "l": ok.L,
+                    "c": ok.C,
+                    "h": ok.H,
+                    "famille_dominante": res["famille_dominante"],
+                    "part_synthetique": res["part_synthetique"],
+                    "marge": res["marge"],
+                }
+            )
+            if algo == "complet":
+                lignes_ville.append(
+                    {
+                        "code_insee": code,
+                        "l": ok.L,
+                        "c": ok.C,
+                        "h": ok.H,
+                        "participation_mediane": res["participation"],
+                        "scrutins_inclus": json.dumps(res["scrutins_inclus"]),
+                        "repartition": json.dumps(
+                            [{"famille": f, "part": p} for f, p in res["repartition"]]
+                        ),
+                    }
+                )
 
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM couleurs_scrutin"))
@@ -198,7 +215,22 @@ def main() -> None:
                 ),
                 lignes_ville,
             )
-    print(f"{len(lignes_scrutin)} couleurs_scrutin, {len(lignes_ville)} couleurs_ville écrites.")
+        conn.execute(text("DELETE FROM couleurs_ville_algo"))
+        if lignes_algo:
+            conn.execute(
+                text(
+                    "INSERT INTO couleurs_ville_algo "
+                    "(code_insee, algo, l, c, h, famille_dominante, "
+                    "part_synthetique, marge) "
+                    "VALUES (:code_insee, :algo, :l, :c, :h, :famille_dominante, "
+                    ":part_synthetique, :marge)"
+                ),
+                lignes_algo,
+            )
+    print(
+        f"{len(lignes_scrutin)} couleurs_scrutin, {len(lignes_ville)} couleurs_ville, "
+        f"{len(lignes_algo)} couleurs_ville_algo écrites."
+    )
 
 
 if __name__ == "__main__":
