@@ -50,5 +50,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
     maxWidth: 320,
+    ...type.body,
   },
 });

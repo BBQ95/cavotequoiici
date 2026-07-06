@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.bgFull,
   },
-  err: { fontSize: 16, color: "#e0707a" },
+  err: { fontSize: 16, color: "#e0707a", ...type.body },
   entete: {
     flexDirection: "row",
     alignItems: "center",
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   titre: { flex: 1, textAlign: "center", fontSize: 17, color: colors.text, ...type.heading },
   carte: { borderRadius: radius.card, padding: space.xl },
   wordmark: { fontSize: 13, ...type.label },
-  carteDept: { fontSize: 13, marginTop: space.lg },
+  carteDept: { fontSize: 13, marginTop: space.lg, ...type.body },
   carteNom: { fontSize: 32, marginTop: space.xs, ...type.title },
   carteTendance: { fontSize: 15, marginTop: space.xs, ...type.label },
   carteParticipation: { fontSize: 15, marginTop: space.lg, ...type.label },
@@ -225,12 +225,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginTop: space.sm,
   },
-  cartePied: { fontSize: 12, marginTop: space.lg },
+  cartePied: { fontSize: 12, marginTop: space.lg, ...type.body },
   apercu: {
     fontSize: 12,
     color: colors.textTertiary,
     textAlign: "center",
     marginTop: space.md,
+    ...type.body,
   },
   actionsRow: { flexDirection: "row", gap: space.md, marginTop: space.xl },
   action: {

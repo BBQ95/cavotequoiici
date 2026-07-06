@@ -32,5 +32,5 @@ const styles = StyleSheet.create({
   },
   valeur: { fontSize: 30, color: colors.text, ...type.title },
   label: { fontSize: 14, color: colors.textLight, marginTop: space.xs, ...type.label },
-  sousLabel: { fontSize: 12, color: colors.textTertiary, marginTop: 2 },
+  sousLabel: { fontSize: 12, color: colors.textTertiary, marginTop: 2, ...type.body },
 });

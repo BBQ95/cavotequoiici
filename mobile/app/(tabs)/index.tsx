@@ -156,7 +156,13 @@ const styles = StyleSheet.create({
   wordmarkRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
   wordmark: { color: colors.text, fontSize: 17, ...type.heading },
   accroche: { fontSize: 30, color: colors.text, marginTop: space.xxl, ...type.title },
-  sousTitre: { fontSize: 15, color: colors.textSecondary, marginTop: space.sm, lineHeight: 21 },
+  sousTitre: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    marginTop: space.sm,
+    lineHeight: 21,
+    ...type.body,
+  },
   champ: {
     flexDirection: "row",
     alignItems: "center",
@@ -169,7 +175,7 @@ const styles = StyleSheet.create({
     marginTop: space.xl,
     minHeight: 50,
   },
-  input: { flex: 1, color: colors.text, fontSize: 16, paddingVertical: space.md },
+  input: { flex: 1, color: colors.text, fontSize: 16, paddingVertical: space.md, ...type.body },
   geoBtn: {
     flexDirection: "row",
     gap: space.sm,
@@ -205,6 +211,11 @@ const styles = StyleSheet.create({
   },
   pastille: { width: 16, height: 16, borderRadius: 8 },
   ligneNom: { fontSize: 16, color: colors.text, ...type.label },
-  ligneMeta: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  vide: { paddingVertical: space.xxl, textAlign: "center", color: colors.textSecondary },
+  ligneMeta: { fontSize: 13, color: colors.textSecondary, marginTop: 2, ...type.body },
+  vide: {
+    paddingVertical: space.xxl,
+    textAlign: "center",
+    color: colors.textSecondary,
+    ...type.body,
+  },
 });

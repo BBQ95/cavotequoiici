@@ -29,5 +29,11 @@ export function TransparenceEncart({
 const styles = StyleSheet.create({
   encart: { marginTop: space.sm },
   titre: { fontSize: 18, color: colors.text, ...type.heading },
-  intro: { fontSize: 14, color: colors.textSecondary, marginTop: space.sm, lineHeight: 20 },
+  intro: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: space.sm,
+    lineHeight: 20,
+    ...type.body,
+  },
 });
