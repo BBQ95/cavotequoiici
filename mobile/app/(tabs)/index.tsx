@@ -119,7 +119,10 @@ export default function Accueil() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: insets.bottom + space.lg }}
         ListEmptyComponent={
-          listeRecherche && !isFetching ? (
+          // resultats !== undefined : pas d'état vide pendant la fenêtre de
+          // debounce de la 1re recherche (la requête suit q avec 250 ms de
+          // retard, isFetching est encore false à ce moment-là).
+          listeRecherche && !isFetching && resultats !== undefined ? (
             <Text style={styles.vide}>Aucune commune trouvée.</Text>
           ) : null
         }
