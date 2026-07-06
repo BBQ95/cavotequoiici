@@ -36,3 +36,42 @@ def test_reperes_teinte():
             assert row is not None, f"{nom} ({code}) absent de couleurs_ville"
             h = row[0]
             assert hmin <= h <= hmax, f"{nom} : H={h:.1f} hors de [{hmin}, {hmax}]"
+
+
+def test_reperes_algos():
+    """P1 Todo : les algos alternatifs colorent les communes « sans étiquette ».
+
+    Saint-Urcize (15216, rurale < 1000 hab., municipales 100 % LUD) est grise
+    avec l'algo complet mais doit ressortir extrême droite (marine) avec les
+    algos tendance et blocs. Les repères historiques ne doivent PAS changer de
+    famille entre complet et tendance (divers n'y est jamais dominant).
+    """
+    from sqlalchemy import create_engine, text
+
+    engine = create_engine(DB)
+    with engine.connect() as conn:
+        lignes = conn.execute(
+            text(
+                "SELECT algo, h, famille_dominante FROM couleurs_ville_algo "
+                "WHERE code_insee = '15216'"
+            ),
+        ).fetchall()
+        assert len(lignes) == 3, "3 algos attendus pour Saint-Urcize"
+        par_algo = {r.algo: r for r in lignes}
+        assert par_algo["complet"].famille_dominante == "divers"
+        for algo in ("tendance", "blocs"):
+            assert par_algo[algo].famille_dominante == "extreme_droite", algo
+            assert 240 <= par_algo[algo].h <= 275, f"{algo} : H hors marine"
+
+        # Non-régression des repères : même famille en complet et tendance.
+        for code, (nom, _, _) in REPERES.items():
+            familles = dict(
+                conn.execute(
+                    text(
+                        "SELECT algo, famille_dominante FROM couleurs_ville_algo "
+                        "WHERE code_insee = :x AND algo IN ('complet', 'tendance')"
+                    ),
+                    {"x": code},
+                ).fetchall()
+            )
+            assert familles["complet"] == familles["tendance"], nom
