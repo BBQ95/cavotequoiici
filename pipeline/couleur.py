@@ -257,10 +257,10 @@ def couleur_ville(
     participation_mediane : participation médienne nationale, utilisée
         comme référence pour le facteur de désaturation.
     algo : algo de dominance (cf. ALGOS). Ne change QUE le choix de la
-        famille gagnante et la marge (donc la teinte et sa netteté) ; les
-        parts synthétiques, la participation et la répartition retournée
-        (classement complet, divers inclus — transparence) sont identiques
-        pour les trois algos.
+        famille gagnante, la part/marge rapportées (renormalisées pour
+        tendance/blocs) et donc la teinte et sa netteté ; la participation
+        et la répartition retournée (classement complet, divers inclus —
+        transparence) sont identiques pour les trois algos.
 
     Retourne
     --------
