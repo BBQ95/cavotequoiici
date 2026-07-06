@@ -105,3 +105,12 @@ def test_prepare_communes_sans_doublon_insee():
     )  # duplique la 1re commune
     out = prepare_communes(gdf)
     assert out["code_insee"].is_unique
+
+
+def test_prepare_communes_nom_recherche():
+    out = prepare_communes(_gdf_source())
+    assert list(out["nom_recherche"]) == [
+        "l abergement clemenciat",
+        "l abergement de varey",
+        "ajaccio",
+    ]

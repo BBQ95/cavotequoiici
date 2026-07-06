@@ -6,11 +6,17 @@ from pydantic import BaseModel
 
 
 class CommuneResultat(BaseModel):
-    """Élément d'autocomplétion / de recherche."""
+    """Élément d'autocomplétion / de recherche.
+
+    `hex` (couleur de synthèse) et `famille` (dominante) sont nuls pour une
+    commune sans couleur calculée.
+    """
 
     code_insee: str
     nom: str
     departement: str | None = None
+    hex: str | None = None
+    famille: str | None = None
 
 
 class FamilleSynthese(BaseModel):

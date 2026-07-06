@@ -18,6 +18,7 @@ from api.schemas.communes import (
 )
 from pipeline.couleur import OKLCH, oklch_to_hex
 from pipeline.jsoncol import decode_json_col
+from pipeline.normalisation import normaliser_nom
 
 router = APIRouter(prefix="/communes", tags=["communes"])
 
@@ -48,24 +49,57 @@ def _synthese(row) -> CouleurSynthese:
 # --- /search et /proximite AVANT /{insee} (sinon capturés par la route paramétrée) ---
 
 
+def _echapper_like(s: str) -> str:
+    """Neutralise les métacaractères LIKE d'une saisie utilisateur."""
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 @router.get("/search", response_model=list[CommuneResultat])
 def search(
-    q: str = Query(min_length=1, description="Début du nom de commune"),
+    q: str = Query(min_length=1, description="Nom (ou partie du nom) de commune"),
     limite: int = Query(10, ge=1, le=50),
     conn=Depends(get_conn),
 ):
-    """Autocomplétion par nom de commune."""
+    """Autocomplétion par nom, insensible aux accents et à la casse.
+
+    Matche en préfixe ou en milieu de nom sur `nom_recherche` (normalisé comme
+    la saisie : « nim » → Nîmes, « denis » → Saint-Denis) ; les préfixes sortent
+    en premier. Chaque résultat porte la couleur de synthèse (pastille) et la
+    famille dominante quand elles existent.
+    """
+    qn = _echapper_like(normaliser_nom(q))
+    if not qn:
+        return []
     rows = conn.execute(
         text(
-            "SELECT code_insee, nom, departement FROM communes "
-            "WHERE nom ILIKE :q ORDER BY nom LIMIT :n"
+            "SELECT c.code_insee, c.nom, c.departement, "
+            "cv.l, cv.c, cv.h, cv.repartition "
+            "FROM communes c "
+            "LEFT JOIN couleurs_ville cv ON cv.code_insee = c.code_insee "
+            "WHERE c.nom_recherche LIKE :prefixe ESCAPE '\\' "
+            "OR c.nom_recherche LIKE :infixe ESCAPE '\\' "
+            "ORDER BY (c.nom_recherche LIKE :prefixe ESCAPE '\\') DESC, c.nom "
+            "LIMIT :n"
         ),
-        {"q": f"{q}%", "n": limite},
+        {"prefixe": f"{qn}%", "infixe": f"%{qn}%", "n": limite},
     ).fetchall()
-    return [
-        CommuneResultat(code_insee=r.code_insee, nom=r.nom, departement=r.departement)
-        for r in rows
-    ]
+    resultats = []
+    for r in rows:
+        hexa = famille = None
+        if r.l is not None:
+            hexa = oklch_to_hex(OKLCH(L=r.l, C=r.c, H=r.h))
+            repartition = _json_col(r.repartition) or []
+            famille = repartition[0]["famille"] if repartition else None
+        resultats.append(
+            CommuneResultat(
+                code_insee=r.code_insee,
+                nom=r.nom,
+                departement=r.departement,
+                hex=hexa,
+                famille=famille,
+            )
+        )
+    return resultats
 
 
 @router.get("/proximite", response_model=list[CommuneProximite])

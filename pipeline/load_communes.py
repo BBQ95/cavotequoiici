@@ -18,9 +18,11 @@ import geopandas as gpd
 from shapely.geometry import MultiPolygon, Polygon
 from sqlalchemy import create_engine, text
 
+from pipeline.normalisation import normaliser_nom
+
 # Colonnes du GeoDataFrame préparé, alignées sur la table `communes`
 # (la géométrie reste nommée "geometry" ici ; renommée en "geom" au moment de l'écriture).
-COLONNES_CIBLE = ["code_insee", "nom", "departement", "region", "geometry"]
+COLONNES_CIBLE = ["code_insee", "nom", "nom_recherche", "departement", "region", "geometry"]
 
 DEFAUT_GEOJSON = "data/communes-100m.geojson"
 DEFAUT_DB_URL = "postgresql+psycopg2://postgres:cavote@localhost:5432/postgres"
@@ -60,10 +62,11 @@ def prepare_communes(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     gdf = gdf.copy()
     gdf["code_insee"] = gdf["code"].map(normalize_insee)
+    gdf["nom_recherche"] = gdf["nom"].map(normaliser_nom)
     gdf["geometry"] = gdf["geometry"].map(to_multipolygon)
 
     out = gpd.GeoDataFrame(
-        gdf[["code_insee", "nom", "departement", "region"]].copy(),
+        gdf[["code_insee", "nom", "nom_recherche", "departement", "region"]].copy(),
         geometry=gdf["geometry"],
         crs=gdf.crs,
     )
@@ -97,11 +100,13 @@ def upsert_communes(gdf: gpd.GeoDataFrame, engine) -> int:
         conn.execute(text("ANALYZE communes_transit"))
         conn.execute(
             text(
-                "INSERT INTO communes (code_insee, nom, departement, region, geom) "
-                "SELECT code_insee, nom, departement, region, geom "
+                "INSERT INTO communes "
+                "(code_insee, nom, nom_recherche, departement, region, geom) "
+                "SELECT code_insee, nom, nom_recherche, departement, region, geom "
                 "FROM communes_transit "
                 "ON CONFLICT (code_insee) DO UPDATE SET "
-                "nom = EXCLUDED.nom, departement = EXCLUDED.departement, "
+                "nom = EXCLUDED.nom, nom_recherche = EXCLUDED.nom_recherche, "
+                "departement = EXCLUDED.departement, "
                 "region = EXCLUDED.region, geom = EXCLUDED.geom"
             )
         )
