@@ -19,6 +19,10 @@ export default function TabsLayout() {
           borderTopColor: colors.separator,
         },
         tabBarLabelStyle: { fontSize: 11, ...type.label },
+        // La barre d'onglets a une hauteur quasi fixe : en grande police système,
+        // « Rechercher »/« Méthode » tronquent. Les labels restent à ×1 (les
+        // icônes + l'ordre suffisent à l'identification).
+        tabBarAllowFontScaling: false,
       }}
     >
       <Tabs.Screen

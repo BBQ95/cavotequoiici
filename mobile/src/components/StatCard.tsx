@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 
-import { colors, radius, space, type } from "../theme/tokens";
+import { colors, fontScaleCap, radius, space, type } from "../theme/tokens";
 
 /** Carte statistique : grande valeur + label + sous-label (participation, scrutins…). */
 export function StatCard({
@@ -14,9 +14,18 @@ export function StatCard({
 }) {
   return (
     <View style={styles.carte}>
-      <Text style={styles.valeur}>{valeur}</Text>
-      <Text style={styles.label}>{label}</Text>
-      {sousLabel ? <Text style={styles.sousLabel}>{sousLabel}</Text> : null}
+      {/* La carte partage la largeur d'écran avec sa voisine : plafonds serrés. */}
+      <Text style={styles.valeur} maxFontSizeMultiplier={fontScaleCap.grand}>
+        {valeur}
+      </Text>
+      <Text style={styles.label} maxFontSizeMultiplier={fontScaleCap.contraint}>
+        {label}
+      </Text>
+      {sousLabel ? (
+        <Text style={styles.sousLabel} maxFontSizeMultiplier={fontScaleCap.contraint}>
+          {sousLabel}
+        </Text>
+      ) : null}
     </View>
   );
 }

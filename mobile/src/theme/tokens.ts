@@ -61,3 +61,15 @@ export const type = {
   label: { fontFamily: "PublicSans_600SemiBold" },
   body: { fontFamily: "PublicSans_400Regular" },
 } as const;
+
+/**
+ * Plafonds de grossissement (prop `maxFontSizeMultiplier`) quand la police
+ * système est agrandie (accessibilité). Seules les zones à géométrie serrée
+ * sont plafonnées — le corps de texte scale librement, c'est lui qu'on lit.
+ * `grand` : titres 30-38 pt (déjà énormes, déborderaient en largeur) ;
+ * `contraint` : libellés dans pilules, boutons, cartes à largeur bornée.
+ */
+export const fontScaleCap = {
+  grand: 1.2,
+  contraint: 1.4,
+} as const;
