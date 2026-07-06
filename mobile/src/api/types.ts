@@ -18,7 +18,7 @@ export interface paths {
          *     Matche en préfixe ou en milieu de nom sur `nom_recherche` (normalisé comme
          *     la saisie : « nim » → Nîmes, « denis » → Saint-Denis) ; les préfixes sortent
          *     en premier. Chaque résultat porte la couleur de synthèse (pastille) et la
-         *     famille dominante quand elles existent.
+         *     famille dominante quand elles existent, selon l'`algo` demandé.
          */
         get: operations["search_communes_search_get"];
         put?: never;
@@ -224,6 +224,11 @@ export interface components {
         /**
          * CouleurSynthese
          * @description Couleur politique synthétique d'une commune.
+         *
+         *     `algo` = algo de dominance servi (cf. pipeline.couleur.ALGOS) ;
+         *     `famille_dominante` en dépend — pour « tendance »/« blocs » elle peut
+         *     différer de la première entrée de `repartition` (qui reste le classement
+         *     complet, divers inclus, identique pour tous les algos).
          */
         CouleurSynthese: {
             /** Code Insee */
@@ -236,6 +241,13 @@ export interface components {
             h: number;
             /** Hex */
             hex: string;
+            /**
+             * Algo
+             * @default complet
+             */
+            algo: string;
+            /** Famille Dominante */
+            famille_dominante?: string | null;
             /** Participation Mediane */
             participation_mediane: number;
             /** Scrutins Inclus */
@@ -343,6 +355,7 @@ export interface operations {
                 /** @description Nom (ou partie du nom) de commune */
                 q: string;
                 limite?: number;
+                algo?: "complet" | "tendance" | "blocs";
             };
             header?: never;
             path?: never;
@@ -405,7 +418,9 @@ export interface operations {
     };
     couleur_communes__insee__couleur_get: {
         parameters: {
-            query?: never;
+            query?: {
+                algo?: "complet" | "tendance" | "blocs";
+            };
             header?: never;
             path: {
                 insee: string;
@@ -436,7 +451,9 @@ export interface operations {
     };
     fiche_communes__insee__get: {
         parameters: {
-            query?: never;
+            query?: {
+                algo?: "complet" | "tendance" | "blocs";
+            };
             header?: never;
             path: {
                 insee: string;

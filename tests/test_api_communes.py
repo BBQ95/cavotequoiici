@@ -111,3 +111,53 @@ def test_proximite(client):
     # triées par distance croissante
     dists = [i["distance_m"] for i in items]
     assert dists == sorted(dists)
+
+
+def test_couleur_algo_tendance_colore_saint_urcize(client):
+    """P1.2 : ?algo=tendance sert la couleur recalculée sans les sans-étiquette.
+    Saint-Urcize (15216) : grise en complet, extrême droite (marine) en tendance."""
+    complet = client.get("/communes/15216/couleur").json()
+    r = client.get("/communes/15216/couleur", params={"algo": "tendance"})
+    assert r.status_code == 200
+    tendance = r.json()
+    assert tendance["algo"] == "tendance"
+    assert tendance["famille_dominante"] == "extreme_droite"
+    assert 240 <= tendance["h"] <= 275
+    assert tendance["hex"] != complet["hex"]
+    # Répartition et participation identiques (seule la dominance change)
+    assert tendance["repartition"] == complet["repartition"]
+    assert tendance["participation_mediane"] == complet["participation_mediane"]
+
+
+def test_couleur_algo_defaut_complet(client):
+    """Sans paramètre, comportement historique (compat clients existants)."""
+    implicite = client.get("/communes/93066/couleur").json()
+    explicite = client.get("/communes/93066/couleur", params={"algo": "complet"}).json()
+    assert implicite == explicite
+    assert implicite["algo"] == "complet"
+    assert implicite["famille_dominante"] == implicite["repartition"][0]["famille"]
+
+
+def test_couleur_algo_inconnu_422(client):
+    assert client.get("/communes/93066/couleur", params={"algo": "magique"}).status_code == 422
+
+
+def test_fiche_algo_tendance(client):
+    r = client.get("/communes/15216", params={"algo": "tendance"})
+    assert r.status_code == 200
+    couleur = r.json()["couleur"]
+    assert couleur["algo"] == "tendance"
+    assert couleur["famille_dominante"] == "extreme_droite"
+
+
+def test_search_algo_tendance(client):
+    """La pastille de la liste suit l'algo demandé (P1.3 : préférence de l'app)."""
+    complet = client.get("/communes/search", params={"q": "urcize"}).json()
+    tendance = client.get(
+        "/communes/search", params={"q": "urcize", "algo": "tendance"}
+    ).json()
+    su_c = next(c for c in complet if c["code_insee"] == "15216")
+    su_t = next(c for c in tendance if c["code_insee"] == "15216")
+    assert su_c["famille"] == "divers"
+    assert su_t["famille"] == "extreme_droite"
+    assert su_t["hex"] != su_c["hex"]
