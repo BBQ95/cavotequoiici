@@ -39,6 +39,24 @@ COULEURS = {
     "divers": "#9AA0A6",
 }
 
+# Algos de dominance sélectionnables (P1 Todo — cf. étude Outline) :
+#   complet  : pluralité sur les 7 familles, divers inclus (comportement historique)
+#   tendance : divers exclu de la course, parts renormalisées sur les familles
+#              politiques — les « sans étiquette » ne grisent plus la carte
+#   blocs    : gauche/centre/droite agrégés avant dominance (un camp divisé en
+#              deux familles ne perd plus face à un camp uni) ; la teinte vient
+#              de la sous-famille dominante du bloc gagnant
+ALGOS = ("complet", "tendance", "blocs")
+
+BLOCS = {
+    "extreme_gauche": "gauche",
+    "gauche": "gauche",
+    "ecologistes": "gauche",
+    "centre": "centre",
+    "droite": "droite",
+    "extreme_droite": "droite",
+}
+
 # ---------------------------------------------------------------------------
 # Dataclass
 # ---------------------------------------------------------------------------
@@ -188,8 +206,47 @@ def poids_scrutin(type_scrutin: str, age_annees: float) -> float:
 # ---------------------------------------------------------------------------
 
 
+def _dominance(classement: list[tuple[str, float]], algo: str) -> tuple[str, float, float]:
+    """Choisit (gagnante, part, marge) dans un classement trié décroissant.
+
+    - complet : pluralité brute sur tout le classement.
+    - tendance : divers exclu, parts renormalisées sur le total politique ;
+      retombe sur « complet » si aucune famille politique n'a de voix.
+    - blocs : familles agrégées par bloc (cf. BLOCS, divers et familles
+      inconnues exclus), marge entre blocs renormalisée sur le total
+      politique ; la gagnante est la sous-famille dominante du bloc gagnant ;
+      même repli que « tendance » si aucun bloc n'a de voix.
+    """
+    if algo == "tendance":
+        politiques = [(f, v) for f, v in classement if f != "divers"]
+        total = sum(v for _, v in politiques)
+        if total > 0:
+            gagnante, part = politiques[0]
+            part2 = politiques[1][1] if len(politiques) > 1 else 0.0
+            return gagnante, part / total, (part - part2) / total
+    elif algo == "blocs":
+        politiques = [(f, v) for f, v in classement if f in BLOCS]
+        total = sum(v for _, v in politiques)
+        if total > 0:
+            par_bloc: dict[str, float] = {}
+            for f, v in politiques:
+                par_bloc[BLOCS[f]] = par_bloc.get(BLOCS[f], 0.0) + v
+            blocs = sorted(par_bloc.items(), key=lambda kv: kv[1], reverse=True)
+            bloc_gagnant, part_bloc = blocs[0]
+            part_bloc2 = blocs[1][1] if len(blocs) > 1 else 0.0
+            # Teinte = sous-famille dominante du bloc gagnant (1re du classement)
+            gagnante = next(f for f, _ in politiques if BLOCS[f] == bloc_gagnant)
+            return gagnante, part_bloc / total, (part_bloc - part_bloc2) / total
+    # « complet », ou repli des deux autres algos quand tout est divers.
+    (gagnante, part) = classement[0]
+    part2 = classement[1][1] if len(classement) > 1 else 0.0
+    return gagnante, part, part - part2
+
+
 def couleur_ville(
-    scrutins: list[ResultatScrutin], participation_mediane: float
+    scrutins: list[ResultatScrutin],
+    participation_mediane: float,
+    algo: str = "complet",
 ) -> dict:
     """Calcule la couleur politique synthétique d'une ville.
 
@@ -199,18 +256,28 @@ def couleur_ville(
         tours sont automatiquement exclus car absents de POIDS_TYPE).
     participation_mediane : participation médienne nationale, utilisée
         comme référence pour le facteur de désaturation.
+    algo : algo de dominance (cf. ALGOS). Ne change QUE le choix de la
+        famille gagnante, la part/marge rapportées (renormalisées pour
+        tendance/blocs) et donc la teinte et sa netteté ; la participation
+        et la répartition retournée (classement complet, divers inclus —
+        transparence) sont identiques pour les trois algos.
 
     Retourne
     --------
     dict avec les clés :
         - hex : couleur finale au format #RRGGBB
+        - algo : algo de dominance utilisé
         - famille_dominante : nom de la famille gagnante
-        - part_synthetique : part synthétique de la famille dominante (arr. 3)
-        - marge : écart avec la 2ᵉ famille (arr. 3)
+        - part_synthetique : part de la famille dominante (arr. 3 ;
+          renormalisée sur les familles politiques pour tendance/blocs)
+        - marge : écart avec la 2ᵉ famille ou le 2ᵉ bloc (arr. 3 ; même
+          renormalisation)
         - participation : participation synthétique (arr. 3)
         - scrutins_inclus : [(type, poids_relatif), ...]
         - repartition : classement complet [(famille, part), ...]
     """
+    if algo not in ALGOS:
+        raise ValueError(f"algo inconnu: {algo!r} (attendu: {', '.join(ALGOS)})")
     # 1. Poids de chaque scrutin (liste de tuples car ResultatScrutin
     #    n'est pas hashable — il contient un dict)
     poids = [
@@ -238,11 +305,9 @@ def couleur_ville(
     }
     participation = sum(p * s.participation for s, p in poids) / total_poids
 
-    # 3. Famille dominante et marge
+    # 3. Famille dominante et marge, selon l'algo choisi
     classement = sorted(synthese.items(), key=lambda kv: kv[1], reverse=True)
-    (gagnante, part) = classement[0]
-    (_, part2) = classement[1] if len(classement) > 1 else ("", 0.0)
-    marge = part - part2
+    gagnante, part, marge = _dominance(classement, algo)
 
     # 4. Couleur : teinte de la famille dominante,
     #    intensité = netteté du résultat × niveau de participation
@@ -261,6 +326,7 @@ def couleur_ville(
 
     return {
         "hex": oklch_to_hex(couleur),
+        "algo": algo,
         "famille_dominante": gagnante,
         "part_synthetique": round(part, 3),
         "marge": round(marge, 3),
