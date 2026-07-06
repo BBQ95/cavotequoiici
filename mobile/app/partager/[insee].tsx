@@ -20,7 +20,7 @@ import { useFiche } from "../../src/api/queries";
 import { RepartitionBar } from "../../src/components/RepartitionBar";
 import { texteSurFond, pourcent } from "../../src/lib/color";
 import { familleInfo } from "../../src/lib/familles";
-import { colors, radius, space, type } from "../../src/theme/tokens";
+import { colors, fontScaleCap, radius, space, type } from "../../src/theme/tokens";
 
 export default function Partager() {
   const { insee } = useLocalSearchParams<{ insee: string }>();
@@ -120,23 +120,36 @@ export default function Partager() {
         }}
       >
         {/* Carte de partage (aperçu ET vue capturée en image). collapsable=false :
-            requis pour que react-native-view-shot puisse la capturer sur Android. */}
+            requis pour que react-native-view-shot puisse la capturer sur Android.
+            allowFontScaling=false sur tous ses textes : le PNG partagé est un
+            livrable graphique, il doit sortir identique quelle que soit la
+            taille de police système (sinon l'image capturée sort cassée). */}
         <View
           ref={carteRef}
           collapsable={false}
           style={[styles.carte, { backgroundColor: couleur.hex }]}
         >
-          <Text style={[styles.wordmark, { color: txt, opacity: 0.85 }]}>
+          <Text
+            style={[styles.wordmark, { color: txt, opacity: 0.85 }]}
+            allowFontScaling={false}
+          >
             CaVoteQuoiIci
           </Text>
-          <Text style={[styles.carteDept, { color: txt, opacity: 0.85 }]}>
+          <Text
+            style={[styles.carteDept, { color: txt, opacity: 0.85 }]}
+            allowFontScaling={false}
+          >
             {departement ? `Département ${departement}` : ""}
           </Text>
-          <Text style={[styles.carteNom, { color: txt }]}>{nom}</Text>
+          <Text style={[styles.carteNom, { color: txt }]} allowFontScaling={false}>
+            {nom}
+          </Text>
           {tendance ? (
-            <Text style={[styles.carteTendance, { color: txt }]}>{tendance}</Text>
+            <Text style={[styles.carteTendance, { color: txt }]} allowFontScaling={false}>
+              {tendance}
+            </Text>
           ) : null}
-          <Text style={[styles.carteParticipation, { color: txt }]}>
+          <Text style={[styles.carteParticipation, { color: txt }]} allowFontScaling={false}>
             {pourcent(couleur.participation_mediane)} de participation
           </Text>
           {couleur.repartition.length > 0 ? (
@@ -154,7 +167,10 @@ export default function Partager() {
                 ))}
             </View>
           ) : null}
-          <Text style={[styles.cartePied, { color: txt, opacity: 0.85 }]}>
+          <Text
+            style={[styles.cartePied, { color: txt, opacity: 0.85 }]}
+            allowFontScaling={false}
+          >
             Synthèse pondérée · scrutins récents
           </Text>
         </View>
@@ -191,7 +207,14 @@ function ActionSecondaire({
   return (
     <Pressable onPress={onPress} accessibilityRole="button" style={styles.action}>
       <MaterialIcons name={icone} size={22} color={colors.accentBright} />
-      <Text style={styles.actionTxt}>{label}</Text>
+      {/* 1/3 de largeur d'écran chacun : plafond + une seule ligne. */}
+      <Text
+        style={styles.actionTxt}
+        numberOfLines={1}
+        maxFontSizeMultiplier={fontScaleCap.contraint}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }

@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, Pressable } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
 import { texteSurFond } from "../lib/color";
-import { radius, space, type } from "../theme/tokens";
+import { fontScaleCap, radius, space, type } from "../theme/tokens";
 
 /**
  * Hero plein fond = couleur synthétique de la commune. Porte le retour, le
@@ -49,10 +49,21 @@ export function ColorHero({
         <Text style={[styles.sousTitre, { color: couleurTexte, opacity: 0.85 }]}>
           {sousTitre}
         </Text>
-        <Text style={[styles.nom, { color: couleurTexte }]}>{nom}</Text>
+        <Text
+          style={[styles.nom, { color: couleurTexte }]}
+          maxFontSizeMultiplier={fontScaleCap.grand}
+        >
+          {nom}
+        </Text>
         {tendance ? (
           <View style={[styles.pill, { borderColor: couleurTexte }]}>
-            <Text style={[styles.pillTxt, { color: couleurTexte }]}>{tendance}</Text>
+            <Text
+              style={[styles.pillTxt, { color: couleurTexte }]}
+              numberOfLines={1}
+              maxFontSizeMultiplier={fontScaleCap.contraint}
+            >
+              {tendance}
+            </Text>
           </View>
         ) : null}
       </View>

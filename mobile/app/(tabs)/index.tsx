@@ -18,7 +18,7 @@ import { useSearch } from "../../src/api/queries";
 import { api } from "../../src/api/client";
 import { familleInfo } from "../../src/lib/familles";
 import { getRecents, addRecent, type Recent } from "../../src/lib/recents";
-import { colors, radius, space, type } from "../../src/theme/tokens";
+import { colors, fontScaleCap, radius, space, type } from "../../src/theme/tokens";
 
 export default function Accueil() {
   const router = useRouter();
@@ -74,7 +74,9 @@ export default function Accueil() {
         <Text style={styles.wordmark}>CaVoteQuoiIci</Text>
       </View>
 
-      <Text style={styles.accroche}>Quelle est la couleur de votre commune ?</Text>
+      <Text style={styles.accroche} maxFontSizeMultiplier={fontScaleCap.grand}>
+        Quelle est la couleur de votre commune ?
+      </Text>
       <Text style={styles.sousTitre}>
         La synthèse de ses derniers scrutins, participation comprise.
       </Text>
@@ -103,7 +105,13 @@ export default function Accueil() {
         ) : (
           <>
             <MaterialIcons name="my-location" size={18} color={colors.text} />
-            <Text style={styles.geoTxt}>Utiliser ma position</Text>
+            <Text
+              style={styles.geoTxt}
+              numberOfLines={1}
+              maxFontSizeMultiplier={fontScaleCap.contraint}
+            >
+              Utiliser ma position
+            </Text>
           </>
         )}
       </Pressable>
@@ -150,8 +158,10 @@ export default function Accueil() {
                 ]}
               />
               <View style={{ flex: 1 }}>
-                <Text style={styles.ligneNom}>{item.nom}</Text>
-                <Text style={styles.ligneMeta}>
+                <Text style={styles.ligneNom} numberOfLines={1}>
+                  {item.nom}
+                </Text>
+                <Text style={styles.ligneMeta} numberOfLines={1}>
                   {[item.departement, tendance].filter(Boolean).join(" · ")}
                 </Text>
               </View>

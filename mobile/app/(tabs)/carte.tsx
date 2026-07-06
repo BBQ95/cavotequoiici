@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, radius, space, type } from "../../src/theme/tokens";
+import { colors, fontScaleCap, radius, space, type } from "../../src/theme/tokens";
 import { CommunesMap } from "../../src/components/CommunesMap";
 import { COUCHES_COULEUR } from "../../src/lib/tiles";
 
@@ -35,7 +35,13 @@ export default function Carte() {
               accessibilityState={{ selected: active }}
               style={[styles.pill, active && styles.pillActive]}
             >
-              <Text style={[styles.pillTxt, active && styles.pillTxtActive]}>{c.label}</Text>
+              <Text
+                style={[styles.pillTxt, active && styles.pillTxtActive]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={fontScaleCap.contraint}
+              >
+                {c.label}
+              </Text>
             </Pressable>
           );
         })}
