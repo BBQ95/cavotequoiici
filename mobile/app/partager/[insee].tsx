@@ -35,9 +35,9 @@ export default function Partager() {
 
   async function partager() {
     if (!data) return;
-    const tendance = data.couleur.repartition[0]
-      ? familleInfo(data.couleur.repartition[0].famille).label
-      : "tendance inconnue";
+    const dominante =
+      data.couleur.famille_dominante ?? data.couleur.repartition[0]?.famille;
+    const tendance = dominante ? familleInfo(dominante).label : "tendance inconnue";
     try {
       await Share.share({
         message:
@@ -93,7 +93,9 @@ export default function Partager() {
   }
 
   const { nom, departement, couleur } = data;
-  const dominante = couleur.repartition[0]?.famille;
+  // Même règle que la fiche : la dominante servie par l'API (selon l'algo)
+  // prime sur le classement complet.
+  const dominante = couleur.famille_dominante ?? couleur.repartition[0]?.famille;
   const tendance = dominante ? familleInfo(dominante).label : null;
   const txt = texteSurFond(couleur.hex);
 

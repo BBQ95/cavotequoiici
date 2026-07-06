@@ -11,6 +11,8 @@
  * `make tiles-serve`). Sans elle, la base reste vide (carte sans tuiles = échec
  * visible) plutôt qu'un fallback codé en dur vers l'infra d'un mainteneur.
  */
+import type { Algo } from "../api/client";
+
 const TILES_BASE = process.env.EXPO_PUBLIC_TILES_URL?.replace(/\/$/, "") ?? "";
 
 if (__DEV__ && !TILES_BASE) {
@@ -38,6 +40,19 @@ export type CoucheCouleur = {
   label: string;
   /** Propriété de tuile portant le hex à peindre. */
   property: string;
+};
+
+/**
+ * Propriété de tuile portant la synthèse selon l'algo de dominance choisi
+ * (écran Paramètres). `hex` reste l'algo « complet » historique ; les deux
+ * autres sont émises par `pipeline/export_tiles.py` depuis la PR #48. Ne
+ * concerne que la couche « Synthèse » : les couches par scrutin n'ont qu'une
+ * seule couleur possible.
+ */
+export const PROPRIETE_SYNTHESE_PAR_ALGO: Record<Algo, string> = {
+  complet: "hex",
+  tendance: "hex_algo_tendance",
+  blocs: "hex_algo_blocs",
 };
 
 export const COUCHES_COULEUR: readonly CoucheCouleur[] = [

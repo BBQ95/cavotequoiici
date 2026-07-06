@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, fontScaleCap, radius, space, type } from "../../src/theme/tokens";
 import { CommunesMap } from "../../src/components/CommunesMap";
-import { COUCHES_COULEUR } from "../../src/lib/tiles";
+import { COUCHES_COULEUR, PROPRIETE_SYNTHESE_PAR_ALGO } from "../../src/lib/tiles";
+import { useAlgo } from "../../src/lib/algo";
 
 /**
  * Écran 2 — Carte (Étape 6, sélecteur carte v2). Rend la carte choroplèthe des
@@ -16,6 +17,11 @@ import { COUCHES_COULEUR } from "../../src/lib/tiles";
 export default function Carte() {
   const insets = useSafeAreaInsets();
   const [couche, setCouche] = useState(COUCHES_COULEUR[0]);
+  // La couche « Synthèse » suit l'algo de dominance choisi dans Paramètres ;
+  // les couches par scrutin n'en dépendent pas.
+  const { algo } = useAlgo();
+  const property =
+    couche.id === "synthese" ? PROPRIETE_SYNTHESE_PAR_ALGO[algo] : couche.property;
 
   return (
     <View style={[styles.page, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -46,7 +52,7 @@ export default function Carte() {
           );
         })}
       </ScrollView>
-      <CommunesMap couleurProperty={couche.property} />
+      <CommunesMap couleurProperty={property} />
     </View>
   );
 }

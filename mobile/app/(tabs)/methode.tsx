@@ -66,6 +66,29 @@ export default function Methode() {
         </Point>
       </View>
 
+      <Text style={styles.h2}>Trois façons de désigner la famille en tête</Text>
+      <View style={styles.carte}>
+        <Point icone="tune" couleur={colors.accentBright}>
+          <Text style={styles.b}>Synthèse complète</Text> : la famille en tête sur
+          l'ensemble des suffrages, listes sans étiquette (« divers ») comprises.
+          Le plus brut — beaucoup de petites communes ressortent grises.
+        </Point>
+        <Point icone="tune" couleur={colors.accentBright}>
+          <Text style={styles.b}>Tendance politique</Text> (défaut) : les listes sans
+          étiquette ne concourent pas à la teinte, qui vient de la première famille
+          politique. Elles restent visibles dans la répartition de chaque fiche.
+        </Point>
+        <Point icone="tune" couleur={colors.accentBright}>
+          <Text style={styles.b}>Par blocs</Text> : gauche, centre et droite sont
+          regroupés avant de désigner la teinte — un camp divisé ne perd plus la
+          première place face à un camp uni.
+        </Point>
+        <Point icone="settings" couleur={colors.textTertiary}>
+          Le choix se fait dans l'onglet <Text style={styles.b}>Paramètres</Text> et ne
+          change que la teinte affichée, jamais les chiffres.
+        </Point>
+      </View>
+
       <Text style={styles.h2}>La palette</Text>
       <View style={styles.carte}>
         {Object.entries(FAMILLES).map(([cle, f]) => (

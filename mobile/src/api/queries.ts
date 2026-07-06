@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "./client";
+import { useAlgo } from "../lib/algo";
 
 /** Valeur retardée de `delaiMs` : évite une requête réseau à chaque frappe. */
 function useDebouncedValue<T>(value: T, delaiMs: number): T {
@@ -16,9 +17,11 @@ function useDebouncedValue<T>(value: T, delaiMs: number): T {
 
 export function useSearch(q: string) {
   const dq = useDebouncedValue(q, 250);
+  // L'algo choisi teinte les pastilles des résultats : il fait partie de la clé.
+  const { algo } = useAlgo();
   return useQuery({
-    queryKey: ["search", dq],
-    queryFn: () => api.search(dq),
+    queryKey: ["search", dq, algo],
+    queryFn: () => api.search(dq, algo),
     enabled: dq.trim().length >= 2,
     // Garde la liste précédente affichée pendant que la nouvelle requête part.
     placeholderData: (prev) => prev,
@@ -26,9 +29,10 @@ export function useSearch(q: string) {
 }
 
 export function useFiche(insee: string) {
+  const { algo } = useAlgo();
   return useQuery({
-    queryKey: ["fiche", insee],
-    queryFn: () => api.fiche(insee),
+    queryKey: ["fiche", insee, algo],
+    queryFn: () => api.fiche(insee, algo),
   });
 }
 

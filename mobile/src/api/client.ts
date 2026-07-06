@@ -2,9 +2,19 @@
  * Client de l'API CaVoteQuoiIci (lecture seule).
  * Types dérivés du schéma OpenAPI (src/api/types.ts).
  */
-import type { components } from "./types";
+import type { components, operations } from "./types";
 
 type Schemas = components["schemas"];
+
+/**
+ * Algo de dominance accepté par l'API (`?algo=`), dérivé du schéma OpenAPI :
+ * si le backend ajoute ou renomme un algo, `make types` fait échouer tsc ici.
+ */
+export type Algo = NonNullable<
+  NonNullable<
+    operations["couleur_communes__insee__couleur_get"]["parameters"]["query"]
+  >["algo"]
+>;
 export type CommuneResultat = Schemas["CommuneResultat"];
 export type CouleurSynthese = Schemas["CouleurSynthese"];
 export type CommuneFiche = Schemas["CommuneFiche"];
@@ -60,10 +70,14 @@ export class ApiError extends Error {
 }
 
 export const api = {
-  search: (q: string) =>
-    get<CommuneResultat[]>(`/communes/search?q=${encodeURIComponent(q)}`),
-  fiche: (insee: string) => get<CommuneFiche>(`/communes/${insee}`),
-  couleur: (insee: string) => get<CouleurSynthese>(`/communes/${insee}/couleur`),
+  search: (q: string, algo: Algo) =>
+    get<CommuneResultat[]>(
+      `/communes/search?q=${encodeURIComponent(q)}&algo=${algo}`,
+    ),
+  fiche: (insee: string, algo: Algo) =>
+    get<CommuneFiche>(`/communes/${insee}?algo=${algo}`),
+  couleur: (insee: string, algo: Algo) =>
+    get<CouleurSynthese>(`/communes/${insee}/couleur?algo=${algo}`),
   scrutins: (insee: string) =>
     get<ListeScrutinsResponse>(`/communes/${insee}/scrutins`),
   detailScrutin: (insee: string, scrutinId: string) =>

@@ -13,6 +13,7 @@ import { PublicSans_400Regular } from "@expo-google-fonts/public-sans/400Regular
 import { PublicSans_600SemiBold } from "@expo-google-fonts/public-sans/600SemiBold";
 
 import { colors } from "../src/theme/tokens";
+import { AlgoProvider } from "../src/lib/algo";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } },
@@ -43,24 +44,27 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        {/* Thème sombre unique : barre système en texte clair. */}
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.bg },
-          }}
-        >
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="commune/[insee]" />
-          {/* Écran 4 — Partager : modale plein écran. */}
-          <Stack.Screen
-            name="partager/[insee]"
-            options={{ presentation: "modal" }}
-          />
-        </Stack>
-      </SafeAreaProvider>
+      {/* Au-dessus du Stack : les requêtes (queries.ts) et la carte lisent l'algo. */}
+      <AlgoProvider>
+        <SafeAreaProvider>
+          {/* Thème sombre unique : barre système en texte clair. */}
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.bg },
+            }}
+          >
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="commune/[insee]" />
+            {/* Écran 4 — Partager : modale plein écran. */}
+            <Stack.Screen
+              name="partager/[insee]"
+              options={{ presentation: "modal" }}
+            />
+          </Stack>
+        </SafeAreaProvider>
+      </AlgoProvider>
     </QueryClientProvider>
   );
 }
