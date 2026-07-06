@@ -125,6 +125,9 @@ def search(
             famille = r.afam
         elif r.l is not None and algo == "complet":
             # Repli : couleurs_ville_algo pas encore peuplée (base pré-0004).
+            # Pour tendance/blocs dans ce cas, la pastille reste absente
+            # (hexa/famille None) : l'autocomplétion ne doit pas casser, alors
+            # que /couleur, lui, renvoie une 404 explicite — choix assumé.
             hexa = oklch_to_hex(OKLCH(L=r.l, C=r.c, H=r.h))
             repartition = _json_col(r.repartition) or []
             famille = repartition[0]["famille"] if repartition else None
