@@ -30,7 +30,11 @@ export default function FicheCommune() {
   const scrutins = useScrutins(insee);
 
   const data = fiche.data;
-  const dominante = data?.couleur.repartition[0]?.famille;
+  // `famille_dominante` dépend de l'algo servi (tendance/blocs : divers exclu
+  // ou blocs agrégés) ; `repartition[0]` reste le classement complet et sert
+  // de repli pour une base pas encore recalculée.
+  const dominante =
+    data?.couleur.famille_dominante ?? data?.couleur.repartition[0]?.famille;
   const tendance = dominante ? familleInfo(dominante).label : null;
 
   // Enrichit l'historique local (pastille + tendance) une fois la fiche chargée.

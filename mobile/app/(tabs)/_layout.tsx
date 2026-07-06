@@ -4,8 +4,9 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { colors, type } from "../../src/theme/tokens";
 
 /**
- * Barre d'onglets persistante (cf. maquettes) : Rechercher · Carte · Méthode.
- * Fiche commune (poussée) et Partager (modale) ne sont pas des onglets.
+ * Barre d'onglets persistante (cf. maquettes) : Rechercher · Carte · Méthode ·
+ * Paramètres. Fiche commune (poussée) et Partager (modale) ne sont pas des
+ * onglets.
  */
 export default function TabsLayout() {
   return (
@@ -49,6 +50,15 @@ export default function TabsLayout() {
           title: "Méthode",
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="menu-book" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="parametres"
+        options={{
+          title: "Paramètres",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="tune" size={size} color={color} />
           ),
         }}
       />

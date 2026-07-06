@@ -105,6 +105,24 @@ Concrètement : Saint-Denis, où gauche et extrême gauche dominent tous les scr
 l'abstention est élevée, apparaît **rouge, légèrement adouci**. Nice, droite et extrême droite
 dominantes avec une participation proche de la médiane, apparaît **bleu marine, franc**.
 
+## Trois algorithmes pour désigner la famille dominante
+
+La teinte d'une commune vient de sa **famille dominante**. Or « dominante » se définit de
+plusieurs façons, chacune honnête mais racontant autre chose. Plutôt que d'en imposer une,
+les trois sont **précalculées** (`pipeline/couleur.py`, table `couleurs_ville_algo`, propriétés
+`hex_algo_*` des tuiles) et l'app propose le choix dans son écran **Paramètres** :
+
+| Algo | Principe | Ce qu'il raconte |
+|------|----------|------------------|
+| **Synthèse complète** (`complet`) | Pluralité sur les 7 familles, « divers » inclus | Le plus fidèle aux données brutes. Dans les communes < 1 000 habitants, les listes municipales sans étiquette (100 % « divers ») remportent souvent la pluralité : beaucoup de communes rurales ressortent **grises**. |
+| **Tendance politique** (`tendance`) | « Divers » est exclu de la course à la dominance ; les parts sont renormalisées sur les 6 familles politiques | La teinte vient du vote **politiquement classé** (présidentielle, législatives, européennes…). Une commune ne reste grise que sans aucune voix classée. C'est le **défaut de l'app**. |
+| **Par blocs** (`blocs`) | Gauche (extrême gauche + gauche + écologistes), centre, droite (droite + extrême droite) sont agrégés avant la dominance | Répond à la limite « blocs divisés » ci-dessous : un camp éclaté en plusieurs familles ne perd plus la première place face à un camp uni. |
+
+Quel que soit l'algo, **rien n'est caché** : la répartition complète des familles — divers
+compris — reste affichée sur chaque fiche, et seuls la teinte et son libellé de dominante
+changent. L'API sert `?algo=` (défaut : `complet`, le comportement historique) ; l'app demande
+explicitement sa préférence.
+
 ## La transparence dans l'app
 
 La fiche d'une commune affiche d'abord la couleur synthétique, puis le **détail scrutin par
@@ -127,9 +145,11 @@ des poids doit les laisser cohérentes. Elles sont vérifiées par la suite d'in
 
 - **Blocs divisés** : une gauche éclatée en trois familles peut perdre la « famille dominante »
   face à une extrême droite unifiée, alors que le bloc de gauche est majoritaire. Vraie limite de
-  l'approche catégorielle — la répartition complète est toujours affichée pour la rendre visible.
+  l'approche catégorielle — la répartition complète est toujours affichée pour la rendre visible,
+  et l'algo « par blocs » (ci-dessus) offre la lecture agrégée.
 - **Listes « sans étiquette »** (municipales, surtout petites communes) → famille « Divers » ;
-  leur influence est bornée par le poids 0,5 des municipales.
+  leur influence est bornée par le poids 0,5 des municipales, et l'algo « tendance »
+  (ci-dessus) les retire de la course à la teinte.
 - **Couverture inégale** : toutes les communes n'ont pas le même panier de scrutins exploitables ;
   la synthèse se calcule sur les scrutins disponibles et l'encart de transparence liste ce qui
   est inclus.
