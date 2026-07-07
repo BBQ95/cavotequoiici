@@ -1,6 +1,14 @@
-import { useEffect, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import { router } from "expo-router";
+import { MaterialIcons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import type { StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
 import {
   Camera,
@@ -10,7 +18,7 @@ import {
   VectorSource,
 } from "@maplibre/maplibre-react-native";
 
-import { colors } from "../theme/tokens";
+import { colors, radius, space } from "../theme/tokens";
 import { API_BASE } from "../api/client";
 import {
   FONTSTACK_ETIQUETTES,
@@ -55,6 +63,8 @@ const ZOOM_INITIAL = 4.4;
 const ZOOM_COMMUNE = 10;
 // Durée de l'animation flyTo vers la commune (ms).
 const DUREE_FLYTO = 1500;
+// Zoom appliqué lors du recentrage sur la position GPS de l'utilisateur.
+const ZOOM_GEOLOC = 10;
 // Zoom minimal : empêche de dézoomer au point de « perdre » la carte —
 // la France reste toujours visible et remplit l'écran.
 const ZOOM_MIN = 4;
@@ -72,6 +82,7 @@ export function CommunesMap({
 }) {
   const cameraRef = useRef<CameraRef>(null);
   const centreInitial: [number, number] = center ?? CENTRE_FRANCE;
+  const [geoloc, setGeoloc] = useState(false);
 
   // Recentre la caméra (flyTo) quand `center` change.
   useEffect(() => {
@@ -83,6 +94,34 @@ export function CommunesMap({
       });
     }
   }, [center]);
+
+  /** Demande la permission GPS, obtient la position et vole vers elle. */
+  async function localiser() {
+    try {
+      setGeoloc(true);
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status !== "granted") {
+        Alert.alert(
+          "Localisation refusée",
+          "Autorisez la localisation pour vous repérer sur la carte.",
+        );
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({});
+      cameraRef.current?.flyTo({
+        center: [pos.coords.longitude, pos.coords.latitude],
+        zoom: ZOOM_GEOLOC,
+        duration: DUREE_FLYTO,
+      });
+    } catch {
+      Alert.alert(
+        "Localisation indisponible",
+        "Réessayez ou naviguez manuellement sur la carte.",
+      );
+    } finally {
+      setGeoloc(false);
+    }
+  }
 
   return (
     <View style={styles.plein}>
@@ -159,10 +198,36 @@ export function CommunesMap({
           )}
         </VectorSource>
       </Map>
+      <Pressable
+        onPress={localiser}
+        style={styles.geoBtn}
+        accessibilityRole="button"
+        accessibilityLabel="Me localiser sur la carte"
+        disabled={geoloc}
+      >
+        {geoloc ? (
+          <ActivityIndicator color={colors.text} />
+        ) : (
+          <MaterialIcons name="my-location" size={22} color={colors.text} />
+        )}
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   plein: { flex: 1 },
+  geoBtn: {
+    position: "absolute",
+    bottom: space.xl,
+    right: space.xl,
+    width: 48,
+    height: 48,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
