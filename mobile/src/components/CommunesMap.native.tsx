@@ -1,7 +1,14 @@
+import { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import type { StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
-import { Camera, Layer, Map, VectorSource } from "@maplibre/maplibre-react-native";
+import {
+  Camera,
+  type CameraRef,
+  Layer,
+  Map,
+  VectorSource,
+} from "@maplibre/maplibre-react-native";
 
 import { colors } from "../theme/tokens";
 import { API_BASE } from "../api/client";
@@ -44,6 +51,10 @@ const FOND_SOMBRE: StyleSpecification = {
 // Vue initiale : France métropolitaine.
 const CENTRE_FRANCE: [number, number] = [2.4, 46.6];
 const ZOOM_INITIAL = 4.4;
+// Zoom appliqué lors du recentrage sur une commune visitée.
+const ZOOM_COMMUNE = 10;
+// Durée de l'animation flyTo vers la commune (ms).
+const DUREE_FLYTO = 1500;
 // Zoom minimal : empêche de dézoomer au point de « perdre » la carte —
 // la France reste toujours visible et remplit l'écran.
 const ZOOM_MIN = 4;
@@ -52,12 +63,33 @@ const ZOOM_MIN = 4;
 // dans la commune → pas de propriété `hex_<scrutin_id>` dans la tuile).
 const COULEUR_SANS_DONNEE = colors.surface;
 
-export function CommunesMap({ couleurProperty = "hex" }: { couleurProperty?: string }) {
+export function CommunesMap({
+  couleurProperty = "hex",
+  center,
+}: {
+  couleurProperty?: string;
+  center?: [number, number];
+}) {
+  const cameraRef = useRef<CameraRef>(null);
+  const centreInitial: [number, number] = center ?? CENTRE_FRANCE;
+
+  // Recentre la caméra (flyTo) quand `center` change.
+  useEffect(() => {
+    if (center) {
+      cameraRef.current?.flyTo({
+        center: center,
+        zoom: ZOOM_COMMUNE,
+        duration: DUREE_FLYTO,
+      });
+    }
+  }, [center]);
+
   return (
     <View style={styles.plein}>
       <Map style={styles.plein} mapStyle={FOND_SOMBRE}>
         <Camera
-          initialViewState={{ center: CENTRE_FRANCE, zoom: ZOOM_INITIAL }}
+          ref={cameraRef}
+          initialViewState={{ center: centreInitial, zoom: ZOOM_INITIAL }}
           minZoom={ZOOM_MIN}
         />
         <VectorSource

@@ -150,6 +150,28 @@ def test_fiche_algo_tendance(client):
     assert couleur["famille_dominante"] == "extreme_droite"
 
 
+def test_fiche_renvoie_coordonnees_lat_lon(client):
+    """La fiche d'une commune porte lat/lon (point sur surface, WGS84)."""
+    body = client.get("/communes/93066").json()
+    assert body["lat"] is not None
+    assert body["lon"] is not None
+    # Saint-Denis (93) : latitude ~48.9, longitude ~2.36
+    assert 41 <= body["lat"] <= 52, "lat hors plage France métropolitaine"
+    assert -5 <= body["lon"] <= 10, "lon hors plage France métropolitaine"
+
+
+def test_fiche_coordonnees_nice(client):
+    """Nice (06088) : lat ~43.7, lon ~7.27 — valide le sud-est."""
+    body = client.get("/communes/06088").json()
+    assert body["lat"] is not None
+    assert body["lon"] is not None
+    assert 41 <= body["lat"] <= 52
+    assert -5 <= body["lon"] <= 10
+    # Nice précisément
+    assert abs(body["lat"] - 43.7) < 0.2
+    assert abs(body["lon"] - 7.27) < 0.2
+
+
 def test_search_algo_tendance(client):
     """La pastille de la liste suit l'algo demandé (P1.3 : préférence de l'app)."""
     complet = client.get("/communes/search", params={"q": "urcize"}).json()
