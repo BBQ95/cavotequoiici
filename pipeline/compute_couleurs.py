@@ -192,6 +192,20 @@ def main() -> None:
                     }
                 )
 
+    # Impact de la pondération : communes « grises » (dominante divers) en
+    # algo complet — attendu en forte baisse avec la couverture S4.
+    grises_complet = sum(
+        1
+        for ligne in lignes_algo
+        if ligne["algo"] == "complet" and ligne["famille_dominante"] == "divers"
+    )
+    total_communes = len(rs_cache)
+    pct = 100 * grises_complet / total_communes if total_communes else 0.0
+    print(
+        f"  communes grises (dominante divers, algo complet) = "
+        f"{grises_complet}/{total_communes} ({pct:.1f} %)"
+    )
+
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM couleurs_scrutin"))
         if lignes_scrutin:
