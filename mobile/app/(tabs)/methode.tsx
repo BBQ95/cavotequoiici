@@ -66,12 +66,39 @@ export default function Methode() {
         </Point>
       </View>
 
+      <Text style={styles.h2}>Pourquoi ces poids ?</Text>
+      <View style={styles.carte}>
+        <Point icone="how-to-vote" couleur={colors.accentBright}>
+          La couleur est une <Text style={styles.b}>moyenne pondérée de quatre scrutins</Text>,
+          qui ne pèsent pas pareil : présidentielle <Text style={styles.b}>1</Text> (le plus
+          politique, la plus forte participation), législatives <Text style={styles.b}>0,8</Text>,
+          européennes <Text style={styles.b}>0,5</Text>, municipales <Text style={styles.b}>0,35</Text>{" "}
+          (le plus local, le moins comparable d'une commune à l'autre).
+        </Point>
+        <Point icone="history" couleur={colors.accentBright}>
+          <Text style={styles.b}>Ancienneté</Text> : un scrutin de 6 ans pèse moitié moins
+          qu'un scrutin de cette année. Seuls comptent les écarts d'âge entre scrutins — la
+          règle s'applique d'elle-même à chaque nouvelle élection.
+        </Point>
+        <Point icone="label-off" couleur={colors.textTertiary}>
+          <Text style={styles.b}>Listes sans étiquette</Text> : dans beaucoup de petites
+          communes, les candidats municipaux n'ont pas de nuance. Le poids des municipales y
+          est réduit d'autant — jusqu'à zéro — pour ne pas grisonner des communes qui votent
+          clairement aux scrutins nationaux.
+        </Point>
+        <Point icone="lock-open" couleur={colors.textTertiary}>
+          Ces poids sont un <Text style={styles.b}>choix assumé et public</Text>, versionné dans
+          un fichier de configuration ouvert (AGPL) : chacun peut vérifier le calcul.
+        </Point>
+      </View>
+
       <Text style={styles.h2}>Trois façons de désigner la famille en tête</Text>
       <View style={styles.carte}>
         <Point icone="tune" couleur={colors.accentBright}>
           <Text style={styles.b}>Synthèse complète</Text> : la famille en tête sur
           l'ensemble des suffrages, listes sans étiquette (« divers ») comprises.
-          Le plus brut — beaucoup de petites communes ressortent grises.
+          Le plus fidèle aux données brutes ; grâce à la pondération des municipales
+          (ci-dessus), très peu de communes restent grises.
         </Point>
         <Point icone="tune" couleur={colors.accentBright}>
           <Text style={styles.b}>Tendance politique</Text> (défaut) : les listes sans
