@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 
 import { colors, fontScaleCap, radius, space, type } from "../../src/theme/tokens";
 import { CommunesMap } from "../../src/components/CommunesMap";
 import { COUCHES_COULEUR, PROPRIETE_SYNTHESE_PAR_ALGO } from "../../src/lib/tiles";
 import { useAlgo } from "../../src/lib/algo";
+import { getRecents } from "../../src/lib/recents";
 
 /**
  * Écran 2 — Carte (Étape 6, sélecteur carte v2). Rend la carte choroplèthe des
@@ -13,6 +16,10 @@ import { useAlgo } from "../../src/lib/algo";
  * scrutin (cf. `lib/tiles.ts` COUCHES_COULEUR). L'implémentation de la carte
  * dépend de la plateforme : MapLibre natif sur iOS/Android, placeholder sur le
  * web (cf. `src/components/CommunesMap.*`).
+ *
+ * Au focus de l'onglet, la carte se recentre sur la dernière commune visitée
+ * (si ses coordonnées sont disponibles dans l'historique local) — sinon, elle
+ * reste centrée sur la France métropolitaine.
  */
 export default function Carte() {
   const insets = useSafeAreaInsets();
@@ -22,6 +29,34 @@ export default function Carte() {
   const { algo } = useAlgo();
   const property =
     couche.id === "synthese" ? PROPRIETE_SYNTHESE_PAR_ALGO[algo] : couche.property;
+
+  // Centre de la carte : [lon, lat] de la dernière commune visitée, ou null
+  // (→ France) si aucune coordonnée n'est disponible.
+  const [center, setCenter] = useState<[number, number] | undefined>(undefined);
+
+  useFocusEffect(
+    useCallback(() => {
+      let actif = true;
+      getRecents().then((recents) => {
+        if (!actif) return;
+        const recent = recents.find(
+          (r) =>
+            typeof r.lat === "number" &&
+            typeof r.lon === "number" &&
+            !Number.isNaN(r.lat) &&
+            !Number.isNaN(r.lon),
+        );
+        if (recent && recent.lat != null && recent.lon != null) {
+          setCenter([recent.lon, recent.lat]);
+        } else {
+          setCenter(undefined);
+        }
+      });
+      return () => {
+        actif = false;
+      };
+    }, []),
+  );
 
   return (
     <View style={[styles.page, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -52,7 +87,7 @@ export default function Carte() {
           );
         })}
       </ScrollView>
-      <CommunesMap couleurProperty={property} />
+      <CommunesMap couleurProperty={property} center={center} />
     </View>
   );
 }

@@ -7,4 +7,9 @@
 export declare function CommunesMap(props: {
   /** Propriété de tuile à peindre (`hex` ou `hex_<scrutin_id>`) — cf. lib/tiles.ts. */
   couleurProperty?: string;
+  /**
+   * Centre de carte optionnel `[lon, lat]` (WGS84). Quand il change, la caméra
+   * vole vers ce centre ; sinon, la carte reste centrée sur la France.
+   */
+  center?: [number, number];
 }): import("react").JSX.Element;

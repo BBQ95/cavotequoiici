@@ -56,6 +56,8 @@ class CommuneFiche(BaseModel):
     region: str | None = None
     population: int | None = None
     couleur: CouleurSynthese
+    lat: float | None = None
+    lon: float | None = None
 
 
 class CommuneProximite(BaseModel):

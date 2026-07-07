@@ -37,7 +37,8 @@ export default function FicheCommune() {
     data?.couleur.famille_dominante ?? data?.couleur.repartition[0]?.famille;
   const tendance = dominante ? familleInfo(dominante).label : null;
 
-  // Enrichit l'historique local (pastille + tendance) une fois la fiche chargée.
+  // Enrichit l'historique local (pastille + tendance + coordonnées pour le
+  // recentrage de la carte) une fois la fiche chargée.
   useEffect(() => {
     if (data) {
       addRecent({
@@ -46,6 +47,8 @@ export default function FicheCommune() {
         departement: data.departement,
         hex: data.couleur.hex,
         tendance,
+        lat: data.lat,
+        lon: data.lon,
       });
     }
   }, [data, tendance]);

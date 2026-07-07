@@ -202,7 +202,9 @@ def fiche(insee: str, algo: Algo = Query("complet"), conn=Depends(get_conn)):
             "cv.l, cv.c, cv.h, cv.participation_mediane, cv.scrutins_inclus, "
             "cv.repartition, "
             "cva.l AS al, cva.c AS ac, cva.h AS ah, "
-            "cva.famille_dominante AS afam "
+            "cva.famille_dominante AS afam, "
+            "ST_Y(ST_Transform(ST_PointOnSurface(c.geom), 4326)) AS lat, "
+            "ST_X(ST_Transform(ST_PointOnSurface(c.geom), 4326)) AS lon "
             "FROM communes c JOIN couleurs_ville cv ON cv.code_insee = c.code_insee "
             "LEFT JOIN couleurs_ville_algo cva ON cva.code_insee = c.code_insee "
             "AND cva.algo = :algo "
@@ -219,4 +221,6 @@ def fiche(insee: str, algo: Algo = Query("complet"), conn=Depends(get_conn)):
         region=row.region,
         population=row.population,
         couleur=_synthese(row, algo),
+        lat=row.lat,
+        lon=row.lon,
     )

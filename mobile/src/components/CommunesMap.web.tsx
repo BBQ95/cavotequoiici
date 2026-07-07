@@ -9,7 +9,10 @@ import { colors, space, type } from "../theme/tokens";
  * `expo export web` (job CI `mobile`) reste vert. La vraie carte est dans
  * `CommunesMap.native.tsx`.
  */
-export function CommunesMap(_props: { couleurProperty?: string }) {
+export function CommunesMap(_props: {
+  couleurProperty?: string;
+  center?: [number, number];
+}) {
   return (
     <View style={styles.centre}>
       <View style={styles.cercle}>

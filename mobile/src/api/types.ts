@@ -175,6 +175,10 @@ export interface components {
             /** Population */
             population?: number | null;
             couleur: components["schemas"]["CouleurSynthese"];
+            /** Lat */
+            lat?: number | null;
+            /** Lon */
+            lon?: number | null;
         };
         /**
          * CommuneProximite

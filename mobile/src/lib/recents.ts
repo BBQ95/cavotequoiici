@@ -13,6 +13,9 @@ export type Recent = {
   hex?: string | null;
   /** Famille dominante (ex. « Gauche »), pour le sous-titre « tendance ». */
   tendance?: string | null;
+  /** Coordonnées WGS84 (lon, lat) pour recentrer la carte sur la dernière visite. */
+  lat?: number | null;
+  lon?: number | null;
 };
 
 export async function getRecents(): Promise<Recent[]> {
