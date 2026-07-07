@@ -47,18 +47,22 @@ nuance → famille est maintenu **par scrutin** — un CSV daté par élection d
 
 ## La pondération des scrutins
 
-Chaque scrutin contribue à la synthèse avec un poids = **poids du type × poids de récence**.
+Chaque scrutin contribue à la synthèse avec un poids =
+**poids du type × poids de récence × taux de couverture**. Les poids sont versionnés dans
+[`pipeline/config/poids.toml`](../pipeline/config/poids.toml), **seule source de vérité** lue par
+le calcul (`pipeline/couleur.py`) — aucun poids n'est codé en dur dans le code.
 
-**Poids par type** (extrait de [`pipeline/config/poids_scrutins.yaml`](../pipeline/config/poids_scrutins.yaml),
-qui fait foi) :
+### Pourquoi ces poids ? (barème « S1 »)
+
+Tous les scrutins ne disent pas la même chose de l'orientation politique d'une commune ; leur
+poids de base le reflète :
 
 | Scrutin | Poids | Justification |
 |---------|-------|---------------|
-| Présidentielle, 1ᵉʳ tour | 1,0 | Le vote le plus sincère et le mieux étiqueté nationalement |
-| Législatives, 1ᵉʳ tour | 0,8 | Bon signal national, légère prime aux sortants locaux |
-| Européennes | 0,7 | Proportionnelle expressive, mais abstention structurellement forte |
-| Régionales / départementales, 1ᵉʳ tour | 0,6 | Signal correct, étiquetage parfois composite |
-| Municipales, 1ᵉʳ tour | 0,5 | Très local mais bruité : personnalités, listes sans étiquette |
+| Présidentielle, 1ᵉʳ tour | 1,0 | Participation la plus élevée, offre identique partout, vote le plus directement politique |
+| Législatives, 1ᵉʳ tour | 0,8 | Scrutin national aussi, mais offre variable d'une circonscription à l'autre, participation plus faible |
+| Européennes | 0,5 | Proportionnelle expressive (listes nationales), mais participation la plus basse, vote plus souvent d'expression |
+| Municipales, 1ᵉʳ tour | 0,35 | Le plus local : on vote pour une équipe et un maire, pas seulement pour un courant national — signal le moins comparable d'une commune à l'autre |
 | **Seconds tours** | **0 — exclus** | Duels stratégiques : ils mesurent un report, pas une préférence |
 
 **Poids de récence** : décroissance exponentielle avec une **demi-vie de 6 ans**
@@ -68,8 +72,27 @@ qui fait foi) :
 poids_récence = 0,5 ^ (âge_en_années / 6)
 ```
 
-Un scrutin d'il y a 6 ans pèse moitié moins qu'un scrutin de cette année. La couleur « vit » :
-elle se déplace si la commune change durablement, sans sur-réagir au dernier scrutin.
+Un scrutin d'il y a 6 ans pèse moitié moins qu'un scrutin de cette année. Ce qui compte est
+l'**écart d'âge entre** les scrutins : la règle s'applique automatiquement, sans intervention
+humaine, et les poids relatifs ne dérivent pas avec le temps — ils ne changent que lorsqu'une
+nouvelle élection remplace l'ancienne.
+
+### Le taux de couverture des municipales (« S4 »)
+
+Dans la majorité des petites communes, les candidats municipaux se présentent **sans étiquette**
+politique (nuance « LUD » → famille « divers »). Le poids des municipales est donc **en outre**
+multiplié par le **taux de couverture** de la commune — la part des suffrages exprimés portant
+une nuance politiquement classable (hors « divers ») :
+
+```
+poids_effectif(municipales) = 0,35 × poids_récence × couverture
+couverture = voix classables / exprimés          (0 si 100 % sans étiquette)
+```
+
+Une commune dont les municipales sont **100 % sans étiquette** voit leur poids tomber à **0** : sa
+couleur ne vient alors que des scrutins nationaux. Sans cette règle, des milliers de communes
+rurales apparaîtraient grises alors que leurs habitants expriment une orientation claire aux
+scrutins nationaux (repère : Saint-Urcize, cf. plus bas).
 
 **Agrégation** : pour chaque famille, sa part synthétique est la moyenne pondérée de ses parts
 des suffrages exprimés sur tous les scrutins inclus :
@@ -81,6 +104,11 @@ part_famille = Σ (poids_scrutin × part_famille_scrutin) / Σ poids_scrutin
 La participation synthétique est la même moyenne pondérée des taux de participation.
 Le panier actuel : présidentielle 2022, législatives 2024, européennes 2024, municipales 2026
 (1ᵉʳˢ tours).
+
+Ces poids sont des **choix, pas des vérités** : d'autres pondérations sont défendables. C'est
+pourquoi ils sont documentés ici, versionnés dans un fichier de configuration public, et le code
+qui les applique est ouvert (AGPL) — chacun peut vérifier le calcul, personne ne peut le modifier
+discrètement.
 
 ## L'abstention pâlit la couleur — jamais elle ne change la teinte
 
@@ -114,7 +142,7 @@ les trois sont **précalculées** (`pipeline/couleur.py`, table `couleurs_ville_
 
 | Algo | Principe | Ce qu'il raconte |
 |------|----------|------------------|
-| **Synthèse complète** (`complet`) | Pluralité sur les 7 familles, « divers » inclus | Le plus fidèle aux données brutes. Dans les communes < 1 000 habitants, les listes municipales sans étiquette (100 % « divers ») remportent souvent la pluralité : beaucoup de communes rurales ressortent **grises**. |
+| **Synthèse complète** (`complet`) | Pluralité sur les 7 familles, « divers » inclus | Le plus fidèle aux données brutes. Grâce au taux de couverture (« S4 » ci-dessus), les municipales sans étiquette ne pèsent plus rien : même dans les communes rurales, la teinte vient des scrutins nationaux et le gris a quasiment disparu. |
 | **Tendance politique** (`tendance`) | « Divers » est exclu de la course à la dominance ; les parts sont renormalisées sur les 6 familles politiques | La teinte vient du vote **politiquement classé** (présidentielle, législatives, européennes…). Une commune ne reste grise que sans aucune voix classée. C'est le **défaut de l'app**. |
 | **Par blocs** (`blocs`) | Gauche (extrême gauche + gauche + écologistes), centre, droite (droite + extrême droite) sont agrégés avant la dominance | Répond à la limite « blocs divisés » ci-dessous : un camp éclaté en plusieurs familles ne perd plus la première place face à un camp uni. |
 
@@ -140,6 +168,7 @@ des poids doit les laisser cohérentes. Elles sont vérifiées par la suite d'in
 |---------|---------|
 | Saint-Denis (93) | Rouge, adouci par l'abstention |
 | Nice (06) | Bleu marine, franc |
+| Saint-Urcize (15) | Bleu marine dès l'algo complet : municipales 100 % sans étiquette (couverture 0), la teinte vient des scrutins nationaux |
 
 ## Limites connues et assumées
 
@@ -148,8 +177,9 @@ des poids doit les laisser cohérentes. Elles sont vérifiées par la suite d'in
   l'approche catégorielle — la répartition complète est toujours affichée pour la rendre visible,
   et l'algo « par blocs » (ci-dessus) offre la lecture agrégée.
 - **Listes « sans étiquette »** (municipales, surtout petites communes) → famille « Divers » ;
-  leur influence est bornée par le poids 0,5 des municipales, et l'algo « tendance »
-  (ci-dessus) les retire de la course à la teinte.
+  leur influence est bornée par le poids 0,35 des municipales **et annulée en proportion par le
+  taux de couverture** (« S4 » ci-dessus) ; l'algo « tendance » les retire en outre de la course
+  à la teinte.
 - **Couverture inégale** : toutes les communes n'ont pas le même panier de scrutins exploitables ;
   la synthèse se calcule sur les scrutins disponibles et l'encart de transparence liste ce qui
   est inclus.
@@ -159,8 +189,9 @@ des poids doit les laisser cohérentes. Elles sont vérifiées par la suite d'in
 Tous les choix méthodologiques ci-dessus sont des **paramètres versionnés, publics et
 discutables** — ouvrez une issue pour les contester ou proposer mieux :
 
-- [`pipeline/config/poids_scrutins.yaml`](../pipeline/config/poids_scrutins.yaml) — poids par
-  type de scrutin, demi-vie de récence, plancher de désaturation, panier de scrutins.
+- [`pipeline/config/poids.toml`](../pipeline/config/poids.toml) — poids par type de scrutin
+  (barème « S1 ») et scrutins modulés par le taux de couverture (« S4 »). **Seule source de
+  vérité** des poids, lue par `pipeline/couleur.py`.
 - [`pipeline/config/nuances/`](../pipeline/config/nuances/) — correspondance nuance
   officielle → famille, un CSV par scrutin (voir son
   [README](../pipeline/config/nuances/README.md) pour les choix de classification).

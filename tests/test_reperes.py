@@ -39,12 +39,13 @@ def test_reperes_teinte():
 
 
 def test_reperes_algos():
-    """P1 Todo : les algos alternatifs colorent les communes « sans étiquette ».
+    """P1 / pondération « S1+S4 » : les communes « sans étiquette » sont colorées.
 
-    Saint-Urcize (15216, rurale < 1000 hab., municipales 100 % LUD) est grise
-    avec l'algo complet mais doit ressortir extrême droite (marine) avec les
-    algos tendance et blocs. Les repères historiques ne doivent PAS changer de
-    famille entre complet et tendance (divers n'y est jamais dominant).
+    Saint-Urcize (15216, rurale < 1000 hab., municipales 100 % LUD) était grise
+    avec l'algo complet. Avec la couverture S4, le poids de ses municipales non
+    classables tombe à 0 et l'extrême droite (marine) l'emporte désormais dans
+    les TROIS algos. Les repères historiques ne doivent PAS changer de famille
+    entre complet et tendance.
     """
     from sqlalchemy import create_engine, text
 
@@ -58,8 +59,7 @@ def test_reperes_algos():
         ).fetchall()
         assert len(lignes) == 3, "3 algos attendus pour Saint-Urcize"
         par_algo = {r.algo: r for r in lignes}
-        assert par_algo["complet"].famille_dominante == "divers"
-        for algo in ("tendance", "blocs"):
+        for algo in ("complet", "tendance", "blocs"):
             assert par_algo[algo].famille_dominante == "extreme_droite", algo
             assert 240 <= par_algo[algo].h <= 275, f"{algo} : H hors marine"
 

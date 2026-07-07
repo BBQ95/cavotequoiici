@@ -9,13 +9,13 @@ from __future__ import annotations
 from datetime import date
 
 # Le module couleur attend des types de scrutin courts (spec Concept §5) ;
-# l'ingestion stocke des types longs. Table de passage.
+# l'ingestion stocke des types longs. Table de passage. Se limite aux types
+# effectivement pondérés dans pipeline/config/poids.toml (panier « S1+S4 ») :
+# régionales/départementales sont hors panier (non ingérées) et donc absentes.
 TYPE_VERS_POIDS = {
     "presidentielle_t1": "pres_t1",
     "legislatives_t1": "leg_t1",
     "europeennes": "euro",
-    "regionales_t1": "reg_t1",
-    "departementales_t1": "dep_t1",
     "municipales_t1": "mun_t1",
 }
 

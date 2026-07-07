@@ -12,7 +12,9 @@ Les seconds tours sont exclus (absents de POIDS_TYPE).
 """
 
 import math
+import tomllib
 from dataclasses import dataclass
+from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Constantes
@@ -20,14 +22,27 @@ from dataclasses import dataclass
 
 DEMI_VIE_ANNEES = 6.0
 
-POIDS_TYPE = {
-    "pres_t1": 1.0,
-    "leg_t1": 0.8,
-    "euro": 0.7,
-    "reg_t1": 0.6,
-    "dep_t1": 0.6,
-    "mun_t1": 0.5,
-}
+# Poids des scrutins : source de vérité UNIQUE = pipeline/config/poids.toml
+# (pondération « S1+S4 », cf. docs/methodologie.md). Chargé à l'import ;
+# plus aucun poids codé en dur ici.
+_POIDS_TOML = Path(__file__).parent / "config" / "poids.toml"
+
+
+def _charger_config_poids(chemin: Path = _POIDS_TOML) -> tuple[dict[str, float], frozenset[str]]:
+    """Lit poids.toml → (POIDS_TYPE, SCRUTINS_MODULES).
+
+    - POIDS_TYPE : barème de base par type de scrutin (section [defaut]).
+    - SCRUTINS_MODULES : types dont le poids est modulé par le taux de
+      couverture (section [s4].scrutins_moduls).
+    """
+    with chemin.open("rb") as f:
+        cfg = tomllib.load(f)
+    poids = {k: float(v) for k, v in cfg["defaut"].items()}
+    modules = frozenset(cfg.get("s4", {}).get("scrutins_moduls", []))
+    return poids, modules
+
+
+POIDS_TYPE, SCRUTINS_MODULES = _charger_config_poids()
 
 COULEURS = {
     "extreme_gauche": "#D60B0B",
@@ -201,6 +216,36 @@ def poids_scrutin(type_scrutin: str, age_annees: float) -> float:
     return POIDS_TYPE[type_scrutin] * poids_recence(age_annees)
 
 
+def couverture(resultat: "ResultatScrutin") -> float:
+    """Taux de couverture d'un scrutin = part des exprimés politiquement classables.
+
+    Somme des parts de toutes les familles ≠ « divers ». Comme
+    `parts_familles` est normalisé sur les exprimés (cf. pipeline.synthese),
+    cette somme vaut voix_classables / exprimés :
+      - 100 % de nuances sans étiquette (LUD → divers) ⇒ 0.0
+      - toutes les voix classées ⇒ ≈ 1.0
+    Sert à moduler le poids des scrutins listés dans SCRUTINS_MODULES (S4).
+    """
+    return sum(v for f, v in resultat.parts_familles.items() if f != "divers")
+
+
+def _poids_scrutins(scrutins: list["ResultatScrutin"], moduler: bool) -> list[tuple["ResultatScrutin", float]]:
+    """Poids effectif de chaque scrutin de premier tour retenu.
+
+    Si *moduler* est vrai, le poids des types listés dans SCRUTINS_MODULES
+    est multiplié par leur taux de couverture (S4).
+    """
+    return [
+        (
+            s,
+            poids_scrutin(s.type_scrutin, s.age_annees)
+            * (couverture(s) if moduler and s.type_scrutin in SCRUTINS_MODULES else 1.0),
+        )
+        for s in scrutins
+        if s.type_scrutin in POIDS_TYPE
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Fonction principale
 # ---------------------------------------------------------------------------
@@ -279,13 +324,18 @@ def couleur_ville(
     if algo not in ALGOS:
         raise ValueError(f"algo inconnu: {algo!r} (attendu: {', '.join(ALGOS)})")
     # 1. Poids de chaque scrutin (liste de tuples car ResultatScrutin
-    #    n'est pas hashable — il contient un dict)
-    poids = [
-        (s, poids_scrutin(s.type_scrutin, s.age_annees))
-        for s in scrutins
-        if s.type_scrutin in POIDS_TYPE
-    ]
+    #    n'est pas hashable — il contient un dict). Les scrutins de
+    #    SCRUTINS_MODULES sont modulés par leur taux de couverture (S4).
+    poids = _poids_scrutins(scrutins, moduler=True)
     total_poids = sum(p for _, p in poids)
+
+    # Repli : si la modulation par couverture annule TOUS les poids (commune
+    # n'ayant que des municipales, toutes sans étiquette), on recalcule sans
+    # modulation pour conserver une couleur (grise « divers ») plutôt que de
+    # lever une erreur — et pour ne pas casser les appels mono-scrutin.
+    if total_poids == 0:
+        poids = _poids_scrutins(scrutins, moduler=False)
+        total_poids = sum(p for _, p in poids)
 
     if total_poids == 0:
         raise ValueError(

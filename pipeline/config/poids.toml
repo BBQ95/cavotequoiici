@@ -1,0 +1,19 @@
+# Pondération « S1+S4 » du modèle de couleur politique.
+# Source de vérité UNIQUE des poids de scrutin (lue par pipeline/couleur.py).
+# Justification des choix : docs/methodologie.md et Outline (P1).
+# Ces choix sont assumés, publics et discutables (dépôt AGPL v3).
+
+# S1 — barème de base par TYPE de scrutin (clés courtes, cf. TYPE_VERS_POIDS).
+# Le poids effectif d'un scrutin = poids_brut × poids_recence (demi-vie 6 ans).
+# Les seconds tours sont EXCLUS (absents d'ici) : ils mesurent un report, pas une préférence.
+[defaut]
+pres_t1 = 1.0
+leg_t1  = 0.8
+euro    = 0.5
+mun_t1  = 0.35
+
+# S4 — scrutins dont le poids effectif est en outre multiplié par le
+# taux de couverture de la commune (part des exprimés portant une nuance
+# politiquement classable, hors « divers »). Jusqu'à 0 quand tout est sans étiquette.
+[s4]
+scrutins_moduls = ["mun_t1"]

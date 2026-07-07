@@ -63,7 +63,7 @@
 │  Ingestion:                  Config:             │
 │  • presidentielle_2022.py    • nuances/*.csv     │
 │  • legislatives_2024.py        (nuance→famille)  │
-│  • europeennes_2024.py       • poids_scrutins.yaml│
+│  • europeennes_2024.py       • poids.toml (S1+S4) │
 │  • municipales_2026.py                           │
 │      ↓ data.gouv.fr CSV                          │
 │                                                  │
@@ -98,7 +98,7 @@ désaturation par l'abstention, algorithme complet) est **public et discutable**
 dans [`docs/methodologie.md`](docs/methodologie.md).
 
 Paramètres versionnés :
-- `pipeline/config/poids_scrutins.yaml` — poids des scrutins, demi-vie, plancher de désaturation
+- `pipeline/config/poids.toml` — poids des scrutins (barème « S1 ») et modulation par le taux de couverture (« S4 »)
 - `pipeline/config/nuances/` — correspondance nuance officielle → famille politique (un CSV par scrutin)
 - `pipeline/config/familles.csv` — familles politiques et couleurs canoniques
 

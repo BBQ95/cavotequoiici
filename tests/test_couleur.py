@@ -10,9 +10,11 @@ import pytest
 from pipeline.couleur import (
     DEMI_VIE_ANNEES,
     POIDS_TYPE,
+    SCRUTINS_MODULES,
     COULEURS,
     ResultatScrutin,
     clamp,
+    couverture,
     poids_recence,
     poids_scrutin,
     hex_to_oklch,
@@ -522,11 +524,19 @@ class TestCouleurVilleAlgos:
         explicite = couleur_ville(saint_urcize, participation_mediane=0.74, algo="complet")
         assert implicite == explicite
 
-    def test_complet_saint_urcize_quasi_gris(self, saint_urcize):
+    def test_complet_saint_urcize_marine(self, saint_urcize):
+        """P1/S4 : les municipales 100 % « sans étiquette » ont un taux de
+        couverture nul → leur poids tombe à 0 et l'extrême droite l'emporte
+        dès l'algo complet (fini le quasi-gris rapporté avant P1)."""
         resultat = couleur_ville(saint_urcize, participation_mediane=0.74)
-        assert resultat["famille_dominante"] == "divers"
+        assert resultat["famille_dominante"] == "extreme_droite"
+        # Teinte marine (extrême droite), pas le gris « divers »
+        attendu = hex_to_oklch(COULEURS["extreme_droite"])
         ok = hex_to_oklch(resultat["hex"])
-        assert ok.C < 0.06  # quasi-gris : le problème rapporté
+        assert abs(ok.H - attendu.H) < 15
+        # Le poids relatif des municipales est ramené à 0 par la couverture
+        poids = dict(resultat["scrutins_inclus"])
+        assert poids["mun_t1"] == 0.0
 
     # -- algo « tendance » : divers exclu de la dominance ----------------------
 
@@ -537,9 +547,9 @@ class TestCouleurVilleAlgos:
         attendu = hex_to_oklch(COULEURS["extreme_droite"])
         ok = hex_to_oklch(resultat["hex"])
         assert abs(ok.H - attendu.H) < 15
-        # Et nettement plus saturé que le quasi-gris de l'algo complet
-        gris = hex_to_oklch(couleur_ville(saint_urcize, participation_mediane=0.74)["hex"])
-        assert ok.C > gris.C * 3
+        # Distincte du gris « divers » (teinte et non simple désaturation)
+        gris = hex_to_oklch(COULEURS["divers"])
+        assert abs(ok.H - gris.H) > 10
 
     def test_tendance_part_et_marge_renormalisees(self, saint_urcize):
         """part/marge sont renormalisées sur les familles politiques (hors divers)."""
@@ -637,3 +647,100 @@ class TestCouleurVilleAlgos:
         for algo in ("complet", "tendance", "blocs"):
             resultat = couleur_ville(saint_urcize, participation_mediane=0.74, algo=algo)
             assert resultat["algo"] == algo
+
+
+# ---------------------------------------------------------------------------
+# couverture + modulation S4 (P1 — pondération « S1+S4 »)
+# ---------------------------------------------------------------------------
+
+
+class TestCouverture:
+    """Taux de couverture = part des exprimés portant une nuance classable."""
+
+    def test_tout_divers_couverture_nulle(self):
+        rs = ResultatScrutin("mun_t1", 0.3, {"divers": 1.0}, 0.85)
+        assert couverture(rs) == 0.0
+
+    def test_tout_classe_couverture_pleine(self):
+        rs = ResultatScrutin("mun_t1", 0.3, {"gauche": 0.6, "droite": 0.4}, 0.85)
+        assert math.isclose(couverture(rs), 1.0)
+
+    def test_partiellement_sans_etiquette(self):
+        # 40 % des exprimés sont « sans étiquette » (LUD → divers)
+        rs = ResultatScrutin("mun_t1", 0.3, {"gauche": 0.6, "divers": 0.4}, 0.85)
+        assert math.isclose(couverture(rs), 0.6)
+
+    def test_denominateur_exprimes_non_normalise(self):
+        # parts_familles est normalisé sur les exprimés : elles peuvent ne pas
+        # sommer à 1 (nuances non mappées écartées). La couverture reste la
+        # somme des parts classables telle quelle.
+        rs = ResultatScrutin("mun_t1", 0.3, {"droite": 0.5, "divers": 0.3}, 0.85)
+        assert math.isclose(couverture(rs), 0.5)
+
+    def test_mun_est_module(self):
+        assert "mun_t1" in SCRUTINS_MODULES
+
+
+class TestModulationCouverture:
+    """Le poids des scrutins de SCRUTINS_MODULES est × leur taux de couverture."""
+
+    def test_mun_couverture_nulle_exclue_de_la_synthese(self):
+        """Une municipale 100 % divers ne pèse plus rien : sa couleur ne
+        vient que des scrutins nationaux."""
+        scrutins = [
+            ResultatScrutin("pres_t1", 2.0, {"extreme_droite": 0.6, "gauche": 0.4}, 0.70),
+            ResultatScrutin("mun_t1", 0.3, {"divers": 1.0}, 0.85),
+        ]
+        resultat = couleur_ville(scrutins, participation_mediane=0.60)
+        poids = dict(resultat["scrutins_inclus"])
+        assert poids["mun_t1"] == 0.0
+        assert math.isclose(poids["pres_t1"], 1.0, abs_tol=1e-6)
+        assert resultat["famille_dominante"] == "extreme_droite"
+
+    def test_mun_couverture_partielle_reduit_le_poids(self):
+        """À couverture 0.5, la municipale pèse moitié de son poids nominal."""
+        pres = ResultatScrutin("pres_t1", 0.0, {"gauche": 0.6, "droite": 0.4}, 0.70)
+        mun_pleine = ResultatScrutin("mun_t1", 0.0, {"gauche": 0.6, "droite": 0.4}, 0.70)
+        mun_demi = ResultatScrutin("mun_t1", 0.0, {"gauche": 0.3, "droite": 0.3, "divers": 0.4}, 0.70)
+        poids_pleine = dict(couleur_ville([pres, mun_pleine], 0.60)["scrutins_inclus"])
+        poids_demi = dict(couleur_ville([pres, mun_demi], 0.60)["scrutins_inclus"])
+        # La municipale à couverture 0.6 pèse moins (relatif) que la pleine.
+        assert poids_demi["mun_t1"] < poids_pleine["mun_t1"]
+
+    def test_repli_commune_uniquement_mun_non_classable(self):
+        """Commune n'ayant que des municipales 100 % divers : la modulation
+        annulerait tous les poids → repli sans modulation (couleur grise),
+        pas de ValueError."""
+        scrutins = [ResultatScrutin("mun_t1", 0.3, {"divers": 1.0}, 0.85)]
+        resultat = couleur_ville(scrutins, participation_mediane=0.60)
+        assert resultat["famille_dominante"] == "divers"
+        # Le scrutin reste présent (repli), poids relatif 1.0
+        assert math.isclose(dict(resultat["scrutins_inclus"])["mun_t1"], 1.0, abs_tol=1e-6)
+
+    def test_mono_scrutin_mun_non_module_reste_calculable(self):
+        """Appel mono-scrutin (comme couleurs_scrutin) sur une municipale non
+        classable : le repli évite le crash et donne la couleur du scrutin."""
+        scrutins = [ResultatScrutin("mun_t1", 0.3, {"gauche": 0.5, "divers": 0.5}, 0.85)]
+        resultat = couleur_ville(scrutins, participation_mediane=0.60)
+        # Un seul scrutin → poids relatif 1.0 quelle que soit la couverture
+        assert math.isclose(dict(resultat["scrutins_inclus"])["mun_t1"], 1.0, abs_tol=1e-6)
+
+
+class TestInvarianceDateCalcul:
+    """La décroissance exponentielle est « sans mémoire » : décaler toutes les
+    dates de calcul d'une constante ne change pas la couleur (seuls comptent
+    les écarts d'âge entre scrutins). Cf. note méthodo « Demi-vie vs poids fixes »."""
+
+    def _commune(self, decalage: float):
+        return [
+            ResultatScrutin("pres_t1", 2.0 + decalage, {"gauche": 0.55, "droite": 0.30, "extreme_droite": 0.15}, 0.65),
+            ResultatScrutin("leg_t1", 1.0 + decalage, {"gauche": 0.60, "droite": 0.25, "extreme_droite": 0.15}, 0.50),
+            ResultatScrutin("mun_t1", 0.3 + decalage, {"gauche": 0.45, "droite": 0.25, "divers": 0.30}, 0.70),
+        ]
+
+    def test_hex_invariant_au_decalage(self):
+        for algo in ("complet", "tendance", "blocs"):
+            ref = couleur_ville(self._commune(0.0), 0.60, algo=algo)
+            plus_tard = couleur_ville(self._commune(5.0), 0.60, algo=algo)
+            assert ref["hex"] == plus_tard["hex"], f"algo={algo}"
+            assert ref["famille_dominante"] == plus_tard["famille_dominante"]
