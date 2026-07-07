@@ -52,7 +52,7 @@ const FOND_SOMBRE: StyleSpecification = {
 const CENTRE_FRANCE: [number, number] = [2.4, 46.6];
 const ZOOM_INITIAL = 4.4;
 // Zoom appliqué lors du recentrage sur une commune visitée.
-const ZOOM_COMMUNE = 10;
+const ZOOM_COMMUNE = 11;
 // Durée de l'animation flyTo vers la commune (ms).
 const DUREE_FLYTO = 1500;
 // Zoom minimal : empêche de dézoomer au point de « perdre » la carte —
