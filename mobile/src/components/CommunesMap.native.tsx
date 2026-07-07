@@ -64,7 +64,7 @@ const ZOOM_COMMUNE = 11;
 // Durée de l'animation flyTo vers la commune (ms).
 const DUREE_FLYTO = 1500;
 // Zoom appliqué lors du recentrage sur la position GPS de l'utilisateur.
-const ZOOM_GEOLOC = 10;
+const ZOOM_GEOLOC = 11;
 // Zoom minimal : empêche de dézoomer au point de « perdre » la carte —
 // la France reste toujours visible et remplit l'écran.
 const ZOOM_MIN = 4;
