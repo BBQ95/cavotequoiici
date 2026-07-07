@@ -28,7 +28,13 @@
       "expo-router",
       "@maplibre/maplibre-react-native",
       "expo-splash-screen",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Autorisez la localisation pour vous repérer sur la carte."
+        }
+      ]
     ]
   }
 }
