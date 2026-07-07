@@ -79,6 +79,37 @@ jobs:
         working-directory: mobile
         run: npx expo prebuild -p android --no-install
 
+      # Pré-installe CMake 3.22.1 via sdkmanager AVANT le build Gradle.
+      # react-native-screens déclare externalNativeBuild { cmake } → Gradle
+      # déclenche un téléchargement de cmake;3.22.1 via le SDK manager. Ce
+      # téléchargement échoue de façon intermittente sur les runners GitHub
+      # (ZipException: Archive is not a ZIP archive — archive corrompue).
+      # On l'installe ici avec retry + purge du cache SDK entre chaque essai,
+      # et on vérifie la présence du binaire → build déterministe. Gradle
+      # trouve ensuite CMake déjà installé et saute son propre téléchargement.
+      - name: Pré-installer CMake 3.22.1 (anti-flaky SDK)
+        working-directory: mobile/android
+        run: |
+          set -u
+          # Les steps Actions tournent en bash -e -o pipefail : garder le SDK
+          # dans une variable non vide sécurise le rm -rf plus bas.
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?ANDROID_SDK_ROOT/ANDROID_HOME non défini}}"
+          SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          CMAKE_BIN="$SDK/cmake/3.22.1/bin/cmake"
+          for i in 1 2 3; do
+            if [ -x "$CMAKE_BIN" ]; then echo "CMake 3.22.1 présent"; break; fi
+            echo "Tentative $i — installation cmake;3.22.1"
+            # `yes` reçoit un SIGPIPE (141) quand sdkmanager sort ; avec pipefail
+            # le pipeline renverrait 141 même sur une install réussie. On ignore
+            # donc le code du pipe et on juge le succès sur la présence du binaire.
+            yes | "$SDKMANAGER" "cmake;3.22.1" || true
+            if [ -x "$CMAKE_BIN" ]; then echo "CMake 3.22.1 installé"; break; fi
+            echo "Échec tentative $i — purge du cache SDK et retry…"
+            rm -rf "$SDK/cmake/3.22.1"
+            sleep 5
+          done
+          test -x "$CMAKE_BIN" || { echo "::error::Échec installation CMake 3.22.1 après 3 tentatives"; exit 1; }
+
       - name: Build APK release (JS embarqué, signé debug)
         working-directory: mobile/android
         # arm64-v8a seulement : téléphones courants pour la QA. Éviter la
