@@ -698,14 +698,15 @@ class TestModulationCouverture:
         assert resultat["famille_dominante"] == "extreme_droite"
 
     def test_mun_couverture_partielle_reduit_le_poids(self):
-        """À couverture 0.5, la municipale pèse moitié de son poids nominal."""
+        """Une municipale à couverture 0,6 (40 % sans étiquette) pèse moins,
+        relativement, qu'une municipale à couverture pleine."""
         pres = ResultatScrutin("pres_t1", 0.0, {"gauche": 0.6, "droite": 0.4}, 0.70)
         mun_pleine = ResultatScrutin("mun_t1", 0.0, {"gauche": 0.6, "droite": 0.4}, 0.70)
-        mun_demi = ResultatScrutin("mun_t1", 0.0, {"gauche": 0.3, "droite": 0.3, "divers": 0.4}, 0.70)
+        mun_partielle = ResultatScrutin("mun_t1", 0.0, {"gauche": 0.3, "droite": 0.3, "divers": 0.4}, 0.70)
+        assert math.isclose(couverture(mun_partielle), 0.6)
         poids_pleine = dict(couleur_ville([pres, mun_pleine], 0.60)["scrutins_inclus"])
-        poids_demi = dict(couleur_ville([pres, mun_demi], 0.60)["scrutins_inclus"])
-        # La municipale à couverture 0.6 pèse moins (relatif) que la pleine.
-        assert poids_demi["mun_t1"] < poids_pleine["mun_t1"]
+        poids_partielle = dict(couleur_ville([pres, mun_partielle], 0.60)["scrutins_inclus"])
+        assert poids_partielle["mun_t1"] < poids_pleine["mun_t1"]
 
     def test_repli_commune_uniquement_mun_non_classable(self):
         """Commune n'ayant que des municipales 100 % divers : la modulation
