@@ -79,6 +79,28 @@ jobs:
         working-directory: mobile
         run: npx expo prebuild -p android --no-install
 
+      # Pré-installe CMake 3.22.1 via sdkmanager AVANT le build Gradle.
+      # react-native-screens déclare externalNativeBuild { cmake } → Gradle
+      # déclenche un téléchargement de cmake;3.22.1 via le SDK manager. Ce
+      # téléchargement échoue de façon intermittente sur les runners GitHub
+      # (ZipException: Archive is not a ZIP archive — archive corrompue).
+      # L'installer ici (retry + checksum de l'archive) rend le build
+      # déterministe et évite l'échec aléatoire du run.
+      - name: Pré-installer CMake 3.22.1 (anti-flaky SDK)
+        working-directory: mobile/android
+        run: |
+          SDKMANAGER="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}/cmdline-tools/latest/bin/sdkmanager"
+          CMAKE_BIN="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}/cmake/3.22.1/bin/cmake"
+          for i in 1 2 3; do
+            if [ -x "$CMAKE_BIN" ]; then echo "CMake 3.22.1 déjà installé"; break; fi
+            echo "Tentative $i — installation cmake;3.22.1"
+            if yes | "$SDKMANAGER" "cmake;3.22.1"; then break; fi
+            echo "Échec tentative $i, nettoyage du cache SDK et retry…"
+            rm -rf "${ANDROID_SDK_ROOT:-${ANDROID_HOME}}/cmake/3.22.1"
+            sleep 5
+          done
+          test -x "$CMAKE_BIN" || { echo "::error::Échec installation CMake 3.22.1 après 3 tentatives"; exit 1; }
+
       - name: Build APK release (JS embarqué, signé debug)
         working-directory: mobile/android
         # arm64-v8a seulement : téléphones courants pour la QA. Éviter la
