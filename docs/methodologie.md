@@ -190,8 +190,9 @@ Tous les choix méthodologiques ci-dessus sont des **paramètres versionnés, pu
 discutables** — ouvrez une issue pour les contester ou proposer mieux :
 
 - [`pipeline/config/poids.toml`](../pipeline/config/poids.toml) — poids par type de scrutin
-  (barème « S1 ») et scrutins modulés par le taux de couverture (« S4 »). **Seule source de
-  vérité** des poids, lue par `pipeline/couleur.py`.
+  (barème « S1 »), scrutins modulés par le taux de couverture (« S4 »), **demi-vie de récence**
+  (`[recence]`) et **plancher de désaturation** (`[desaturation]`). **Seule source de vérité**
+  des paramètres du modèle, lue par `pipeline/couleur.py`.
 - [`pipeline/config/nuances/`](../pipeline/config/nuances/) — correspondance nuance
   officielle → famille, un CSV par scrutin (voir son
   [README](../pipeline/config/nuances/README.md) pour les choix de classification).
