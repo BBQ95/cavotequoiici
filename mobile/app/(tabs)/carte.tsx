@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
 
 import { colors, fontScaleCap, radius, space, type } from "../../src/theme/tokens";
 import { CommunesMap } from "../../src/components/CommunesMap";
