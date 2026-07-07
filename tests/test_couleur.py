@@ -9,6 +9,7 @@ import pytest
 
 from pipeline.couleur import (
     DEMI_VIE_ANNEES,
+    PLANCHER_DESATURATION,
     POIDS_TYPE,
     SCRUTINS_MODULES,
     COULEURS,
@@ -20,6 +21,7 @@ from pipeline.couleur import (
     hex_to_oklch,
     oklch_to_hex,
     couleur_ville,
+    _charger_config_poids,
 )
 
 
@@ -745,3 +747,45 @@ class TestInvarianceDateCalcul:
             plus_tard = couleur_ville(self._commune(5.0), 0.60, algo=algo)
             assert ref["hex"] == plus_tard["hex"], f"algo={algo}"
             assert ref["famille_dominante"] == plus_tard["famille_dominante"]
+
+
+# ---------------------------------------------------------------------------
+# Config poids.toml — tous les paramètres viennent du fichier (source unique)
+# ---------------------------------------------------------------------------
+
+
+class TestConfigPoids:
+    """poids.toml est la seule source de vérité : poids, scrutins modulés,
+    demi-vie de récence ET plancher de désaturation."""
+
+    def test_valeurs_courantes_chargees_du_fichier(self):
+        assert DEMI_VIE_ANNEES == 6.0
+        assert PLANCHER_DESATURATION == 0.55
+        assert "mun_t1" in SCRUTINS_MODULES
+
+    def test_loader_lit_toutes_les_sections(self, tmp_path):
+        toml = tmp_path / "poids.toml"
+        toml.write_text(
+            "[defaut]\n"
+            "pres_t1 = 1.0\n"
+            "mun_t1 = 0.4\n"
+            "[s4]\n"
+            "scrutins_moduls = [\"mun_t1\"]\n"
+            "[recence]\n"
+            "demi_vie_ans = 8.0\n"
+            "[desaturation]\n"
+            "plancher = 0.6\n"
+        )
+        poids, modules, demi_vie, plancher = _charger_config_poids(toml)
+        assert poids == {"pres_t1": 1.0, "mun_t1": 0.4}
+        assert modules == frozenset({"mun_t1"})
+        assert demi_vie == 8.0
+        assert plancher == 0.6
+
+    def test_loader_valeurs_par_defaut_si_sections_absentes(self, tmp_path):
+        toml = tmp_path / "poids.toml"
+        toml.write_text("[defaut]\npres_t1 = 1.0\n")
+        _poids, modules, demi_vie, plancher = _charger_config_poids(toml)
+        assert modules == frozenset()
+        assert demi_vie == 6.0
+        assert plancher == 0.55

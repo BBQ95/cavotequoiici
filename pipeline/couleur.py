@@ -20,29 +20,32 @@ from pathlib import Path
 # Constantes
 # ---------------------------------------------------------------------------
 
-DEMI_VIE_ANNEES = 6.0
-
-# Poids des scrutins : source de vérité UNIQUE = pipeline/config/poids.toml
-# (pondération « S1+S4 », cf. docs/methodologie.md). Chargé à l'import ;
-# plus aucun poids codé en dur ici.
+# Paramètres du modèle : source de vérité UNIQUE = pipeline/config/poids.toml
+# (pondération « S1+S4 », cf. docs/methodologie.md). Chargés à l'import ;
+# plus aucun paramètre codé en dur ici.
 _POIDS_TOML = Path(__file__).parent / "config" / "poids.toml"
 
 
-def _charger_config_poids(chemin: Path = _POIDS_TOML) -> tuple[dict[str, float], frozenset[str]]:
-    """Lit poids.toml → (POIDS_TYPE, SCRUTINS_MODULES).
+def _charger_config_poids(chemin: Path = _POIDS_TOML):
+    """Lit poids.toml → (POIDS_TYPE, SCRUTINS_MODULES, DEMI_VIE_ANNEES, PLANCHER).
 
     - POIDS_TYPE : barème de base par type de scrutin (section [defaut]).
     - SCRUTINS_MODULES : types dont le poids est modulé par le taux de
       couverture (section [s4].scrutins_moduls).
+    - DEMI_VIE_ANNEES : demi-vie de la décroissance de récence (section [recence]).
+    - PLANCHER_DESATURATION : plancher du facteur de participation (section
+      [desaturation]).
     """
     with chemin.open("rb") as f:
         cfg = tomllib.load(f)
     poids = {k: float(v) for k, v in cfg["defaut"].items()}
     modules = frozenset(cfg.get("s4", {}).get("scrutins_moduls", []))
-    return poids, modules
+    demi_vie = float(cfg.get("recence", {}).get("demi_vie_ans", 6.0))
+    plancher = float(cfg.get("desaturation", {}).get("plancher", 0.55))
+    return poids, modules, demi_vie, plancher
 
 
-POIDS_TYPE, SCRUTINS_MODULES = _charger_config_poids()
+POIDS_TYPE, SCRUTINS_MODULES, DEMI_VIE_ANNEES, PLANCHER_DESATURATION = _charger_config_poids()
 
 COULEURS = {
     "extreme_gauche": "#D60B0B",
@@ -363,9 +366,11 @@ def couleur_ville(
     #    intensité = netteté du résultat × niveau de participation
     saturation_marge = clamp(0.45 + marge * 1.6, 0.45, 1.0)
     if participation_mediane == 0:
-        facteur_participation = 0.55  # plancher : éviter ZeroDivisionError
+        facteur_participation = PLANCHER_DESATURATION  # plancher : éviter ZeroDivisionError
     else:
-        facteur_participation = clamp(participation / participation_mediane, 0.55, 1.0)
+        facteur_participation = clamp(
+            participation / participation_mediane, PLANCHER_DESATURATION, 1.0
+        )
     # Fallback : si la famille gagnante n'est pas dans COULEURS, utiliser « divers »
     base = hex_to_oklch(COULEURS.get(gagnante, COULEURS["divers"]))
     couleur = OKLCH(

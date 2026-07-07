@@ -17,3 +17,14 @@ mun_t1  = 0.35
 # politiquement classable, hors « divers »). Jusqu'à 0 quand tout est sans étiquette.
 [s4]
 scrutins_moduls = ["mun_t1"]
+
+# Récence : décroissance exponentielle du poids avec l'ancienneté du scrutin.
+# poids_recence = 0.5 ** (age_annees / demi_vie_ans). ~ un cycle électoral.
+[recence]
+demi_vie_ans = 6.0
+
+# Désaturation par l'abstention : facteur_participation =
+# clamp(participation_commune / participation_mediane_nationale, plancher, 1.0).
+# Plancher de lisibilité (une commune peu votante n'est jamais totalement délavée).
+[desaturation]
+plancher = 0.55

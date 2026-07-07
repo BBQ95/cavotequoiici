@@ -68,9 +68,11 @@ def _construire(engine, reference: date):
         ).fetchall()
 
     communes: dict[str, dict[str, dict]] = defaultdict(dict)
+    ignores: list[tuple[str, str]] = []
     for sid, type_long, d in scrutins:
         if type_long not in TYPE_VERS_POIDS:
-            continue  # type non pris en charge (ex. second tour)
+            ignores.append((sid, type_long))
+            continue  # type non pris en charge (ex. second tour, hors panier)
         mapping = charger_nuances(sid)
         familles, meta = _charger_voix_par_famille(engine, sid, mapping)
         bloc_base = {
@@ -89,6 +91,12 @@ def _construire(engine, reference: date):
                 b["voix"][r["famille"]] = r["voix"]
         for code, bloc in bloc_base.items():
             communes[code][sid] = bloc
+    if ignores:
+        details = ", ".join(f"{sid} ({t})" for sid, t in ignores)
+        print(
+            f"  ⚠ {len(ignores)} scrutin(s) ignoré(s) — type absent de "
+            f"TYPE_VERS_POIDS/poids.toml : {details}"
+        )
     return communes
 
 
