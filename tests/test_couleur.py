@@ -479,11 +479,14 @@ class TestCouleurVilleAlgos:
     """
 
     @pytest.fixture
-    def saint_urcize(self):
-        """Commune rurale < 1000 hab. : municipales 100 % sans étiquette (LUD →
-        divers). Profil calqué sur Saint-Urcize (15216), cf. doc Outline « Détails
-        de calcul » : divers remporte la pluralité d'un cheveu → quasi-gris en
-        algo complet, alors que les scrutins nationaux penchent à droite.
+    def commune_lud_rurale(self):
+        """Profil FICTIF (ne PAS synchroniser avec une commune réelle : les
+        résultats réels dérivent à chaque scrutin et casseraient le test).
+
+        Commune rurale < 1000 hab. : municipales 100 % sans étiquette (LUD →
+        divers), scrutins nationaux penchant à droite. La couverture S4 annule le
+        poids de ses municipales non classables → l'extrême droite l'emporte dans
+        les trois algos (cf. `test_reperes.py` pour l'équivalent sur données réelles).
         """
         return [
             ResultatScrutin(
@@ -521,16 +524,16 @@ class TestCouleurVilleAlgos:
 
     # -- algo « complet » (défaut) : comportement inchangé ---------------------
 
-    def test_defaut_est_complet(self, saint_urcize):
-        implicite = couleur_ville(saint_urcize, participation_mediane=0.74)
-        explicite = couleur_ville(saint_urcize, participation_mediane=0.74, algo="complet")
+    def test_defaut_est_complet(self, commune_lud_rurale):
+        implicite = couleur_ville(commune_lud_rurale, participation_mediane=0.74)
+        explicite = couleur_ville(commune_lud_rurale, participation_mediane=0.74, algo="complet")
         assert implicite == explicite
 
-    def test_complet_saint_urcize_marine(self, saint_urcize):
+    def test_complet_commune_lud_couverture_s4_marine(self, commune_lud_rurale):
         """P1/S4 : les municipales 100 % « sans étiquette » ont un taux de
         couverture nul → leur poids tombe à 0 et l'extrême droite l'emporte
         dès l'algo complet (fini le quasi-gris rapporté avant P1)."""
-        resultat = couleur_ville(saint_urcize, participation_mediane=0.74)
+        resultat = couleur_ville(commune_lud_rurale, participation_mediane=0.74)
         assert resultat["famille_dominante"] == "extreme_droite"
         # Teinte marine (extrême droite), pas le gris « divers »
         attendu = hex_to_oklch(COULEURS["extreme_droite"])
@@ -542,8 +545,8 @@ class TestCouleurVilleAlgos:
 
     # -- algo « tendance » : divers exclu de la dominance ----------------------
 
-    def test_tendance_saint_urcize_colore(self, saint_urcize):
-        resultat = couleur_ville(saint_urcize, participation_mediane=0.74, algo="tendance")
+    def test_tendance_commune_lud_coloree(self, commune_lud_rurale):
+        resultat = couleur_ville(commune_lud_rurale, participation_mediane=0.74, algo="tendance")
         assert resultat["famille_dominante"] == "extreme_droite"
         # Teinte de l'extrême droite (bleu marine), pas du gris
         attendu = hex_to_oklch(COULEURS["extreme_droite"])
@@ -553,19 +556,53 @@ class TestCouleurVilleAlgos:
         gris = hex_to_oklch(COULEURS["divers"])
         assert abs(ok.H - gris.H) > 10
 
-    def test_tendance_part_et_marge_renormalisees(self, saint_urcize):
+    def test_tendance_part_et_marge_renormalisees(self, commune_lud_rurale):
         """part/marge sont renormalisées sur les familles politiques (hors divers)."""
-        complet = couleur_ville(saint_urcize, participation_mediane=0.74)
-        tendance = couleur_ville(saint_urcize, participation_mediane=0.74, algo="tendance")
+        complet = couleur_ville(commune_lud_rurale, participation_mediane=0.74)
+        tendance = couleur_ville(commune_lud_rurale, participation_mediane=0.74, algo="tendance")
         # La part renormalisée de l'ED dépasse sa part brute du classement complet
         part_brute_ed = dict(complet["repartition"])["extreme_droite"]
         assert tendance["part_synthetique"] > part_brute_ed
         assert 0.0 < tendance["marge"] <= 1.0
 
-    def test_tendance_repartition_reste_complete(self, saint_urcize):
+    def test_tendance_repartition_reste_complete(self, commune_lud_rurale):
         """Transparence : divers reste visible dans la répartition retournée."""
-        resultat = couleur_ville(saint_urcize, participation_mediane=0.74, algo="tendance")
+        resultat = couleur_ville(commune_lud_rurale, participation_mediane=0.74, algo="tendance")
         assert "divers" in dict(resultat["repartition"])
+
+    def test_complet_vs_tendance_different_quand_divers_domine(self):
+        """Cœur du besoin « tendance » : quand les sans-étiquette (divers)
+        arrivent EN TÊTE du classement complet, l'algo « tendance » bascule sur
+        la première famille politique → teinte (et hex) réellement différentes.
+
+        Profil FICTIF (indépendant de toute commune réelle, donc insensible à la
+        dérive des résultats au fil des scrutins) : divers domine via un scrutin
+        NATIONAL — non annulé par la couverture S4, contrairement aux municipales.
+        C'est la version robuste des anciens tests d'intégration sur Saint-Urcize.
+        """
+        commune = [
+            ResultatScrutin(
+                type_scrutin="pres_t1",
+                age_annees=2.0,
+                parts_familles={
+                    "divers": 0.40,
+                    "extreme_droite": 0.34,
+                    "gauche": 0.16,
+                    "centre": 0.10,
+                },
+                participation=0.70,
+            ),
+        ]
+        complet = couleur_ville(commune, participation_mediane=0.70)
+        tendance = couleur_ville(commune, participation_mediane=0.70, algo="tendance")
+        # complet : divers remporte la pluralité (quasi-gris)
+        assert complet["famille_dominante"] == "divers"
+        # tendance : divers écarté de la dominance → l'extrême droite l'emporte
+        assert tendance["famille_dominante"] == "extreme_droite"
+        # la teinte change donc réellement (ce que vérifiait l'ancien test réel)
+        assert tendance["hex"] != complet["hex"]
+        # transparence : la répartition renvoyée reste identique (divers visible)
+        assert tendance["repartition"] == complet["repartition"]
 
     def test_tendance_sans_famille_politique_reste_divers(self):
         """Une commune 100 % divers reste grise (rien à renormaliser)."""
@@ -597,12 +634,12 @@ class TestCouleurVilleAlgos:
 
     # -- algo « blocs » : gauche/centre/droite agrégés --------------------------
 
-    def test_blocs_saint_urcize_bloc_droite(self, saint_urcize):
-        resultat = couleur_ville(saint_urcize, participation_mediane=0.74, algo="blocs")
+    def test_blocs_commune_lud_bloc_droite(self, commune_lud_rurale):
+        resultat = couleur_ville(commune_lud_rurale, participation_mediane=0.74, algo="blocs")
         # Bloc droite (droite + extrême droite) gagne ; la teinte vient de la
         # sous-famille dominante du bloc (ici l'extrême droite).
         assert resultat["famille_dominante"] == "extreme_droite"
-        tendance = couleur_ville(saint_urcize, participation_mediane=0.74, algo="tendance")
+        tendance = couleur_ville(commune_lud_rurale, participation_mediane=0.74, algo="tendance")
         assert resultat["marge"] >= tendance["marge"]
 
     def test_blocs_camp_divise_gagne_uni(self):
@@ -641,13 +678,13 @@ class TestCouleurVilleAlgos:
 
     # -- garde-fous -------------------------------------------------------------
 
-    def test_algo_inconnu_leve_valueerror(self, saint_urcize):
+    def test_algo_inconnu_leve_valueerror(self, commune_lud_rurale):
         with pytest.raises(ValueError):
-            couleur_ville(saint_urcize, participation_mediane=0.74, algo="magique")
+            couleur_ville(commune_lud_rurale, participation_mediane=0.74, algo="magique")
 
-    def test_resultat_porte_l_algo(self, saint_urcize):
+    def test_resultat_porte_l_algo(self, commune_lud_rurale):
         for algo in ("complet", "tendance", "blocs"):
-            resultat = couleur_ville(saint_urcize, participation_mediane=0.74, algo=algo)
+            resultat = couleur_ville(commune_lud_rurale, participation_mediane=0.74, algo=algo)
             assert resultat["algo"] == algo
 
 
