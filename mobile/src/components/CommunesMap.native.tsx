@@ -164,9 +164,9 @@ export function CommunesMap({
             source="communes"
             source-layer={SOURCE_LAYER_COMMUNES}
             paint={{
-              "line-color": colors.bgFull,
-              "line-width": 0.2,
-              "line-opacity": 0.5,
+              "line-color": "#FFFFFF",
+              "line-width": 0.3,
+              "line-opacity": 0.15,
             }}
           />
           {GLYPHS_URL != null && (
