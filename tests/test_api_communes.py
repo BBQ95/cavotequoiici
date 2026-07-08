@@ -9,6 +9,21 @@ pytestmark = pytest.mark.skipif(
     reason="DATABASE_URL non définie (test d'intégration BDD)",
 )
 
+# Familles valides (cf. pipeline/config/familles.csv). Ces tests d'intégration
+# vérifient le BRANCHEMENT de ?algo= sans épingler la famille d'une commune
+# réelle : les couleurs réelles dérivent à chaque scrutin. La LOGIQUE des algos
+# (complet vs tendance vs blocs) est testée sur données fictives dans
+# tests/test_couleur.py::TestCouleurVilleAlgos.
+FAMILLES_VALIDES = {
+    "extreme_gauche",
+    "gauche",
+    "ecologistes",
+    "centre",
+    "droite",
+    "extreme_droite",
+    "divers",
+}
+
 
 def test_search(client):
     r = client.get("/communes/search", params={"q": "Saint-Den"})
@@ -113,20 +128,22 @@ def test_proximite(client):
     assert dists == sorted(dists)
 
 
-def test_couleur_algo_tendance_colore_saint_urcize(client):
-    """P1.2 : ?algo=tendance sert la couleur recalculée sans les sans-étiquette.
-    Saint-Urcize (15216) : grise en complet, extrême droite (marine) en tendance."""
-    complet = client.get("/communes/15216/couleur").json()
-    r = client.get("/communes/15216/couleur", params={"algo": "tendance"})
-    assert r.status_code == 200
-    tendance = r.json()
-    assert tendance["algo"] == "tendance"
-    assert tendance["famille_dominante"] == "extreme_droite"
-    assert 240 <= tendance["h"] <= 275
-    assert tendance["hex"] != complet["hex"]
-    # Répartition et participation identiques (seule la dominance change)
-    assert tendance["repartition"] == complet["repartition"]
-    assert tendance["participation_mediane"] == complet["participation_mediane"]
+def test_couleur_algo_branchement(client):
+    """P1.2 : ?algo= est relayé de bout en bout. Invariants (indépendants des
+    données réelles) : les 3 algos répondent 200, renvoient l'algo demandé et une
+    famille valide ; seule la dominance/teinte peut changer — la répartition et la
+    participation sont identiques d'un algo à l'autre (transparence)."""
+    complet = client.get("/communes/93066/couleur").json()
+    assert complet["algo"] == "complet"
+    for algo in ("complet", "tendance", "blocs"):
+        r = client.get("/communes/93066/couleur", params={"algo": algo})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["algo"] == algo
+        assert body["famille_dominante"] in FAMILLES_VALIDES
+        # Répartition et participation indépendantes de l'algo choisi.
+        assert body["repartition"] == complet["repartition"]
+        assert body["participation_mediane"] == complet["participation_mediane"]
 
 
 def test_couleur_algo_defaut_complet(client):
@@ -142,12 +159,13 @@ def test_couleur_algo_inconnu_422(client):
     assert client.get("/communes/93066/couleur", params={"algo": "magique"}).status_code == 422
 
 
-def test_fiche_algo_tendance(client):
-    r = client.get("/communes/15216", params={"algo": "tendance"})
+def test_fiche_algo_branchement(client):
+    """La fiche relaie ?algo= (écho + famille valide), sans pin sur une commune réelle."""
+    r = client.get("/communes/93066", params={"algo": "tendance"})
     assert r.status_code == 200
     couleur = r.json()["couleur"]
     assert couleur["algo"] == "tendance"
-    assert couleur["famille_dominante"] == "extreme_droite"
+    assert couleur["famille_dominante"] in FAMILLES_VALIDES
 
 
 def test_fiche_renvoie_coordonnees_lat_lon(client):
@@ -172,14 +190,16 @@ def test_fiche_coordonnees_nice(client):
     assert abs(body["lon"] - 7.27) < 0.2
 
 
-def test_search_algo_tendance(client):
-    """La pastille de la liste suit l'algo demandé (P1.3 : préférence de l'app)."""
-    complet = client.get("/communes/search", params={"q": "urcize"}).json()
-    tendance = client.get(
-        "/communes/search", params={"q": "urcize", "algo": "tendance"}
-    ).json()
-    su_c = next(c for c in complet if c["code_insee"] == "15216")
-    su_t = next(c for c in tendance if c["code_insee"] == "15216")
-    assert su_c["famille"] == "divers"
-    assert su_t["famille"] == "extreme_droite"
-    assert su_t["hex"] != su_c["hex"]
+def test_search_algo_branchement(client):
+    """La recherche relaie ?algo= (P1.3 : préférence de l'app) : chaque pastille
+    porte une famille et un hex valides pour l'algo demandé. Sans pin sur une
+    commune réelle — la logique complet/tendance est couverte sur données fictives
+    (tests/test_couleur.py)."""
+    for algo in ("complet", "tendance"):
+        res = client.get(
+            "/communes/search", params={"q": "saint", "algo": algo}
+        ).json()
+        assert res, f"recherche vide pour algo={algo}"
+        for c in res:
+            assert c["famille"] in FAMILLES_VALIDES
+            assert c["hex"].startswith("#") and len(c["hex"]) == 7
