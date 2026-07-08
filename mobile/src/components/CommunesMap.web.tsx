@@ -12,6 +12,7 @@ import { colors, space, type } from "../theme/tokens";
 export function CommunesMap(_props: {
   couleurProperty?: string;
   center?: [number, number];
+  cible?: { centre: [number, number]; zoom: number; cle: number };
 }) {
   return (
     <View style={styles.centre}>

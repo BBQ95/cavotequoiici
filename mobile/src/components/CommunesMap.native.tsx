@@ -20,6 +20,7 @@ import {
 
 import { colors, radius, space } from "../theme/tokens";
 import { API_BASE } from "../api/client";
+import { CENTRE_FRANCE, ZOOM_METROPOLE } from "../lib/territoires";
 import {
   FONTSTACK_ETIQUETTES,
   SOURCE_LAYER_COMMUNES,
@@ -56,9 +57,8 @@ const FOND_SOMBRE: StyleSpecification = {
   ],
 };
 
-// Vue initiale : France métropolitaine.
-const CENTRE_FRANCE: [number, number] = [2.4, 46.6];
-const ZOOM_INITIAL = 4.4;
+// Vue initiale : France métropolitaine (source partagée avec le sélecteur).
+const ZOOM_INITIAL = ZOOM_METROPOLE;
 // Zoom appliqué lors du recentrage sur une commune visitée.
 const ZOOM_COMMUNE = 11;
 // Durée de l'animation flyTo vers la commune (ms).
@@ -76,9 +76,16 @@ const COULEUR_SANS_DONNEE = colors.surface;
 export function CommunesMap({
   couleurProperty = "hex",
   center,
+  cible,
 }: {
   couleurProperty?: string;
   center?: [number, number];
+  /**
+   * Cible de cadrage explicite (sélecteur de territoire) : vole vers `centre`
+   * au `zoom` d'ensemble donné. `cle` est un jeton qui rejoue le vol même si la
+   * même cible est re-sélectionnée. Distinct de `center` (recentrage commune, zoom 11).
+   */
+  cible?: { centre: [number, number]; zoom: number; cle: number };
 }) {
   const cameraRef = useRef<CameraRef>(null);
   const centreInitial: [number, number] = center ?? CENTRE_FRANCE;
@@ -94,6 +101,18 @@ export function CommunesMap({
       });
     }
   }, [center]);
+
+  // Vole vers un territoire choisi dans le sélecteur (zoom d'ensemble).
+  useEffect(() => {
+    if (cible) {
+      cameraRef.current?.flyTo({
+        center: cible.centre,
+        zoom: cible.zoom,
+        duration: DUREE_FLYTO,
+      });
+    }
+    // `cle` change à chaque tap : rejoue le vol même vers le même territoire.
+  }, [cible?.cle]);
 
   /** Demande la permission GPS, obtient la position et vole vers elle. */
   async function localiser() {
