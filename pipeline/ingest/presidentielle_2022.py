@@ -1,12 +1,15 @@
 """Ingestion de l'élection présidentielle 2022, 1er tour (Étape 2).
 
 Source : data.gouv.fr, résultats par commune (format long : une ligne par commune
-× candidat, UTF-8, séparateur virgule). Couvre métropole + Corse (les DOM, absents
-de ce fichier, restent à compléter ultérieurement).
+× candidat, UTF-8, séparateur virgule). Couvre métropole + Corse + outre-mer : les
+DOM/COM y figurent sous des codes département alphabétiques (ZA…ZX), remappés vers
+leur préfixe INSEE 97/98 (cf. `DOM_PREFIXE`). Seul Wallis (ZW) n'est fourni qu'en
+agrégat territorial non ventilable par commune, donc non repris.
 
-Construction du code INSEE : `dep_code` + 3 premiers caractères de `commune_code`,
-ce qui agrège automatiquement les arrondissements PLM (Paris/Lyon/Marseille) vers
-leur commune parente (75056 / 69123 / 13055), cohérent avec la table `communes`.
+Construction du code INSEE : préfixe département (2 car. : le `dep_code` métropole
+tel quel, ou 97/98 pour l'outre-mer) + 3 premiers caractères de `commune_code`, ce
+qui agrège automatiquement les arrondissements PLM (Paris/Lyon/Marseille) vers leur
+commune parente (75056 / 69123 / 13055), cohérent avec la table `communes`.
 
 Usage :
     DATABASE_URL=postgresql+psycopg2://postgres:cavote@localhost:5432/postgres \\
@@ -57,12 +60,38 @@ PANNEAU_NUANCE = {
 }
 
 
+# Codes département alphabétiques de l'outre-mer (fichier présidentielle) -> préfixe
+# INSEE (2 car.). Le `commune_code` porte déjà le 3e chiffre du département, donc
+# l'INSEE se reconstruit en `préfixe + commune_code[:3]` (ex. ZA "101" -> 97101).
+# Vérifié sur la source : ZX couvre Saint-Barthélemy (977xx) et Saint-Martin (978xx),
+# désambiguïsés par le 1er chiffre du commune_code. ZW (Wallis) est un agrégat
+# territorial unique ("001"), non ventilable par commune -> volontairement absent.
+DOM_PREFIXE = {
+    "ZA": "97",  # Guadeloupe (971)
+    "ZB": "97",  # Martinique (972)
+    "ZC": "97",  # Guyane (973)
+    "ZD": "97",  # La Réunion (974)
+    "ZS": "97",  # Saint-Pierre-et-Miquelon (975)
+    "ZM": "97",  # Mayotte (976)
+    "ZX": "97",  # Saint-Barthélemy (977) / Saint-Martin (978)
+    "ZP": "98",  # Polynésie française (987)
+    "ZN": "98",  # Nouvelle-Calédonie (988)
+}
+
+
+def prefixe_departement(dep_code: str) -> str:
+    """Préfixe INSEE (2 car.) : dep_code métropole/Corse tel quel, 97/98 pour l'outre-mer."""
+    dep = str(dep_code).strip().upper()
+    return DOM_PREFIXE.get(dep, dep)
+
+
 def construire_insee(dep_code: str, commune_code: str) -> str:
-    """Code INSEE 5 caractères = département + base communale (3 premiers car.).
+    """Code INSEE 5 caractères = préfixe département + base communale (3 premiers car.).
 
     Les arrondissements PLM (`056AR18`) sont ramenés à leur commune parente (`056`).
+    L'outre-mer (dep_code alphabétique) est remappé via `DOM_PREFIXE` (ZA "101" -> 97101).
     """
-    return f"{str(dep_code).strip().upper()}{str(commune_code).strip()[:3]}"
+    return f"{prefixe_departement(dep_code)}{str(commune_code).strip()[:3]}"
 
 
 def agreger_resultats(df: pl.DataFrame) -> pl.DataFrame:
@@ -81,7 +110,12 @@ def agreger_resultats(df: pl.DataFrame) -> pl.DataFrame:
     ).with_columns(
         [
             (
-                pl.col("dep_code").str.strip_chars().str.to_uppercase()
+                # Préfixe département : dep_code métropole/Corse tel quel, 97/98 pour
+                # l'outre-mer (codes alphabétiques ZA…ZX, cf. DOM_PREFIXE).
+                pl.col("dep_code")
+                .str.strip_chars()
+                .str.to_uppercase()
+                .replace(DOM_PREFIXE)
                 + pl.col("commune_code").str.strip_chars().str.slice(0, 3)
             ).alias("code_insee"),
             pl.col("cand_num_panneau")

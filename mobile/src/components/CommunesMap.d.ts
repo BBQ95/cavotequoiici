@@ -12,4 +12,9 @@ export declare function CommunesMap(props: {
    * vole vers ce centre ; sinon, la carte reste centrée sur la France.
    */
   center?: [number, number];
+  /**
+   * Cible de cadrage explicite (sélecteur de territoire) : vole vers `centre`
+   * au `zoom` d'ensemble donné. `cle` rejoue le vol à chaque sélection.
+   */
+  cible?: { centre: [number, number]; zoom: number; cle: number };
 }): import("react").JSX.Element;

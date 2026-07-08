@@ -26,6 +26,18 @@ from pipeline.ingest.common import charger_nuances
         ("75", "056AR18", "75056"),     # Paris 18e -> commune parente Paris
         ("69", "123AR09", "69123"),     # Lyon 9e  -> Lyon
         ("13", "055AR16", "13055"),     # Marseille 16e -> Marseille
+        # Outre-mer : la source code le département en lettres (ZA…ZX). Le code
+        # commune porte déjà le 3e chiffre du département -> préfixe 2 car. + com[:3].
+        ("ZA", "101", "97101"),         # Guadeloupe (971) — Les Abymes
+        ("ZB", "201", "97201"),         # Martinique (972)
+        ("ZC", "301", "97301"),         # Guyane (973)
+        ("ZD", "401", "97401"),         # La Réunion (974)
+        ("ZS", "501", "97501"),         # Saint-Pierre-et-Miquelon (975)
+        ("ZM", "601", "97601"),         # Mayotte (976)
+        ("ZX", "701", "97701"),         # Saint-Barthélemy (977)
+        ("ZX", "801", "97801"),         # Saint-Martin (978)
+        ("ZP", "711", "98711"),         # Polynésie française (987) — Anaa
+        ("ZN", "801", "98801"),         # Nouvelle-Calédonie (988) — Belep
     ],
 )
 def test_construire_insee(dep, com, attendu):
@@ -73,6 +85,8 @@ def _source():
     # Paris en 2 arrondissements -> doivent fusionner en 75056
     add("75", "056AR01", expr=50, insc=70, voix_par_panneau={5: 10, 7: 40})
     add("75", "056AR02", expr=30, insc=40, voix_par_panneau={5: 20, 7: 10})
+    # commune d'outre-mer : dep_code alphabétique -> INSEE 97101
+    add("ZA", "101", expr=80, insc=95, voix_par_panneau={5: 30, 7: 50})
     return pl.DataFrame(base)
 
 
@@ -102,3 +116,15 @@ def test_agreger_resultats_commune_simple():
     assert voix == {"RN": 60, "FI": 40}
     assert set(com["exprimes"].to_list()) == {100}
     assert set(com["inscrits"].to_list()) == {120}
+
+
+def test_agreger_resultats_outre_mer():
+    # dep_code alphabétique ZA -> commune 97101 (Guadeloupe), pas "ZA101".
+    out = agreger_resultats(_source())
+    dom = out.filter(pl.col("code_insee") == "97101")
+    voix = {r["nuance"]: r["voix"] for r in dom.to_dicts()}
+    assert voix == {"RN": 30, "FI": 50}
+    assert set(dom["exprimes"].to_list()) == {80}
+    assert set(dom["inscrits"].to_list()) == {95}
+    # aucun code alphabétique résiduel ne doit subsister
+    assert not any(c[0].isalpha() for c in out["code_insee"].to_list())
