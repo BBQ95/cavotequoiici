@@ -38,7 +38,26 @@ Cette table est un **paramètre de configuration, pas une vérité absolue**. Le
 nuance → famille est maintenu **par scrutin** — un CSV daté par élection dans
 [`pipeline/config/nuances/`](../pipeline/config/nuances/) — car les nuances officielles
 évoluent d'un scrutin à l'autre ; la liste canonique famille → couleur vit dans
-[`pipeline/config/familles.csv`](../pipeline/config/familles.csv).
+[`pipeline/config/familles.csv`](../pipeline/config/familles.csv). Ces grilles sont
+exposées telles quelles par l'API (`GET /nuances`, avec la source officielle de chaque
+ligne) et consultables dans l'app (Méthode → « D'où viennent les familles ? »).
+
+### Contrôle du Conseil d'État
+
+Les grilles de nuances sont fixées par circulaire ou instruction du ministère de
+l'Intérieur ; en cas de recours, le **Conseil d'État** tranche, et il a déjà corrigé
+plusieurs classements :
+
+- **2020** (décision CE n° 437675) : circulaire des municipales partiellement suspendue —
+  seuil des 9 000 habitants, et classer « Debout la France » à l'extrême droite était une
+  erreur manifeste (→ famille « droite ») ;
+- **2022** : injonction faite au ministère d'ajouter la nuance **NUPES** aux législatives
+  (sans elle, les candidats de l'union restaient ventilés par parti) ;
+- la classification de **La France insoumise** en « extrême gauche » dans les grilles
+  récentes reste débattue (contrôle CE) — la mention figure ligne par ligne dans la
+  colonne `source` des CSV concernés.
+
+Détail et références : [`pipeline/config/nuances/README.md`](../pipeline/config/nuances/README.md).
 
 > Nuance d'affichage : dans l'app, les barres de répartition et les légendes utilisent une
 > palette propre (`mobile/src/lib/familles.ts`), légèrement ajustée pour la lisibilité sur fond

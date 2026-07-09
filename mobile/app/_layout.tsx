@@ -57,6 +57,8 @@ export default function RootLayout() {
           >
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="commune/[insee]" />
+            {/* Grilles nuance → famille + contrôle du Conseil d'État. */}
+            <Stack.Screen name="nuances" />
             {/* Écran 4 — Partager : modale plein écran. */}
             <Stack.Screen
               name="partager/[insee]"

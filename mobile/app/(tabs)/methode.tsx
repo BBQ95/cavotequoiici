@@ -1,4 +1,5 @@
 import { ScrollView, View, Text, StyleSheet, Linking, Pressable } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -26,6 +27,7 @@ function Point({
 
 export default function Methode() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   return (
     <ScrollView
       style={styles.page}
@@ -114,6 +116,31 @@ export default function Methode() {
           Le choix se fait dans l'onglet <Text style={styles.b}>Paramètres</Text> et ne
           change que la teinte affichée, jamais les chiffres.
         </Point>
+      </View>
+
+      <Text style={styles.h2}>D'où viennent les familles ?</Text>
+      <View style={styles.carte}>
+        <Point icone="account-balance" couleur={colors.accentBright}>
+          Chaque parti ou liste reçoit une <Text style={styles.b}>nuance officielle</Text>,
+          fixée scrutin par scrutin par le ministère de l'Intérieur ; l'app range
+          chaque nuance dans une famille.
+        </Point>
+        <Point icone="gavel" couleur={colors.accentBright}>
+          En cas de recours, le <Text style={styles.b}>Conseil d'État</Text> tranche —
+          il a déjà corrigé plusieurs classements.
+        </Point>
+        <Point icone="fact-check" couleur={colors.textTertiary}>
+          Chaque ligne de la grille est <Text style={styles.b}>sourcée</Text> (Légifrance,
+          data.gouv.fr) et versionnée avec le code : l'attribution est vérifiable.
+        </Point>
+        <Pressable
+          onPress={() => router.push("/nuances")}
+          accessibilityRole="button"
+          style={[styles.lienBtn, { marginTop: space.xs, paddingVertical: space.xs }]}
+        >
+          <MaterialIcons name="chevron-right" size={18} color={colors.accentBright} />
+          <Text style={styles.lien}>Voir la grille, élection par élection</Text>
+        </Pressable>
       </View>
 
       <Text style={styles.h2}>La palette</Text>

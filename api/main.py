@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from api.routers import communes, scrutins
+from api.routers import communes, nuances, scrutins
 
 app = FastAPI(
     title="CaVoteQuoiIci API",
@@ -32,6 +32,7 @@ app.add_middleware(
 
 app.include_router(communes.router)
 app.include_router(scrutins.router)
+app.include_router(nuances.router)
 
 # Glyphes MapLibre ({fontstack}/{range}.pbf) pour les étiquettes de la carte
 # (cf. api/fonts/README.md). Servis par l'API : ils passent par la même
