@@ -19,6 +19,7 @@ from sqlalchemy import text
 __all__ = [
     "familles_valides",
     "charger_nuances",
+    "charger_nuances_completes",
     "upsert_scrutin",
     "inserer_resultats",
     "compter_orphelins",
@@ -40,11 +41,14 @@ def familles_valides(config_dir: Path | str = CONFIG_DIR) -> set[str]:
         return {row["famille"].strip() for row in csv.DictReader(f)}
 
 
-def charger_nuances(
+def charger_nuances_completes(
     scrutin_id: str, nuances_dir: Path | str = NUANCES_DIR
-) -> dict[str, str]:
-    """Charge le mapping nuance -> famille d'un scrutin depuis son CSV daté.
+) -> list[dict]:
+    """Charge la grille de nuances d'un scrutin avec ses colonnes d'audit.
 
+    Retourne une ligne par nuance, dans l'ordre du CSV : nuance, famille,
+    scrutin_type, annee (int), date_classification, source, statut (None si la
+    colonne est absente — seules les grilles provisoires la portent).
     Valide que chaque famille existe dans familles.csv et qu'aucune nuance n'est
     dupliquée. Lève FileNotFoundError si le fichier du scrutin n'existe pas.
     """
@@ -52,7 +56,8 @@ def charger_nuances(
     if not path.exists():
         raise FileNotFoundError(f"mapping de nuances absent: {path}")
     valides = familles_valides(Path(nuances_dir).parent)
-    mapping: dict[str, str] = {}
+    lignes: list[dict] = []
+    vues: set[str] = set()
     with open(path, newline="", encoding="utf-8") as f:
         for i, row in enumerate(csv.DictReader(f), start=2):  # ligne 1 = en-tête
             nuance = (row.get("nuance") or "").strip()
@@ -61,12 +66,40 @@ def charger_nuances(
                 raise ValueError(f"{path}:{i} nuance vide")
             if famille not in valides:
                 raise ValueError(f"{path}:{i} famille inconnue: {famille!r}")
-            if nuance in mapping:
+            if nuance in vues:
                 raise ValueError(f"{path}:{i} nuance dupliquée: {nuance!r}")
-            mapping[nuance] = famille
-    if not mapping:
+            vues.add(nuance)
+            statut = (row.get("statut") or "").strip()
+            lignes.append(
+                {
+                    "nuance": nuance,
+                    "famille": famille,
+                    "scrutin_type": (row.get("scrutin_type") or "").strip(),
+                    "annee": int((row.get("annee") or "0").strip() or 0),
+                    "date_classification": (
+                        row.get("date_classification") or ""
+                    ).strip(),
+                    "source": (row.get("source") or "").strip(),
+                    "statut": statut or None,
+                }
+            )
+    if not lignes:
         raise ValueError(f"{path}: aucune nuance")
-    return mapping
+    return lignes
+
+
+def charger_nuances(
+    scrutin_id: str, nuances_dir: Path | str = NUANCES_DIR
+) -> dict[str, str]:
+    """Charge le mapping nuance -> famille d'un scrutin depuis son CSV daté.
+
+    Valide que chaque famille existe dans familles.csv et qu'aucune nuance n'est
+    dupliquée. Lève FileNotFoundError si le fichier du scrutin n'existe pas.
+    """
+    return {
+        r["nuance"]: r["famille"]
+        for r in charger_nuances_completes(scrutin_id, nuances_dir)
+    }
 
 
 def upsert_scrutin(

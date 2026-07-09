@@ -135,6 +135,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/nuances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liste Nuances
+         * @description Grilles officielles nuance -> famille de chaque scrutin ingéré.
+         */
+        get: operations["liste_nuances_nuances_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -318,6 +338,28 @@ export interface components {
             scrutins: components["schemas"]["ScrutinInclus"][];
         };
         /**
+         * NuanceClassee
+         * @description Classement officiel d'une nuance (code parti/liste) dans une famille.
+         */
+        NuanceClassee: {
+            /** Nuance */
+            nuance: string;
+            /** Famille */
+            famille: string;
+            /** Source */
+            source: string;
+            /** Statut */
+            statut?: string | null;
+        };
+        /**
+         * NuancesResponse
+         * @description Réponse de GET /nuances : grilles triées par année décroissante.
+         */
+        NuancesResponse: {
+            /** Scrutins */
+            scrutins: components["schemas"]["ScrutinNuances"][];
+        };
+        /**
          * ScrutinInclus
          * @description Un scrutin inclus dans la synthèse de la commune.
          */
@@ -330,6 +372,22 @@ export interface components {
             date: string;
             /** Poids Relatif */
             poids_relatif: number;
+        };
+        /**
+         * ScrutinNuances
+         * @description Grille de nuances d'un scrutin (une ligne par nuance, ordre du CSV).
+         */
+        ScrutinNuances: {
+            /** Scrutin Id */
+            scrutin_id: string;
+            /** Type */
+            type: string;
+            /** Annee */
+            annee: number;
+            /** Date Classification */
+            date_classification: string;
+            /** Nuances */
+            nuances: components["schemas"]["NuanceClassee"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -545,6 +603,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    liste_nuances_nuances_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NuancesResponse"];
                 };
             };
         };

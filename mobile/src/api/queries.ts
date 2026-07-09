@@ -50,3 +50,10 @@ export function useDetailScrutin(insee: string, scrutinId: string | null) {
     enabled: !!scrutinId,
   });
 }
+
+export function useNuances() {
+  return useQuery({
+    queryKey: ["nuances"],
+    queryFn: api.nuances,
+  });
+}

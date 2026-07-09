@@ -8,6 +8,7 @@ import pytest
 
 from pipeline.ingest.common import (
     charger_nuances,
+    charger_nuances_completes,
     familles_valides,
     filtrer_communes_connues,
 )
@@ -80,6 +81,73 @@ def test_charger_nuances_vide(config):
     _ecrire(nuances, "x", "")
     with pytest.raises(ValueError, match="aucune nuance"):
         charger_nuances("x", nuances_dir=nuances)
+
+
+def test_charger_nuances_completes_ok(config):
+    _, nuances = config
+    _ecrire(
+        nuances,
+        "x_2024",
+        "PS,gauche,europeennes,2024,2024-06-09,,,data.gouv.fr\n"
+        "RN,extreme_droite,europeennes,2024,2024-06-09,,,Légifrance id/1\n",
+    )
+    lignes = charger_nuances_completes("x_2024", nuances_dir=nuances)
+    assert lignes == [
+        {
+            "nuance": "PS",
+            "famille": "gauche",
+            "scrutin_type": "europeennes",
+            "annee": 2024,
+            "date_classification": "2024-06-09",
+            "source": "data.gouv.fr",
+            "statut": None,
+        },
+        {
+            "nuance": "RN",
+            "famille": "extreme_droite",
+            "scrutin_type": "europeennes",
+            "annee": 2024,
+            "date_classification": "2024-06-09",
+            "source": "Légifrance id/1",
+            "statut": None,
+        },
+    ]
+
+
+def test_charger_nuances_completes_statut(config):
+    # Colonne `statut` optionnelle (municipales 2026 : grille provisoire).
+    _, nuances = config
+    entete = (
+        "nuance,famille,scrutin_type,annee,date_classification,"
+        "date_debut,date_fin,source,statut\n"
+    )
+    (nuances / "mun.csv").write_text(
+        entete + "LUD,droite,municipales_t1,2026,2026-03-15,,,data.gouv.fr,provisoire\n",
+        encoding="utf-8",
+    )
+    lignes = charger_nuances_completes("mun", nuances_dir=nuances)
+    assert lignes[0]["statut"] == "provisoire"
+
+
+def test_charger_nuances_completes_memes_validations(config):
+    # Même chemin de validation que charger_nuances.
+    _, nuances = config
+    with pytest.raises(FileNotFoundError):
+        charger_nuances_completes("inexistant", nuances_dir=nuances)
+    _ecrire(nuances, "fam", "PS,centre,europeennes,2024,2024-06-09,,,src\n")
+    with pytest.raises(ValueError, match="famille inconnue"):
+        charger_nuances_completes("fam", nuances_dir=nuances)
+    _ecrire(
+        nuances,
+        "dup",
+        "PS,gauche,europeennes,2024,2024-06-09,,,src\n"
+        "PS,droite,europeennes,2024,2024-06-09,,,src\n",
+    )
+    with pytest.raises(ValueError, match="dupliquée"):
+        charger_nuances_completes("dup", nuances_dir=nuances)
+    _ecrire(nuances, "vide", "")
+    with pytest.raises(ValueError, match="aucune nuance"):
+        charger_nuances_completes("vide", nuances_dir=nuances)
 
 
 def test_filtrer_communes_connues():

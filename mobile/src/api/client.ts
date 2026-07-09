@@ -24,6 +24,9 @@ export type ListeScrutinsResponse = Schemas["ListeScrutinsResponse"];
 export type ScrutinInclus = Schemas["ScrutinInclus"];
 export type DetailScrutinResponse = Schemas["DetailScrutinResponse"];
 export type FamilleVoix = Schemas["FamilleVoix"];
+export type NuancesResponse = Schemas["NuancesResponse"];
+export type ScrutinNuances = Schemas["ScrutinNuances"];
+export type NuanceClassee = Schemas["NuanceClassee"];
 
 /**
  * `EXPO_PUBLIC_API_URL` **doit** être définie (variable inlinée au build — voir
@@ -86,4 +89,5 @@ export const api = {
     get<CommuneProximite[]>(
       `/communes/proximite?lat=${lat}&lon=${lon}&rayon_m=${rayonM}`,
     ),
+  nuances: () => get<NuancesResponse>("/nuances"),
 };
