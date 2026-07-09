@@ -6,21 +6,18 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
-  Share,
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
-import * as Clipboard from "expo-clipboard";
 import { captureRef } from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 
 import { useFiche } from "../../src/api/queries";
-import { RepartitionBar } from "../../src/components/RepartitionBar";
 import { texteSurFond, pourcent } from "../../src/lib/color";
 import { familleInfo } from "../../src/lib/familles";
-import { colors, fontScaleCap, radius, space, type } from "../../src/theme/tokens";
+import { colors, space, radius, type } from "../../src/theme/tokens";
 
 export default function Partager() {
   const { insee } = useLocalSearchParams<{ insee: string }>();
@@ -31,34 +28,9 @@ export default function Partager() {
   // Vue capturée en image (l'aperçu de la carte de partage).
   const carteRef = useRef<View>(null);
 
-  const lien = `cavotequoiici://commune/${insee}`;
-
   async function partager() {
     if (!data) return;
-    const dominante =
-      data.couleur.famille_dominante ?? data.couleur.repartition[0]?.famille;
-    const tendance = dominante ? familleInfo(dominante).label : "tendance inconnue";
     try {
-      await Share.share({
-        message:
-          `${data.nom} — ${tendance}, ${pourcent(data.couleur.participation_mediane)} ` +
-          `de participation. La couleur politique de ma commune sur CaVoteQuoiIci.\n${lien}`,
-      });
-    } catch {
-      // partage annulé : rien à faire
-    }
-  }
-
-  async function copierLien() {
-    await Clipboard.setStringAsync(lien);
-    Alert.alert("Lien copié", "Le lien vers cette commune est dans le presse-papier.");
-  }
-
-  async function exporterImage() {
-    if (!data) return;
-    try {
-      // Capture l'aperçu de la carte en PNG, puis ouvre la feuille de partage
-      // native pour l'enregistrer ou l'envoyer.
       const uri = await captureRef(carteRef, { format: "png", quality: 1 });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
@@ -71,10 +43,6 @@ export default function Partager() {
     } catch {
       Alert.alert("Export impossible", "La carte n'a pas pu être capturée.");
     }
-  }
-
-  function aVenir(quoi: string) {
-    Alert.alert(quoi, "Disponible dans une prochaine version.");
   }
 
   if (fiche.isLoading) {
@@ -178,46 +146,12 @@ export default function Partager() {
         </View>
         <Text style={styles.apercu}>Aperçu de l'image partagée</Text>
 
-        <View style={styles.actionsRow}>
-          <ActionSecondaire icone="link" label="Copier" onPress={copierLien} />
-          <ActionSecondaire icone="image" label="Image" onPress={exporterImage} />
-          <ActionSecondaire
-            icone="qr-code-2"
-            label="QR code"
-            onPress={() => aVenir("QR code")}
-          />
-        </View>
-
         <Pressable onPress={partager} accessibilityRole="button" style={styles.partagerBtn}>
           <MaterialIcons name="share" size={20} color={colors.text} />
           <Text style={styles.partagerTxt}>Partager…</Text>
         </Pressable>
       </ScrollView>
     </View>
-  );
-}
-
-function ActionSecondaire({
-  icone,
-  label,
-  onPress,
-}: {
-  icone: keyof typeof MaterialIcons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={styles.action}>
-      <MaterialIcons name={icone} size={22} color={colors.accentBright} />
-      {/* 1/3 de largeur d'écran chacun : plafond + une seule ligne. */}
-      <Text
-        style={styles.actionTxt}
-        numberOfLines={1}
-        maxFontSizeMultiplier={fontScaleCap.contraint}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -258,18 +192,6 @@ const styles = StyleSheet.create({
     marginTop: space.md,
     ...type.body,
   },
-  actionsRow: { flexDirection: "row", gap: space.md, marginTop: space.xl },
-  action: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.cardSm,
-    paddingVertical: space.lg,
-    alignItems: "center",
-    gap: space.xs,
-  },
-  actionTxt: { fontSize: 13, color: colors.textLight, ...type.label },
   partagerBtn: {
     flexDirection: "row",
     gap: space.sm,
