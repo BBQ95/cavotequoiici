@@ -79,14 +79,17 @@ async function charger(): Promise<IndexCharge> {
     // Hors ligne (ou CDN indisponible) : le cache, s'il existe, fait foi.
   }
   const enCache = lireCache();
-  if (enCache && (versionDistante === null || versionEnCache() === versionDistante)) {
-    return deplier(enCache);
-  }
-  if (versionDistante === null && !enCache) {
+  if (versionDistante === null) {
+    if (enCache) {
+      return deplier(enCache);
+    }
     throw new Error("Index de recherche indisponible (hors ligne, sans cache)");
   }
+  if (enCache && versionEnCache() === versionDistante) {
+    return deplier(enCache);
+  }
   const index = await get<IndexCommunes>("/index/communes.json");
-  ecrireCache(index, versionDistante ?? "");
+  ecrireCache(index, versionDistante);
   return deplier(index);
 }
 
