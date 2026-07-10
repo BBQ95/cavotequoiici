@@ -35,13 +35,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      # URLs publiques de l'instance QA (tuiles + API) embarquées dans le bundle
-      # release. Données publiques, pas des secrets — mais propres à l'infra du
-      # mainteneur, donc posées en variables de dépôt (Settings → Variables) :
-      # un fork met les siennes. Sans elles, l'APK se construit quand même,
+      # URL publique du CDN de données statiques embarquée dans le bundle
+      # release. Donnée publique, pas un secret — mais propre à l'infra du
+      # mainteneur, donc posée en variable de dépôt (Settings → Variables) :
+      # un fork met la sienne. Sans elle, l'APK se construit quand même,
       # recherche et carte restent inertes (voir le step « Configuration QA »).
-      EXPO_PUBLIC_TILES_URL: ${{ vars.QA_TILES_URL }}
-      EXPO_PUBLIC_API_URL: ${{ vars.QA_API_URL }}
+      EXPO_PUBLIC_DATA_URL: ${{ vars.QA_DATA_URL }}
       # Numéro de build monotone injecté dans app.config.js → versionCode (Android)
       # et buildNumber (iOS) : le « (N) » s'incrémente à chaque run. run_number est
       # séquentiel et jamais réinitialisé (exigence Play Store).
@@ -55,8 +54,8 @@ jobs:
       # Avertit sans échouer : un fork sans variables doit pouvoir builder
       # (même philosophie que les secrets Firebase/webhook ci-dessus).
       - name: Configuration QA
-        if: ${{ vars.QA_API_URL == '' || vars.QA_TILES_URL == '' }}
-        run: echo "::warning::QA_API_URL / QA_TILES_URL non définies (Settings → Variables) — l'APK sera construit sans URL backend (recherche et carte inertes)."
+        if: ${{ vars.QA_DATA_URL == '' }}
+        run: echo "::warning::QA_DATA_URL non définie (Settings → Variables) — l'APK sera construit sans URL de données (recherche et carte inertes)."
 
       - uses: actions/setup-node@v4
         with:

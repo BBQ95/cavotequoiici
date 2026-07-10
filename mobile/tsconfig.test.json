@@ -1,0 +1,10 @@
+{
+  // Typecheck des tests Node (`npm test`) : mêmes règles que l'app, plus les
+  // types Node (node:test, node:fs…) que le tsconfig principal exclut.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src/lib/recherche.test.ts", "types-test.d.ts"],
+  "exclude": []
+}

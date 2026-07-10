@@ -98,6 +98,8 @@ jobs:
       - run: npm ci
       - name: Typecheck strict
         run: npx tsc --noEmit
+      - name: Tests Node (parité recherche locale)
+        run: npm test
       - name: Export web (valide le bundle Metro sans device)
         run: npx expo export --platform web
 
