@@ -1,0 +1,20 @@
+{
+  "_": "Cas de parité pour le port TypeScript de pipeline.normalisation.normaliser_nom (mobile/src/lib/recherche.ts). Vérifié à jour par tests/test_export_communes.py ; consommé par le test TS du mobile. Régénérer les sorties via normaliser_nom si la normalisation évolue.",
+  "cas": [
+    {"entree": "Nîmes", "attendu": "nimes"},
+    {"entree": "Saint-Denis", "attendu": "saint denis"},
+    {"entree": "SAINT-ÉTIENNE", "attendu": "saint etienne"},
+    {"entree": "Besançon", "attendu": "besancon"},
+    {"entree": "L'Haÿ-les-Roses", "attendu": "l hay les roses"},
+    {"entree": "L’Île-d’Elle", "attendu": "l ile d elle"},
+    {"entree": "Vœuil-et-Giget", "attendu": "voeuil et giget"},
+    {"entree": "Lætitia-ville", "attendu": "laetitia ville"},
+    {"entree": "  Espaces   multiples  ", "attendu": "espaces multiples"},
+    {"entree": "Aulnay-sous-Bois", "attendu": "aulnay sous bois"},
+    {"entree": "Ajaccio", "attendu": "ajaccio"},
+    {"entree": "Château-Thierry", "attendu": "chateau thierry"},
+    {"entree": "Fort-de-France", "attendu": "fort de france"},
+    {"entree": "Saint-Barthélemy-d'Anjou", "attendu": "saint barthelemy d anjou"},
+    {"entree": "ŒUTRANGE", "attendu": "oeutrange"}
+  ]
+}
