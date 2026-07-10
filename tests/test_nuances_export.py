@@ -1,16 +1,28 @@
-"""Tests de GET /nuances (grilles de classification nuance -> famille, sans BDD).
+"""Tests de exporter_nuances() — le nuances.json des artefacts statiques.
 
-L'endpoint sérialise les CSV versionnés de pipeline/config/nuances/ : il doit
-fonctionner sans DATABASE_URL (job CI python-unit), comme /healthz.
+Portage de l'ancien test de GET /nuances (retiré avec l'API) : la sortie
+sérialise les CSV versionnés de pipeline/config/nuances/, sans BDD. C'est
+elle que lit l'écran mobile « D'où viennent les familles ? ».
 """
+
+import json
+
+import pytest
+
+from pipeline.export_communes import exporter_nuances
 
 TYPES_COURTS = {"pres_t1", "leg_t1", "euro", "mun_t1"}
 
 
-def test_nuances_200_et_structure(client):
-    r = client.get("/nuances")
-    assert r.status_code == 200
-    scrutins = r.json()["scrutins"]
+@pytest.fixture(scope="module")
+def scrutins() -> list[dict]:
+    nuances = exporter_nuances()
+    # Sérialisable tel quel : c'est ce que l'export écrit dans nuances.json.
+    json.dumps(nuances, ensure_ascii=False)
+    return nuances["scrutins"]
+
+
+def test_structure_et_ordre(scrutins):
     # Les 4 grilles versionnées, triées par année décroissante.
     assert [s["scrutin_id"] for s in scrutins] == [
         "municipales_2026_t1",
@@ -27,8 +39,7 @@ def test_nuances_200_et_structure(client):
         assert s["nuances"], f"{s['scrutin_id']}: grille vide"
 
 
-def test_nuances_source_et_statut(client):
-    scrutins = client.get("/nuances").json()["scrutins"]
+def test_source_et_statut(scrutins):
     par_id = {s["scrutin_id"]: s for s in scrutins}
     # Chaque ligne porte sa référence officielle (audit public).
     for s in scrutins:
@@ -41,18 +52,12 @@ def test_nuances_source_et_statut(client):
         assert all(n["statut"] is None for n in par_id[sid]["nuances"])
 
 
-def test_nuances_cas_conseil_detat(client):
+def test_cas_conseil_detat(scrutins):
     # La classification de LFI (extrême gauche) est débattue : la mention du
     # contrôle CE doit rester visible dans la source, par grille concernée.
-    scrutins = client.get("/nuances").json()["scrutins"]
     par_id = {s["scrutin_id"]: s for s in scrutins}
     fi = next(
         n for n in par_id["legislatives_2024_t1"]["nuances"] if n["nuance"] == "FI"
     )
     assert fi["famille"] == "extreme_gauche"
     assert "CE" in fi["source"]
-
-
-def test_nuances_dans_openapi(client):
-    paths = client.get("/openapi.json").json()["paths"]
-    assert "/nuances" in paths

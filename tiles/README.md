@@ -74,7 +74,7 @@ Zoom d'apparition par rang national (`SEUILS_MINZOOM` du pipeline) :
 | Zoom   | 4  | 5  | 6   | 7   | 8    | 9    | 10    | 11 |
 
 Le **rendu du texte** côté app exige un endpoint de glyphes : `/fonts` sur
-`EXPO_PUBLIC_DATA_URL` (cf. `api/fonts/README.md` — embarqués dans l'export
+`EXPO_PUBLIC_DATA_URL` (cf. `pipeline/fonts/README.md` — embarqués dans l'export
 statique). Sans glyphes, la carte s'affiche sans noms.
 
 ## Servir les tuiles

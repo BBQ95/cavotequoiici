@@ -1,16 +1,17 @@
 # Glyphes MapLibre (étiquettes de la carte)
 
-Glyphes SDF pré-générés au format PBF, servis par l'API sous
-`/fonts/{fontstack}/{range}.pbf` (mount StaticFiles dans `api/main.py`).
-La carte mobile les référence via la clé `glyphs` de son style MapLibre pour
-rendre les noms de communes (couche `etiquettes` des tuiles) — MapLibre ne
-sait pas rendre de texte sans cet endpoint.
+Glyphes SDF pré-générés au format PBF, embarqués dans l'export statique par
+`copier_glyphes` (pipeline/export_communes.py) et servis par le CDN sous
+`/fonts/{fontstack}/{range}.pbf`. La carte mobile les référence via la clé
+`glyphs` de son style MapLibre pour rendre les noms de communes (couche
+`etiquettes` des tuiles) — MapLibre ne sait pas rendre de texte sans cet
+endpoint.
 
 ## Provenance et licence
 
 - Police : **Noto Sans Medium** (The Noto Project Authors), licence
-  **SIL Open Font License 1.1** — voir [`OFL.txt`](OFL.txt) (en `.txt` : le
-  `.dockerignore` exclut `*.md`, la licence doit voyager dans l'image API).
+  **SIL Open Font License 1.1** — voir [`OFL.txt`](OFL.txt) (en `.txt` : la
+  licence doit voyager avec les glyphes redistribués, y compris sur le CDN).
 - Fichiers récupérés le 2026-07-03 depuis le dépôt public
   [protomaps/basemaps-assets](https://github.com/protomaps/basemaps-assets)
   (`fonts/Noto Sans Medium/`), qui distribue ces ranges pré-générés.

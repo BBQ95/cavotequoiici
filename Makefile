@@ -2,15 +2,12 @@ PY := .venv/bin/python
 
 # Charge le .env s'il existe (DATABASE_URL, REFERENCE_DATE…) et exporte les
 # variables aux recettes : le README fait copier .env.example, ce fichier doit
-# être effectif quand on passe par make. NB : `export` couvre toutes les
-# variables make — si docker-compose.yml substitue un jour `${DATABASE_URL}`,
-# le DSN localhost du .env fuirait vers la cible prod.
+# être effectif quand on passe par make.
 -include .env
 export
 
-.PHONY: help venv db-up db-down migrate data couleurs tiles api \
-	types test fresh compose-up compose-migrate compose-down export-statique \
-	data-serve data-serve-lan
+.PHONY: help venv db-up db-down migrate data couleurs tiles \
+	test fresh export-statique data-serve data-serve-lan
 
 help:  ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -51,7 +48,7 @@ db-restore:  ## Restaure un dump : make db-restore DUMP=backups/cavote-<ts>.dump
 	docker exec -i cavote-db pg_restore -U postgres --clean --if-exists --no-owner -d postgres < $(DUMP)
 
 migrate:  ## Applique les migrations Alembic
-	cd api && ../$(PY) -m alembic upgrade head
+	$(PY) -m alembic upgrade head
 
 # PYTHONUNBUFFERED : les tracebacks du pipeline sortent immédiatement quand la
 # sortie est redirigée (tee, CI) au lieu d'être noyées par le buffering stdout.
@@ -78,27 +75,8 @@ data-serve-lan:  ## Comme data-serve, accessible depuis le LAN (test sur device 
 	@test -d export || { echo "export/ absent — lancer : make export-statique" >&2; exit 1; }
 	$(PY) scripts/serve_export.py --dossier export --tiles tiles --port 8400 --hote 0.0.0.0
 
-# Convention du projet : API sur 8200, données statiques sur 8400 (le 8000
-# peut être occupé par d'autres services locaux).
-api:  ## Lance l'API en développement (rechargement auto)
-	$(PY) -m uvicorn api.main:app --reload --port 8200
-
-types:  ## Régénère les types TypeScript du mobile depuis l'OpenAPI
-	$(PY) -m api.openapi_export openapi.json
-	npx --yes openapi-typescript@7.13.0 openapi.json -o mobile/src/api/types.ts
-
 test:  ## Lance la suite de tests
 	$(PY) -m pytest -q
 
 fresh: db-up migrate data  ## De zéro à base peuplée (db + migrations + pipeline)
-	@echo "Base prête. Lancer l'API : make api"
-
-# --- Stack conteneurisée (db + api) : cible de l'hébergement prod ------------
-compose-up:  ## Build + démarre la stack backend en conteneurs (db + api)
-	docker compose up -d --build
-
-compose-migrate:  ## Applique les migrations Alembic dans le conteneur api
-	docker compose run --rm api sh -c "cd api && python -m alembic upgrade head"
-
-compose-down:  ## Arrête la stack conteneurisée (conserve le volume de données)
-	docker compose down
+	@echo "Base prête. Exporter les artefacts : make export-statique"

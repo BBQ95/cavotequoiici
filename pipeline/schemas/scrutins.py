@@ -1,4 +1,4 @@
-"""Modèles Pydantic pour les réponses des routes scrutins."""
+"""Schémas Pydantic des scrutins embarqués dans les fiches statiques."""
 
 from __future__ import annotations
 

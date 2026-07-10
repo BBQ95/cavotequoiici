@@ -1,39 +1,35 @@
 /**
  * Client des artefacts statiques de CaVoteQuoiIci (data.cavotequoiici.fr).
  *
- * Depuis la bascule statique, l'app ne parle plus à l'API FastAPI : les fiches
- * (avec scrutins embarqués), les nuances, les glyphes de carte et l'index de
- * recherche sont des fichiers publiés sur le CDN par le pipeline
- * (`pipeline/export_communes.py`). Les types de retour restent ceux de
- * l'OpenAPI (src/api/types.ts) : les écrans n'ont pas changé, seuls les
- * chemins et le découpage des fichiers diffèrent.
+ * L'app ne parle qu'au CDN : les fiches (avec scrutins embarqués), les
+ * nuances, les glyphes de carte et l'index de recherche sont des fichiers
+ * publiés par le pipeline (`pipeline/export_communes.py`). Les types de
+ * retour sont les types manuels de `src/api/types.ts` (miroir de
+ * `pipeline/schemas`), ré-exportés ici pour les écrans.
  */
-import type { components, operations } from "./types";
 import type { FicheStatique } from "./types-statiques";
+import type {
+  Algo,
+  CommuneFiche,
+  DetailScrutinResponse,
+  ListeScrutinsResponse,
+  NuancesResponse,
+} from "./types";
 
-type Schemas = components["schemas"];
-
-/**
- * Algo de dominance, dérivé du schéma OpenAPI : si le backend ajoute ou
- * renomme un algo, `make types` fait échouer tsc ici. En statique, l'algo
- * sélectionne la clé `couleurs[algo]` de la fiche (plus de `?algo=`).
- */
-export type Algo = NonNullable<
-  NonNullable<
-    operations["couleur_communes__insee__couleur_get"]["parameters"]["query"]
-  >["algo"]
->;
-export type CommuneResultat = Schemas["CommuneResultat"];
-export type CouleurSynthese = Schemas["CouleurSynthese"];
-export type CommuneFiche = Schemas["CommuneFiche"];
-export type FamilleSynthese = Schemas["FamilleSynthese"];
-export type ListeScrutinsResponse = Schemas["ListeScrutinsResponse"];
-export type ScrutinInclus = Schemas["ScrutinInclus"];
-export type DetailScrutinResponse = Schemas["DetailScrutinResponse"];
-export type FamilleVoix = Schemas["FamilleVoix"];
-export type NuancesResponse = Schemas["NuancesResponse"];
-export type ScrutinNuances = Schemas["ScrutinNuances"];
-export type NuanceClassee = Schemas["NuanceClassee"];
+export type {
+  Algo,
+  CommuneFiche,
+  CommuneResultat,
+  CouleurSynthese,
+  DetailScrutinResponse,
+  FamilleSynthese,
+  FamilleVoix,
+  ListeScrutinsResponse,
+  NuanceClassee,
+  NuancesResponse,
+  ScrutinInclus,
+  ScrutinNuances,
+} from "./types";
 
 /**
  * `EXPO_PUBLIC_DATA_URL` **doit** être définie (variable inlinée au build —

@@ -19,10 +19,9 @@
 
 | Dossier | Rôle |
 |---------|------|
-| `pipeline/` | Ingestion & calcul (Python + Polars), génère les couleurs précalculées |
-| `api/` | Backend de lecture (FastAPI + PostgreSQL/PostGIS) |
+| `pipeline/` | Ingestion & calcul (Python + Polars), export des artefacts statiques (fiches, index de recherche, nuances, glyphes) |
 | `mobile/` | Application React Native / Expo (TypeScript) |
-| `tiles/` | Génération des tuiles vectorielles (tippecanoe → PMTiles) — V1 |
+| `tiles/` | Génération des tuiles vectorielles (tippecanoe → PMTiles) |
 | `docs/` | Documentation complémentaire |
 
 ```
@@ -35,17 +34,16 @@
 │  ScrutinDetail, TransparenceEncart               │
 │  Data: TanStack Query → client.ts                │
 └──────────────────┬──────────────────────────────┘
-                   │ REST API
+                   │ HTTPS (fichiers statiques + Range pmtiles://)
 ┌──────────────────▼──────────────────────────────┐
-│  BACKEND API (FastAPI — Python)                 │
-│  Routers:                                       │
-│  • communes.py → GET /communes/{insee}          │
-│    GET /communes/{insee}/couleur                │
-│  • scrutins.py → GET /communes/{insee}/scrutins │
-│    GET /communes/{insee}/scrutins/{id}          │
-│  Pydantic schemas · SQLAlchemy + psycopg2       │
+│  ARTEFACTS STATIQUES (CDN data.cavotequoiici.fr)│
+│  • communes/{insee}.json (3 algos + scrutins)   │
+│  • index/communes.json (recherche/géoloc)       │
+│  • nuances.json · meta/version.json             │
+│  • fonts/… (glyphes) · tiles/communes.pmtiles   │
+│  Publiés par make export-statique (+ rclone)    │
 └──────────────────┬──────────────────────────────┘
-                   │ SQL queries
+                   │ pipeline/export_communes.py
 ┌──────────────────▼──────────────────────────────┐
 │  BASE DE DONNÉES (PostgreSQL)                   │
 │  • communes (code_insee, nom, geom)             │
@@ -79,14 +77,14 @@
 
 Flux de données (bottom → top):
 CSV data.gouv.fr → Ingest Polars → PostgreSQL →
-Compute couleurs OKLCH → API FastAPI → Mobile app
+Compute couleurs OKLCH → export statique → CDN → Mobile app
 ```
 
 ## Stack
 
 - **Mobile** : React Native + Expo (TypeScript), MapLibre Native, TanStack Query
-- **Backend** : Python + FastAPI, Pydantic, SQLAlchemy + psycopg2
-- **Base de données** : PostgreSQL + PostGIS
+- **Backend** : Python, Pydantic (schémas des artefacts), SQLAlchemy + psycopg2
+- **Base de données** : PostgreSQL + PostGIS (dev/pipeline uniquement — la prod est statique)
 - **Pipeline** : Python, Polars, Alembic (migrations)
 - **Cartographie** : tuiles vectorielles précalculées (tippecanoe → PMTiles)
 - **Données** : data.gouv.fr (Ministère de l'Intérieur)
@@ -110,15 +108,15 @@ Prérequis : Docker (utilisateur dans le groupe `docker`), [`uv`](https://docs.a
 cp .env.example .env          # DATABASE_URL (défaut = base docker locale)
 make venv                     # crée .venv (uv) + dépendances Python
 make fresh                    # db PostGIS + migrations + pipeline complet (contours, 4 scrutins, couleurs)
-make api                      # API sur http://localhost:8200  (doc : /docs)
+make export-statique          # artefacts statiques (fiches, index, nuances, glyphes) → export/
+make data-serve               # sert export/ + tuiles comme le CDN de prod (http://127.0.0.1:8400)
 make test                     # suite de tests (les tests BDD supposent la base de make fresh démarrée)
 ```
 
-`make help` liste toutes les cibles (`db-up`, `migrate`, `data`, `couleurs`, `types`,
-`export-statique`, `data-serve`…).
+`make help` liste toutes les cibles (`db-up`, `migrate`, `data`, `couleurs`, `tiles`,
+`data-serve-lan`…).
 
-> La base est un conteneur `cavote-db` (PostGIS). `make db-up` le crée/redémarre via `docker run` ;
-> un `docker-compose.yml` équivalent est fourni pour les environnements disposant du plugin Compose.
+> La base est un conteneur `cavote-db` (PostGIS). `make db-up` le crée/redémarre via `docker run`.
 
 État des données après `make fresh` : ~35 000 communes, 4 scrutins (présidentielle 2022,
 législatives 2024, européennes 2024, municipales 2026), couleurs synthétiques calculées
@@ -135,20 +133,23 @@ législatives 2024, européennes 2024, municipales 2026), couleurs synthétiques
 >
 > `make db-dump` fait l'opération inverse (export vers `backups/`, hors git).
 
-## API (lecture seule)
+## Artefacts statiques (CDN)
 
-| Méthode | Route | Rôle |
-|---------|-------|------|
-| GET | `/communes/search?q=` | Autocomplétion par nom |
-| GET | `/communes/{insee}` | Fiche : métadonnées + couleur synthétique |
-| GET | `/communes/{insee}/couleur` | Couleur OKLCH + hex + participation + scrutins inclus |
-| GET | `/communes/{insee}/scrutins` | Scrutins inclus + poids relatif |
-| GET | `/communes/{insee}/scrutins/{scrutin_id}` | Détail par famille + couleur du scrutin |
-| GET | `/communes/proximite?lat=&lon=&rayon_m=` | Communes voisines (PostGIS) |
-| GET | `/healthz` | Sonde de vivacité |
+L'app de production ne contacte **que** `https://data.cavotequoiici.fr` (recherche et
+géolocalisation sont **locales**, sur l'index embarqué) :
 
-Les types TypeScript du client mobile sont générés depuis l'OpenAPI : `make types`
-(→ `mobile/src/api/types.ts`).
+| Chemin | Rôle |
+|--------|------|
+| `communes/{insee}.json` | Fiche : métadonnées + couleur par algo + scrutins embarqués |
+| `index/communes.json` | Index compact de recherche/géolocalisation (offline) |
+| `nuances.json` | Grilles nuance → famille (écran « D'où viennent les familles ? ») |
+| `meta/version.json` | Version du jeu de données (cache-busting) |
+| `fonts/{fontstack}/{range}.pbf` | Glyphes MapLibre (étiquettes de la carte) |
+| `tiles/communes.pmtiles` | Tuiles vectorielles, lues en `pmtiles://` (requêtes Range) |
+
+Publication : `make export-statique` puis synchronisation vers le bucket R2 (runbook interne).
+En local, `make data-serve` sert exactement ce contrat. Les types TypeScript du client mobile
+(`mobile/src/api/types.ts`) sont **manuels**, miroir des schémas `pipeline/schemas/*.py`.
 
 ## Mobile
 
@@ -156,20 +157,20 @@ Les types TypeScript du client mobile sont générés depuis l'OpenAPI : `make t
 cd mobile && npm install && npx expo start
 ```
 
-Pour tester sur un téléphone (Expo Go SDK 56, backend sur le LAN, limites d'Expo Go,
-APK de QA) : voir [`mobile/README.md`](mobile/README.md).
+Pour tester sur un téléphone (Expo Go SDK 56, export local servi sur le LAN, limites
+d'Expo Go, APK de QA) : voir [`mobile/README.md`](mobile/README.md).
 
 ## État d'avancement (MVP)
 
-**Étapes 0→6 faites** : fondations, contours, ingestion des scrutins, calcul des couleurs, API,
+**Étapes 0→6 faites** : fondations, contours, ingestion des scrutins, calcul des couleurs,
 application mobile, tuiles vectorielles (`make tiles`, voir [`tiles/README.md`](tiles/README.md))
 **et carte MapLibre intégrée** (onglet Carte : choroplèthe des ~35 000 communes, tap → fiche).
 
-**Étape 7 en cours** : la CI/CD est en place — `ci.yml` (garde-fou de PR : tests, migrations,
-dérive des types TS, bundle mobile, image API), `integration.yml` (nocturne, pipeline complet sur
-données réelles + communes repères), `android-test.yml` (APK de QA + distribution Firebase).
-Restent : l'hébergement de production (tuiles sur CDN, API conteneurisée à déployer) et la
-publication sur les stores.
+**Étape 7** : hébergement de production **statique** en place (CDN `data.cavotequoiici.fr`) —
+l'API FastAPI historique a été décommissionnée. CI/CD : `ci.yml` (garde-fou de PR : tests,
+migrations, typecheck + bundle mobile), `integration.yml` (nocturne, pipeline complet sur
+données réelles + communes repères + export statique), `android-test.yml` (APK de QA +
+distribution Firebase). Reste : la publication sur les stores.
 
 ## Licence
 
