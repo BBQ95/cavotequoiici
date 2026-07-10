@@ -19,7 +19,6 @@ from pipeline.export_communes import (
     couleur_synthese,
     ecrire_fiches,
     entree_index,
-    exporter_nuances,
     familles_depuis_resultats,
     fiche_statique,
     meta_version,
@@ -170,13 +169,6 @@ class TestMetaVersion:
         assert meta["algos"] == list(ALGOS)
         assert meta["scrutins"] == ["europeennes_2024", "presidentielle_2022"]
         assert meta["nb_index"] == 35012
-
-
-class TestExporterNuances:
-    def test_parite_avec_l_endpoint(self, client):
-        """nuances.json statique = octet pour octet la réponse de GET /nuances
-        (même code de chargement, cf. api.routers.nuances)."""
-        assert exporter_nuances() == client.get("/nuances").json()
 
 
 class TestCopierGlyphes:

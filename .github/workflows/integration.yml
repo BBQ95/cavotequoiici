@@ -2,7 +2,7 @@ name: Integration (données réelles)
 
 # Passe lourde : télécharge ~400 Mo depuis data.gouv.fr (source externe, parfois
 # instable), exécute le pipeline complet puis valide le critère bloquant des
-# communes repères (Saint-Denis rouge, Nice marine) et les endpoints API sur une
+# communes repères (Saint-Denis rouge, Nice marine) et l'export statique sur une
 # BDD réellement peuplée. Volontairement HORS du garde-fou PR (ci.yml), à cause
 # du coût et de la dépendance à un tiers.
 
@@ -13,7 +13,7 @@ on:
 
 jobs:
   reperes:
-    name: Pipeline complet + tests repères/API
+    name: Pipeline complet + tests repères + export
     runs-on: ubuntu-latest
     timeout-minutes: 45
     services:
@@ -41,9 +41,13 @@ jobs:
         run: python -m alembic upgrade head
       - name: Pipeline complet (contours + 4 scrutins + couleurs)
         run: python -m pipeline.run_all
-      # DATABASE_URL est défini → les tests repères + API tournent sur données réelles.
-      - name: Tests d'intégration (repères, API)
+      # DATABASE_URL est défini → les tests repères tournent sur données réelles.
+      - name: Tests d'intégration (repères)
         run: python -m pytest -q
+      # Le chemin de prod « base réelle → artefacts » : l'export doit aboutir
+      # (échec explicite si couleurs_ville_algo est incomplète).
+      - name: Export statique (fiches + index + nuances + glyphes)
+        run: python -m pipeline.export_communes
       # Les tests marqués `integration` sont skippés par défaut (conftest.py) ;
       # ce job est le seul endroit où leurs préconditions (base peuplée,
       # contours et CSV téléchargés par run_all) sont réunies.
