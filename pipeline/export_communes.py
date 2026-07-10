@@ -56,8 +56,7 @@ SCHEMA_VERSION = 1
 _SQL_FICHES = text(
     """
     SELECT c.code_insee, c.nom, c.departement, c.region, c.population,
-           cv.l, cv.c, cv.h, cv.participation_mediane,
-           cv.scrutins_inclus, cv.repartition,
+           cv.participation_mediane, cv.scrutins_inclus, cv.repartition,
            ST_Y(ST_Transform(ST_PointOnSurface(c.geom), 4326)) AS lat,
            ST_X(ST_Transform(ST_PointOnSurface(c.geom), 4326)) AS lon
     FROM communes c
@@ -225,8 +224,9 @@ def main() -> None:
         sys.exit(1)
     print(f"✓ {n} fiches écrites dans {EXPORT_DIR / 'communes'}")
 
-    _ecrire_json(exporter_nuances(), EXPORT_DIR / "nuances.json")
-    print(f"✓ nuances.json ({len(exporter_nuances()['scrutins'])} scrutins classés)")
+    nuances = exporter_nuances()
+    _ecrire_json(nuances, EXPORT_DIR / "nuances.json")
+    print(f"✓ nuances.json ({len(nuances['scrutins'])} scrutins classés)")
 
     genere_le = datetime.now(timezone.utc).isoformat(timespec="seconds")
     _ecrire_json(meta_version(n, scrutins, genere_le), EXPORT_DIR / "meta" / "version.json")

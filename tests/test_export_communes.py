@@ -35,9 +35,6 @@ def _ligne(**overrides):
         "population": 112091,
         "lat": 48.93,
         "lon": 2.35,
-        "l": 0.72,
-        "c": 0.10,
-        "h": 28.8,
         "participation_mediane": 0.5123,
         "scrutins_inclus": [["presidentielle", 1.0], ["europeennes", 0.8]],
         "repartition": [
