@@ -62,8 +62,11 @@ FONTS_SRC = RACINE / "pipeline" / "fonts"
 # incrémenter à chaque changement de forme incompatible côté app.
 SCHEMA_VERSION = 1
 
-# Fiche complète par commune : mêmes colonnes que l'endpoint /communes/{insee}
-# (métadonnées + synthèse + point représentatif lat/lon), sans le WHERE.
+# Fiche complète par commune : métadonnées + synthèse + point représentatif
+# lat/lon. ORDER BY : sans lui l'ordre des lignes suit le plan Postgres (scan
+# parallèle) et change d'un run à l'autre — l'index serait réordonné à chaque
+# export et la synchro R2 re-téléverserait un fichier fonctionnellement
+# identique. Le contenu des fiches ne dépend pas de cet ordre.
 _SQL_FICHES = text(
     """
     SELECT c.code_insee, c.nom, c.departement, c.region, c.population,
@@ -72,6 +75,7 @@ _SQL_FICHES = text(
            ST_X(ST_Transform(ST_PointOnSurface(c.geom), 4326)) AS lon
     FROM communes c
     JOIN couleurs_ville cv ON cv.code_insee = c.code_insee
+    ORDER BY c.code_insee
     """
 )
 
