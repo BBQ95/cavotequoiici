@@ -51,7 +51,7 @@ db-restore:  ## Restaure un dump : make db-restore DUMP=backups/cavote-<ts>.dump
 	docker exec -i cavote-db pg_restore -U postgres --clean --if-exists --no-owner -d postgres < $(DUMP)
 
 migrate:  ## Applique les migrations Alembic
-	cd api && ../$(PY) -m alembic upgrade head
+	$(PY) -m alembic upgrade head
 
 # PYTHONUNBUFFERED : les tracebacks du pipeline sortent immédiatement quand la
 # sortie est redirigée (tee, CI) au lieu d'être noyées par le buffering stdout.
@@ -98,7 +98,7 @@ compose-up:  ## Build + démarre la stack backend en conteneurs (db + api)
 	docker compose up -d --build
 
 compose-migrate:  ## Applique les migrations Alembic dans le conteneur api
-	docker compose run --rm api sh -c "cd api && python -m alembic upgrade head"
+	docker compose run --rm api python -m alembic upgrade head
 
 compose-down:  ## Arrête la stack conteneurisée (conserve le volume de données)
 	docker compose down

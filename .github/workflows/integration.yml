@@ -38,7 +38,6 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - name: alembic upgrade head
-        working-directory: api
         run: python -m alembic upgrade head
       - name: Pipeline complet (contours + 4 scrutins + couleurs)
         run: python -m pipeline.run_all

@@ -18,9 +18,9 @@ from pathlib import Path
 from alembic import op
 import sqlalchemy as sa
 
-# Alembic est invoqué depuis api/ (cf. Makefile) : la racine du repo, qui porte
-# le package pipeline, n'est pas dans sys.path — on l'ajoute depuis __file__.
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+# La racine du repo (qui porte le package pipeline) n'est pas forcément dans
+# sys.path si alembic est invoqué hors racine — on l'ajoute depuis __file__.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from pipeline.normalisation import normaliser_nom  # noqa: E402
 
