@@ -56,7 +56,7 @@ DEFAUT_DB_URL = "postgresql+psycopg2://postgres:cavote@localhost:5432/postgres"
 
 RACINE = Path(__file__).resolve().parent.parent
 EXPORT_DIR = RACINE / "export"
-FONTS_SRC = RACINE / "api" / "fonts"
+FONTS_SRC = RACINE / "pipeline" / "fonts"
 
 # Version du schéma des artefacts statiques (fiches + version.json). À
 # incrémenter à chaque changement de forme incompatible côté app.

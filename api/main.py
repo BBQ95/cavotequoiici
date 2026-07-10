@@ -35,11 +35,14 @@ app.include_router(scrutins.router)
 app.include_router(nuances.router)
 
 # Glyphes MapLibre ({fontstack}/{range}.pbf) pour les étiquettes de la carte
-# (cf. api/fonts/README.md). Servis par l'API : ils passent par la même
-# exposition (/api) que le reste, aucun service supplémentaire. Le dossier est
-# versionné — son absence doit faire échouer le démarrage, pas rendre une carte
-# muette.
-app.mount("/fonts", StaticFiles(directory=Path(__file__).parent / "fonts"), name="fonts")
+# (cf. pipeline/fonts/README.md — intrants de l'export statique). Le dossier
+# est versionné — son absence doit faire échouer le démarrage, pas rendre une
+# carte muette.
+app.mount(
+    "/fonts",
+    StaticFiles(directory=Path(__file__).parent.parent / "pipeline" / "fonts"),
+    name="fonts",
+)
 
 
 @app.get("/healthz", tags=["meta"])

@@ -27,7 +27,7 @@ from pipeline.export_communes import (
 )
 from pipeline.normalisation import normaliser_nom
 
-FONTS_SRC = Path(__file__).resolve().parent.parent / "api" / "fonts"
+FONTS_SRC = Path(__file__).resolve().parent.parent / "pipeline" / "fonts"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
