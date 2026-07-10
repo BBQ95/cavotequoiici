@@ -14,17 +14,13 @@ Chaque fiche embarque une `CouleurSynthese` par algo de dominance (l'endpoint
 `/communes/{insee}` la sert via `?algo=` ; en statique, le client choisit la
 clé dans `couleurs`) et la clé `scrutins` (liste + détail par scrutin — les
 deux endpoints du routeur scrutins fusionnés, pour l'encart Transparence).
-Les schémas Pydantic de l'API sont réutilisés tels quels (`api.schemas.*`) :
-les artefacts statiques restent structurellement identiques aux réponses
-servies — même source unique de conversion `oklch_to_hex`.
+Les formes des artefacts sont décrites par les schémas Pydantic de
+`pipeline.schemas.*` (source unique, miroir des types TS du mobile) — même
+source unique de conversion `oklch_to_hex` que les tuiles.
 
 L'index de recherche remplace `GET /communes/search` et `/communes/proximite`
 côté app : entrées compactes (nom, dpt, lat/lon, pastilles par algo), nom
 normalisé recalculé côté client (parité : tests/fixtures/normalisation_parite.json).
-
-L'import pipeline → api est assumé (et sans cycle : les routeurs importent
-pipeline.ingest/synthese, pas ce module) : c'est ce qui garantit la parité
-octet pour octet de `nuances.json` avec l'endpoint.
 
 Usage :
     DATABASE_URL=postgresql+psycopg2://postgres:cavote@localhost:5432/postgres \\
@@ -43,8 +39,8 @@ from typing import Any, Iterable, Iterator, Mapping
 
 from sqlalchemy import create_engine, text
 
-from api.routers.nuances import _charger_tout as _charger_toutes_nuances
 from pipeline.schemas.communes import CouleurSynthese, FamilleSynthese
+from pipeline.schemas.nuances import NuanceClassee, NuancesResponse, ScrutinNuances
 from pipeline.schemas.scrutins import (
     CouleurScrutin,
     DetailScrutinResponse,
@@ -52,7 +48,7 @@ from pipeline.schemas.scrutins import (
     ScrutinInclus,
 )
 from pipeline.couleur import ALGOS, OKLCH, oklch_to_hex
-from pipeline.ingest.common import charger_nuances
+from pipeline.ingest.common import NUANCES_DIR, charger_nuances, charger_nuances_completes
 from pipeline.jsoncol import decode_json_col
 from pipeline.synthese import TYPE_VERS_POIDS
 
@@ -375,9 +371,40 @@ def ecrire_fiches(fiches: Iterable[dict[str, Any]], dossier: Path) -> int:
     return n
 
 
+def _charger_toutes_nuances() -> NuancesResponse:
+    """Toutes les grilles nuance → famille, une entrée par CSV versionné de
+    pipeline/config/nuances/ (source unique — l'écran mobile « D'où viennent
+    les familles ? » lit le nuances.json qui en découle)."""
+    scrutins = []
+    for path in NUANCES_DIR.glob("*.csv"):
+        scrutin_id = path.stem
+        lignes = charger_nuances_completes(scrutin_id)
+        scrutins.append(
+            ScrutinNuances(
+                scrutin_id=scrutin_id,
+                # Type court (celui que le mobile sait libeller) ; fallback
+                # identité purement défensif pour un futur type hors panier.
+                type=TYPE_VERS_POIDS.get(lignes[0]["scrutin_type"],
+                                         lignes[0]["scrutin_type"]),
+                annee=lignes[0]["annee"],
+                date_classification=lignes[0]["date_classification"],
+                nuances=[
+                    NuanceClassee(
+                        nuance=l["nuance"],
+                        famille=l["famille"],
+                        source=l["source"],
+                        statut=l["statut"],
+                    )
+                    for l in lignes
+                ],
+            )
+        )
+    scrutins.sort(key=lambda s: (-s.annee, s.scrutin_id))
+    return NuancesResponse(scrutins=scrutins)
+
+
 def exporter_nuances() -> dict[str, Any]:
-    """Contenu de nuances.json : exactement la réponse de GET /nuances
-    (même code de chargement des CSV, cf. api.routers.nuances)."""
+    """Contenu de nuances.json : les grilles officielles, figées à l'export."""
     return _charger_toutes_nuances().model_dump(mode="json")
 
 
