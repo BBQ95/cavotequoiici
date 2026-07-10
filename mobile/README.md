@@ -19,8 +19,9 @@ npx expo export --platform web     # valide le bundle Metro
 npm test                            # tests Node (parité recherche locale)
 ```
 
-Les types du client API sont générés depuis l'OpenAPI du backend : `make types`
-(depuis la racine du dépôt, régénère `src/api/types.ts` — ne pas l'éditer à la main).
+Les types des données sont **manuels** : `src/api/types.ts` est le miroir des
+schémas Pydantic du backend (`pipeline/schemas/*.py`) — toute évolution de forme
+côté pipeline doit y être répercutée (et dans `types-statiques.ts`).
 
 ## Tester sur un téléphone (Expo Go)
 

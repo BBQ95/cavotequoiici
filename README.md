@@ -147,8 +147,8 @@ législatives 2024, européennes 2024, municipales 2026), couleurs synthétiques
 | GET | `/communes/proximite?lat=&lon=&rayon_m=` | Communes voisines (PostGIS) |
 | GET | `/healthz` | Sonde de vivacité |
 
-Les types TypeScript du client mobile sont générés depuis l'OpenAPI : `make types`
-(→ `mobile/src/api/types.ts`).
+Les types TypeScript du client mobile (`mobile/src/api/types.ts`) sont **manuels**,
+miroir des schémas `pipeline/schemas/*.py`.
 
 ## Mobile
 

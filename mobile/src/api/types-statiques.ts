@@ -1,8 +1,8 @@
 /**
  * Formes des artefacts statiques servis par data.cavotequoiici.fr
- * (pipeline/export_communes.py). Elles ne sont PAS dans l'OpenAPI — l'API ne
- * les sert pas — d'où ces types manuels, composés des schémas OpenAPI
- * (`types.ts`) pour que toute dérive du backend casse le typecheck ici.
+ * (pipeline/export_communes.py), composées des types de base de `types.ts`
+ * (miroir manuel de `pipeline/schemas`) : toute dérive répercutée dans
+ * types.ts casse le typecheck ici aussi.
  */
 import type {
   Algo,

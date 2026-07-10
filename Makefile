@@ -9,7 +9,7 @@ PY := .venv/bin/python
 export
 
 .PHONY: help venv db-up db-down migrate data couleurs tiles api \
-	types test fresh compose-up compose-migrate compose-down export-statique \
+	test fresh compose-up compose-migrate compose-down export-statique \
 	data-serve data-serve-lan
 
 help:  ## Affiche cette aide
@@ -82,10 +82,6 @@ data-serve-lan:  ## Comme data-serve, accessible depuis le LAN (test sur device 
 # peut être occupé par d'autres services locaux).
 api:  ## Lance l'API en développement (rechargement auto)
 	$(PY) -m uvicorn api.main:app --reload --port 8200
-
-types:  ## Régénère les types TypeScript du mobile depuis l'OpenAPI
-	$(PY) -m api.openapi_export openapi.json
-	npx --yes openapi-typescript@7.13.0 openapi.json -o mobile/src/api/types.ts
 
 test:  ## Lance la suite de tests
 	$(PY) -m pytest -q
