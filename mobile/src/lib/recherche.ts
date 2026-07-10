@@ -103,7 +103,7 @@ export function rechercher(
   limite = 10,
 ): CommuneResultat[] {
   const qn = normaliserNom(q);
-  if (!qn) {
+  if (!qn || limite <= 0) {
     return [];
   }
   // Deux top-k séparés : le classement global met TOUS les préfixes avant

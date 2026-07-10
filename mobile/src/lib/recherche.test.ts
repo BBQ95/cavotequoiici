@@ -85,9 +85,10 @@ test("rechercher — famille nulle quand l'index n'en porte pas", () => {
   assert.equal(r.famille, null);
 });
 
-test("rechercher — requête vide ou hors index", () => {
+test("rechercher — requête vide, hors index ou limite nulle", () => {
   assert.deepEqual(rechercher(COMMUNES, FAMILLES, "   ", 0), []);
   assert.deepEqual(rechercher(COMMUNES, FAMILLES, "zzzz", 0), []);
+  assert.deepEqual(rechercher(COMMUNES, FAMILLES, "saint", 0, 0), []);
 });
 
 test("rechercher — limite respectée", () => {
