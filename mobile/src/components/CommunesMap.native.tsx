@@ -25,7 +25,7 @@ import {
   FONTSTACK_ETIQUETTES,
   SOURCE_LAYER_COMMUNES,
   SOURCE_LAYER_ETIQUETTES,
-  TUILES_COMMUNES,
+  TUILES_COMMUNES_URL,
   TUILES_MAXZOOM,
   TUILES_MINZOOM,
 } from "../lib/tiles";
@@ -152,7 +152,9 @@ export function CommunesMap({
         />
         <VectorSource
           id="communes"
-          tiles={TUILES_COMMUNES}
+          // Archive PMTiles lue en direct depuis le CDN (protocole natif
+          // MapLibre, requêtes Range) — plus de serveur XYZ intermédiaire.
+          url={TUILES_COMMUNES_URL}
           minzoom={TUILES_MINZOOM}
           maxzoom={TUILES_MAXZOOM}
           onPress={(event) => {
