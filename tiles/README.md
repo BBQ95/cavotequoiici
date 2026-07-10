@@ -73,17 +73,21 @@ Zoom d'apparition par rang national (`SEUILS_MINZOOM` du pipeline) :
 |--------|----|----|-----|-----|------|------|-------|---------|
 | Zoom   | 4  | 5  | 6   | 7   | 8    | 9    | 10    | 11 |
 
-Le **rendu du texte** côté app exige un endpoint de glyphes : servi par l'API
-sous `/fonts` (cf. `api/fonts/README.md`). Sans `EXPO_PUBLIC_API_URL`, la
-carte s'affiche sans noms.
+Le **rendu du texte** côté app exige un endpoint de glyphes : `/fonts` sur
+`EXPO_PUBLIC_DATA_URL` (cf. `api/fonts/README.md` — embarqués dans l'export
+statique). Sans glyphes, la carte s'affiche sans noms.
 
 ## Servir les tuiles
 
-- **Dev local** : `make tiles-serve` (binaire [go-pmtiles](https://github.com/protomaps/go-pmtiles))
-  sert l'archive en `{z}/{x}/{y}.mvt` sur `:8300` — le schéma attendu par l'app.
-  À défaut, n'importe quel serveur statique gérant les requêtes `Range` convient.
-- **Production (à venir)** : déposer `communes.pmtiles` sur un CDN (Cloudflare R2…)
-  avec en-têtes CORS + `Range`.
+L'app lit l'archive **directement en `pmtiles://`** (requêtes `Range` sur
+`${EXPO_PUBLIC_DATA_URL}/tiles/communes.pmtiles`) — aucun serveur de tuiles
+dédié.
+
+- **Dev local** : `make data-serve` (ou `data-serve-lan` pour un device) sert
+  `export/` et monte ce dossier `tiles/` sous `/tiles/`, avec le support
+  `Range` + CORS requis.
+- **Production** : `communes.pmtiles` est déposé sur le CDN
+  (Cloudflare R2, `data.cavotequoiici.fr`) avec en-têtes CORS + `Range`.
 
 ## Suite (non couvert ici)
 - **Intégration MapLibre** dans `mobile/` (`@maplibre/maplibre-react-native`),
