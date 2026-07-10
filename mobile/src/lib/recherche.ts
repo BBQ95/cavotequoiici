@@ -56,10 +56,44 @@ export function indexerEntree(entree: EntreeIndex): CommuneIndexee {
 }
 
 /**
+ * Ordre d'affichage : nom normalisé (comparaison binaire — équivaut à l'ordre
+ * français puisque accents/casse/séparateurs sont déjà neutralisés), tiebreak
+ * sur le nom brut. ⚠️ Pas de `localeCompare` ici : sur Hermes (Android),
+ * chaque appel Intl traverse JNI vers java.text.Collator — des SECONDES de
+ * tri par frappe sur une requête courte (constaté en QA le 10/07).
+ */
+function comparerCommunes(a: CommuneIndexee, b: CommuneIndexee): number {
+  if (a.nomRecherche !== b.nomRecherche) {
+    return a.nomRecherche < b.nomRecherche ? -1 : 1;
+  }
+  return a.nom < b.nom ? -1 : a.nom > b.nom ? 1 : 0;
+}
+
+/** Insère `c` à sa place dans `top` (trié), borné à `k` éléments — sélection
+ * des k plus petits en un passage, sans trier les milliers de matchs. */
+function insererTop(top: CommuneIndexee[], c: CommuneIndexee, k: number): void {
+  if (top.length === k && comparerCommunes(c, top[k - 1]) >= 0) {
+    return;
+  }
+  let i = top.length;
+  while (i > 0 && comparerCommunes(c, top[i - 1]) < 0) {
+    i--;
+  }
+  top.splice(i, 0, c);
+  if (top.length > k) {
+    top.pop();
+  }
+}
+
+/**
  * Recherche par nom — mêmes règles que l'endpoint `/communes/search` : match
  * en préfixe ou en milieu de nom sur le nom normalisé, préfixes d'abord,
  * puis ordre alphabétique. `iAlgo` (indice dans `index.algos`) sélectionne la
  * pastille (hex + famille) comme le faisait `?algo=`.
+ *
+ * Cette fonction tourne à CHAQUE frappe (débouncée) sur le thread JS : le
+ * balayage des 35 000 entrées reste linéaire et la sélection est bornée à
+ * `limite` — aucun tri global, aucun appel Intl (cf. `comparerCommunes`).
  */
 export function rechercher(
   communes: readonly CommuneIndexee[],
@@ -69,24 +103,20 @@ export function rechercher(
   limite = 10,
 ): CommuneResultat[] {
   const qn = normaliserNom(q);
-  if (!qn) {
+  if (!qn || limite <= 0) {
     return [];
   }
+  // Deux top-k séparés : le classement global met TOUS les préfixes avant
+  // les infixes (comme l'API) — un simple compteur ne suffirait pas.
   const prefixes: CommuneIndexee[] = [];
   const infixes: CommuneIndexee[] = [];
   for (const c of communes) {
     if (c.nomRecherche.startsWith(qn)) {
-      prefixes.push(c);
+      insererTop(prefixes, c, limite);
     } else if (c.nomRecherche.includes(qn)) {
-      infixes.push(c);
+      insererTop(infixes, c, limite);
     }
-    // Tout matcher avant de trier : le tri global préfixes-d'abord de l'API
-    // ne peut pas être court-circuité par un simple compteur.
   }
-  const parNom = (a: CommuneIndexee, b: CommuneIndexee) =>
-    a.nom.localeCompare(b.nom, "fr");
-  prefixes.sort(parNom);
-  infixes.sort(parNom);
   return [...prefixes, ...infixes].slice(0, limite).map((c) => {
     const iFamille = c.familles[iAlgo];
     return {

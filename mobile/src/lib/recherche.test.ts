@@ -85,13 +85,36 @@ test("rechercher — famille nulle quand l'index n'en porte pas", () => {
   assert.equal(r.famille, null);
 });
 
-test("rechercher — requête vide ou hors index", () => {
+test("rechercher — requête vide, hors index ou limite nulle", () => {
   assert.deepEqual(rechercher(COMMUNES, FAMILLES, "   ", 0), []);
   assert.deepEqual(rechercher(COMMUNES, FAMILLES, "zzzz", 0), []);
+  assert.deepEqual(rechercher(COMMUNES, FAMILLES, "saint", 0, 0), []);
 });
 
 test("rechercher — limite respectée", () => {
   assert.equal(rechercher(COMMUNES, FAMILLES, "e", 0, 2).length, 2);
+});
+
+test("rechercher — la sélection bornée garde le début du classement complet", () => {
+  // Plus de matchs que `limite`, fournis dans le désordre : le top-k doit
+  // rendre exactement le début de l'ordre alphabétique global (et pas
+  // simplement les k premiers rencontrés).
+  const communes = ["Zuytpeene", "Arles", "Bram", "Ypres", "Anduze", "Brens"].map(
+    (nom, i) => indexerEntree(entree(String(10000 + i), nom)),
+  );
+  const noms = rechercher(communes, FAMILLES, "r", 0, 3).map((r) => r.nom);
+  // Tous contiennent « r » en infixe (aucun préfixe) : alphabétique strict.
+  assert.deepEqual(noms, ["Arles", "Bram", "Brens"]);
+});
+
+test("rechercher — un préfixe passe avant un infixe alphabétiquement antérieur", () => {
+  const communes = ["Denain", "Ardennes-Ville"].map((nom, i) =>
+    indexerEntree(entree(String(20000 + i), nom)),
+  );
+  // « den » : Denain en préfixe, Ardennes-Ville en infixe pourtant premier
+  // à l'alphabet — la règle préfixes-d'abord de l'API doit primer.
+  const noms = rechercher(communes, FAMILLES, "den", 0).map((r) => r.nom);
+  assert.deepEqual(noms, ["Denain", "Ardennes-Ville"]);
 });
 
 test("distanceM — ordre de grandeur connu (Paris → Marseille ≈ 660 km)", () => {
