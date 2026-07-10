@@ -16,6 +16,7 @@ Vérifications sans device :
 ```bash
 npx tsc --noEmit                    # typecheck strict
 npx expo export --platform web     # valide le bundle Metro
+npm test                            # tests Node (parité recherche locale)
 ```
 
 Les types du client API sont générés depuis l'OpenAPI du backend : `make types`
@@ -23,26 +24,28 @@ Les types du client API sont générés depuis l'OpenAPI du backend : `make type
 
 ## Tester sur un téléphone (Expo Go)
 
-L'app a besoin d'un backend joignable **depuis le téléphone**. En local :
+L'app ne contacte **qu'un endpoint** : le CDN des données statiques (fiches avec scrutins
+embarqués, index de recherche, nuances, glyphes, tuiles — publiés par `make export-statique`
+côté backend).
 
-1. **Backend sur le LAN** (depuis la racine du dépôt, téléphone et machine sur le même réseau) :
-
-   ```bash
-   make api-lan                  # API sur 0.0.0.0:8200
-   make tiles && make tiles-serve   # tuiles sur :8300 (binaire pmtiles requis)
-   ```
-
-2. **Variables d'environnement** : copier [`.env.example`](.env.example) en `mobile/.env`
-   (ignoré par git) et y mettre l'IP LAN de la machine :
+1. **Variable d'environnement** : copier [`.env.example`](.env.example) en `mobile/.env`
+   (ignoré par git) :
 
    ```
-   EXPO_PUBLIC_API_URL=http://192.168.1.20:8200
-   EXPO_PUBLIC_TILES_URL=http://192.168.1.20:8300
+   EXPO_PUBLIC_DATA_URL=https://data.cavotequoiici.fr
    ```
 
-   Ces variables sont **inlinées dans le bundle JS** : rechargement complet de l'app (ou
-   redémarrage d'`expo start`) après modification. Sans elles, l'app démarre mais affiche
-   « API non configurée » au premier appel.
+   La valeur de prod convient au développement (données publiques). Pour tester un export
+   local : servir `export/` depuis la racine du dépôt backend (ex.
+   `python -m http.server 8400`) et pointer `http://<IP LAN>:8400`.
+
+   Cette variable est **inlinée dans le bundle JS** : rechargement complet de l'app (ou
+   redémarrage d'`expo start`) après modification. Sans elle, l'app démarre mais affiche
+   « Données non configurées » au premier appel.
+
+2. **Recherche et géolocalisation hors ligne** : au premier usage, l'app télécharge l'index
+   des communes (~1 Mo compressé) et le met en cache sur disque, invalidé par
+   `meta/version.json` — les recherches suivantes fonctionnent sans réseau.
 
 3. **Expo Go — attention à la version** : le projet est en **SDK 56**, or le Play Store
    distribue Expo Go pour le SDK courant (57+), qui refuse le projet (« incompatible SDK
@@ -67,8 +70,8 @@ release (signature debug, arm64-v8a) à chaque push/PR sur `main` :
 - **Firebase App Distribution** : les testeurs du groupe `testeurs-bbq95` reçoivent chaque
   build dans l'app *App Tester* (distribution réservée à l'instance du mainteneur).
 
-L'APK embarque les URLs backend définies dans les variables du dépôt (`QA_API_URL`,
-`QA_TILES_URL`) — un fork met les siennes dans *Settings → Variables*.
+L'APK embarque l'URL du CDN de données définie dans la variable de dépôt (`QA_DATA_URL`)
+— un fork met la sienne dans *Settings → Variables*.
 
 ## Versioning
 

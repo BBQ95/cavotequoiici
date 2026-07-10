@@ -45,7 +45,11 @@ export function ScrutinDetail({
       {ouvert ? (
         <View style={styles.contenu}>
           {isLoading ? <ActivityIndicator color={colors.textSecondary} /> : null}
-          {isError ? <Text style={styles.err}>Détail indisponible.</Text> : null}
+          {/* data === null : scrutin sans détail pour la commune (participation
+              nulle) — même message que l'échec de chargement. */}
+          {isError || (!isLoading && data === null) ? (
+            <Text style={styles.err}>Détail indisponible.</Text>
+          ) : null}
           {data ? (
             <>
               <Text style={styles.part}>

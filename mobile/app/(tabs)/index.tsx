@@ -15,7 +15,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 
 import { useSearch } from "../../src/api/queries";
-import { api } from "../../src/api/client";
+import { communeLaPlusProche } from "../../src/lib/indexCommunes";
 import { familleInfo } from "../../src/lib/familles";
 import { getRecents, addRecent, type Recent } from "../../src/lib/recents";
 import { colors, fontScaleCap, radius, space, type } from "../../src/theme/tokens";
@@ -48,9 +48,14 @@ export default function Accueil() {
         return;
       }
       const pos = await Location.getCurrentPositionAsync({});
-      const proches = await api.proximite(pos.coords.latitude, pos.coords.longitude, 5000);
-      if (proches.length > 0) {
-        ouvrir({ code_insee: proches[0].code_insee, nom: proches[0].nom });
+      // Calcul local sur l'index statique (ex-endpoint /communes/proximite).
+      const proche = await communeLaPlusProche(
+        pos.coords.latitude,
+        pos.coords.longitude,
+        5000,
+      );
+      if (proche) {
+        ouvrir({ code_insee: proche.code_insee, nom: proche.nom });
       } else {
         Alert.alert("Aucune commune trouvée", "Essayez la recherche par nom.");
       }

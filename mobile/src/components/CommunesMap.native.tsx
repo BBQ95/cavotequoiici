@@ -19,13 +19,13 @@ import {
 } from "@maplibre/maplibre-react-native";
 
 import { colors, radius, space } from "../theme/tokens";
-import { API_BASE } from "../api/client";
+import { DATA_BASE } from "../api/client";
 import { CENTRE_FRANCE, ZOOM_METROPOLE } from "../lib/territoires";
 import {
   FONTSTACK_ETIQUETTES,
   SOURCE_LAYER_COMMUNES,
   SOURCE_LAYER_ETIQUETTES,
-  TUILES_COMMUNES,
+  TUILES_COMMUNES_URL,
   TUILES_MAXZOOM,
   TUILES_MINZOOM,
 } from "../lib/tiles";
@@ -42,10 +42,10 @@ import {
  * donc le job CI `mobile` — n'importe jamais MapLibre et reste vert.
  */
 
-// Glyphes des étiquettes (rendu texte MapLibre), servis par l'API. Sans
-// EXPO_PUBLIC_API_URL, on omet la clé `glyphs` ET la couche symbol : carte
-// colorée sans noms, plutôt que des erreurs de fetch natives.
-const GLYPHS_URL = API_BASE ? `${API_BASE}/fonts/{fontstack}/{range}.pbf` : null;
+// Glyphes des étiquettes (rendu texte MapLibre), servis par le CDN statique.
+// Sans EXPO_PUBLIC_DATA_URL, on omet la clé `glyphs` ET la couche symbol :
+// carte colorée sans noms, plutôt que des erreurs de fetch natives.
+const GLYPHS_URL = DATA_BASE ? `${DATA_BASE}/fonts/{fontstack}/{range}.pbf` : null;
 
 // Fond sombre sans basemap externe : seules les communes sont dessinées.
 const FOND_SOMBRE: StyleSpecification = {
@@ -152,7 +152,9 @@ export function CommunesMap({
         />
         <VectorSource
           id="communes"
-          tiles={TUILES_COMMUNES}
+          // Archive PMTiles lue en direct depuis le CDN (protocole natif
+          // MapLibre, requêtes Range) — plus de serveur XYZ intermédiaire.
+          url={TUILES_COMMUNES_URL}
           minzoom={TUILES_MINZOOM}
           maxzoom={TUILES_MAXZOOM}
           onPress={(event) => {

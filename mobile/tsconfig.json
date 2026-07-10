@@ -2,5 +2,17 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true
-  }
+  },
+  // "exclude" REMPLACE celui de la base Expo : reprendre ses entrées, plus
+  // les tests Node (parité recherche) qui ont leur propre tsconfig.test.json
+  // (types Node) pour ne pas polluer l'app avec les globales Node.
+  "exclude": [
+    "${configDir}/node_modules",
+    "${configDir}/babel.config.js",
+    "${configDir}/metro.config.js",
+    "${configDir}/jest.config.js",
+    "${configDir}/android",
+    "${configDir}/ios",
+    "**/*.test.ts"
+  ]
 }
