@@ -1,11 +1,11 @@
-fastapi
-uvicorn[standard]
 polars
 psycopg2-binary
 SQLAlchemy
 alembic
 geopandas
+# Aucun import direct, mais requis au runtime par GeoDataFrame.to_postgis
+# (pipeline/load_communes.py).
 GeoAlchemy2
-pyyaml
+# Schémas des artefacts statiques (pipeline/schemas) + model_dump de l'export.
+pydantic
 pytest
-httpx
