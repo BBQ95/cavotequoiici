@@ -36,8 +36,10 @@ côté backend).
    ```
 
    La valeur de prod convient au développement (données publiques). Pour tester un export
-   local : servir `export/` depuis la racine du dépôt backend (ex.
-   `python -m http.server 8400`) et pointer `http://<IP LAN>:8400`.
+   local : `make export-statique` puis `make data-serve-lan` depuis la racine du dépôt
+   backend, et pointer `http://<IP LAN>:8400`. Ne pas remplacer par un serveur statique
+   quelconque : sans support des requêtes `Range` (ce que `python -m http.server` ne fait
+   pas), la carte `pmtiles://` casse en silence.
 
    Cette variable est **inlinée dans le bundle JS** : rechargement complet de l'app (ou
    redémarrage d'`expo start`) après modification. Sans elle, l'app démarre mais affiche

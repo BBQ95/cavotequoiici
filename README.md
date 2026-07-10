@@ -114,7 +114,8 @@ make api                      # API sur http://localhost:8200  (doc : /docs)
 make test                     # suite de tests (les tests BDD supposent la base de make fresh démarrée)
 ```
 
-`make help` liste toutes les cibles (`db-up`, `migrate`, `data`, `couleurs`, `types`…).
+`make help` liste toutes les cibles (`db-up`, `migrate`, `data`, `couleurs`, `types`,
+`export-statique`, `data-serve`…).
 
 > La base est un conteneur `cavote-db` (PostGIS). `make db-up` le crée/redémarre via `docker run` ;
 > un `docker-compose.yml` équivalent est fourni pour les environnements disposant du plugin Compose.
