@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 
 from api.db import get_conn
-from api.schemas.scrutins import (
+from pipeline.schemas.scrutins import (
     CouleurScrutin,
     DetailScrutinResponse,
     FamilleVoix,

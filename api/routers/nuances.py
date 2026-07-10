@@ -12,7 +12,7 @@ from functools import lru_cache
 
 from fastapi import APIRouter
 
-from api.schemas.nuances import NuanceClassee, NuancesResponse, ScrutinNuances
+from pipeline.schemas.nuances import NuanceClassee, NuancesResponse, ScrutinNuances
 from pipeline.ingest.common import NUANCES_DIR, charger_nuances_completes
 from pipeline.synthese import TYPE_VERS_POIDS
 

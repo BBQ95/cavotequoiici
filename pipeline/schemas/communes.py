@@ -1,4 +1,4 @@
-"""Schémas Pydantic des réponses du routeur communes."""
+"""Schémas Pydantic des fiches communes des artefacts statiques (export CDN)."""
 
 from __future__ import annotations
 

@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 
 from api.db import get_conn
-from api.schemas.communes import (
+from pipeline.schemas.communes import (
     CommuneFiche,
     CommuneProximite,
     CommuneResultat,

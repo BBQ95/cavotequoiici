@@ -44,8 +44,8 @@ from typing import Any, Iterable, Iterator, Mapping
 from sqlalchemy import create_engine, text
 
 from api.routers.nuances import _charger_tout as _charger_toutes_nuances
-from api.schemas.communes import CouleurSynthese, FamilleSynthese
-from api.schemas.scrutins import (
+from pipeline.schemas.communes import CouleurSynthese, FamilleSynthese
+from pipeline.schemas.scrutins import (
     CouleurScrutin,
     DetailScrutinResponse,
     FamilleVoix,

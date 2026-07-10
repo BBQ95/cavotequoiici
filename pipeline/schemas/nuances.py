@@ -1,4 +1,4 @@
-"""Modèles Pydantic pour GET /nuances (grilles de classification par scrutin)."""
+"""Schémas Pydantic de nuances.json (grilles de classification par scrutin)."""
 
 from __future__ import annotations
 
