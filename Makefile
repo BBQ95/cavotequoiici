@@ -9,7 +9,7 @@ PY := .venv/bin/python
 export
 
 .PHONY: help venv db-up db-down migrate data couleurs tiles tiles-serve api api-lan \
-	types test fresh compose-up compose-migrate compose-down
+	types test fresh compose-up compose-migrate compose-down export-statique
 
 help:  ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -62,6 +62,9 @@ couleurs:  ## Recalcule uniquement les couleurs
 
 tiles:  ## Génère les tuiles vectorielles PMTiles (Étape 6 ; nécessite tippecanoe)
 	PYTHONUNBUFFERED=1 $(PY) -m pipeline.export_tiles
+
+export-statique:  ## Exporte les artefacts statiques (fiches JSON, nuances, version, glyphes) vers export/
+	PYTHONUNBUFFERED=1 $(PY) -m pipeline.export_communes
 
 # Servir le répertoire tiles/ expose /communes/{z}/{x}/{y}.mvt — le schéma
 # attendu par mobile/src/lib/tiles.ts. Côté app, pointer le téléphone dessus
