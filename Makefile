@@ -8,8 +8,9 @@ PY := .venv/bin/python
 -include .env
 export
 
-.PHONY: help venv db-up db-down migrate data couleurs tiles tiles-serve api api-lan \
-	types test fresh compose-up compose-migrate compose-down export-statique
+.PHONY: help venv db-up db-down migrate data couleurs tiles api \
+	types test fresh compose-up compose-migrate compose-down export-statique \
+	data-serve data-serve-lan
 
 help:  ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -66,21 +67,21 @@ tiles:  ## Génère les tuiles vectorielles PMTiles (Étape 6 ; nécessite tippe
 export-statique:  ## Exporte les artefacts statiques (fiches JSON, nuances, version, glyphes) vers export/
 	PYTHONUNBUFFERED=1 $(PY) -m pipeline.export_communes
 
-# Servir le répertoire tiles/ expose /communes/{z}/{x}/{y}.mvt — le schéma
-# attendu par mobile/src/lib/tiles.ts. Côté app, pointer le téléphone dessus
-# via EXPO_PUBLIC_TILES_URL=http://<IP LAN>:8300 (inlinée au build Expo).
-tiles-serve:  ## Sert tiles/communes.pmtiles en {z}/{x}/{y}.mvt sur :8300 (binaire pmtiles requis)
-	@command -v pmtiles >/dev/null || { echo "pmtiles introuvable — binaire go-pmtiles : https://github.com/protomaps/go-pmtiles/releases" >&2; exit 1; }
-	@test -f tiles/communes.pmtiles || { echo "tiles/communes.pmtiles absent — lancer : make tiles" >&2; exit 1; }
-	pmtiles serve tiles --port 8300 --cors='*'
+# Miroir local du CDN de prod : sert export/ + tiles/ (alias /tiles/) avec
+# Range (obligatoire pour pmtiles://) et CORS. Côté app, pointer
+# EXPO_PUBLIC_DATA_URL=http://<IP LAN>:8400 (inlinée au build Expo).
+data-serve:  ## Sert export/ + tuiles comme le CDN de prod sur 127.0.0.1:8400
+	@test -d export || { echo "export/ absent — lancer : make export-statique" >&2; exit 1; }
+	$(PY) scripts/serve_export.py --dossier export --tiles tiles --port 8400
 
-# Convention du projet : API sur 8200, tuiles sur 8300 (le 8000 peut être occupé
-# par d'autres services locaux).
+data-serve-lan:  ## Comme data-serve, accessible depuis le LAN (test sur device — réseau de confiance uniquement)
+	@test -d export || { echo "export/ absent — lancer : make export-statique" >&2; exit 1; }
+	$(PY) scripts/serve_export.py --dossier export --tiles tiles --port 8400 --hote 0.0.0.0
+
+# Convention du projet : API sur 8200, données statiques sur 8400 (le 8000
+# peut être occupé par d'autres services locaux).
 api:  ## Lance l'API en développement (rechargement auto)
 	$(PY) -m uvicorn api.main:app --reload --port 8200
-
-api-lan:  ## Lance l'API accessible depuis le LAN (test sur device — réseau de confiance uniquement)
-	$(PY) -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8200
 
 types:  ## Régénère les types TypeScript du mobile depuis l'OpenAPI
 	$(PY) -m api.openapi_export openapi.json
