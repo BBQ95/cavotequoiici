@@ -78,6 +78,10 @@ ou un appareil connecté, puis démarre Metro — rechargement à chaud conserv�
 débogage USB) ; la cible Android force `JAVA_HOME` sur un JDK 17, Gradle/AGP étant
 incompatibles avec un JDK trop récent (`JvmVendorSpec` sans certains vendors attendus).
 
+**`make mobile-dev-android` est la voie recommandée** : `npm run android` (= `expo run:android`)
+ne force pas `JAVA_HOME` et retombera sur cette même erreur si votre JDK par défaut est trop
+récent — dans ce cas, exportez `JAVA_HOME` vers un JDK 17 avant de lancer la commande npm.
+
 ## QA réelle : APK de build natif
 
 Le workflow [`android-test.yml`](../.github/workflows/android-test.yml) construit un APK
