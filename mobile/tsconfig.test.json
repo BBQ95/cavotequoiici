@@ -5,6 +5,6 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["src/lib/recherche.test.ts", "types-test.d.ts"],
+  "include": ["src/lib/*.test.ts", "types-test.d.ts"],
   "exclude": []
 }
