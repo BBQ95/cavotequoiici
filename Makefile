@@ -91,9 +91,27 @@ fresh: db-up migrate data  ## De zéro à base peuplée (db + migrations + pipel
 # (Arch/Fedora : java-17-openjdk ; Debian/Ubuntu : java-17-openjdk-amd64).
 JAVA17_HOME := $(firstword $(wildcard /usr/lib/jvm/java-17-openjdk /usr/lib/jvm/java-17-openjdk-amd64 /usr/lib/jvm/temurin-17-jdk-amd64))
 
-mobile-dev-android:  ## Build + lance un dev client Android (carte testable, contrairement à Expo Go)
-	@test -n "$(JAVA17_HOME)" || { echo "JDK 17 introuvable dans /usr/lib/jvm — installez-le (ex : jdk17-openjdk / openjdk-17-jdk) ou exportez JAVA_HOME manuellement" >&2; exit 1; }
-	cd mobile && JAVA_HOME=$(JAVA17_HOME) npx expo run:android
+# Démarre data-serve-lan en tâche de fond si le port 8400 est libre (test
+# portable en Python pur — fonctionne aussi sous macOS pour mobile-dev-ios,
+# contrairement à `ss`), et l'arrête à la sortie (trap). Si le port est déjà
+# occupé (serveur lancé à la main dans un autre terminal), on ne touche à
+# rien : évite un double-serveur qui échouerait sur le bind du port.
+define LANCER_AVEC_DATA_SERVE
+@test -d export || { echo "export/ absent — lancer : make export-statique" >&2; exit 1; }
+@if $(PY) -c "import socket,sys; sys.exit(0 if socket.socket().connect_ex(('127.0.0.1',8400))==0 else 1)"; then \
+	echo "Serveur de données déjà actif sur :8400 — réutilisation."; \
+	$(1); \
+else \
+	$(PY) scripts/serve_export.py --dossier export --tiles tiles --port 8400 --hote 0.0.0.0 & \
+	SERVER_PID=$$!; \
+	trap "kill $$SERVER_PID 2>/dev/null" EXIT INT TERM; \
+	$(1); \
+fi
+endef
 
-mobile-dev-ios:  ## Build + lance un dev client iOS (carte testable, contrairement à Expo Go)
-	cd mobile && npx expo run:ios
+mobile-dev-android:  ## Build + lance un dev client Android + le serveur de données local (data-serve-lan)
+	@test -n "$(JAVA17_HOME)" || { echo "JDK 17 introuvable dans /usr/lib/jvm — installez-le (ex : jdk17-openjdk / openjdk-17-jdk) ou exportez JAVA_HOME manuellement" >&2; exit 1; }
+	$(call LANCER_AVEC_DATA_SERVE,cd mobile && JAVA_HOME=$(JAVA17_HOME) npx expo run:android)
+
+mobile-dev-ios:  ## Build + lance un dev client iOS + le serveur de données local (data-serve-lan)
+	$(call LANCER_AVEC_DATA_SERVE,cd mobile && npx expo run:ios)
