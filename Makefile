@@ -7,7 +7,8 @@ PY := .venv/bin/python
 export
 
 .PHONY: help venv db-up db-down migrate data couleurs tiles \
-	test fresh export-statique data-serve data-serve-lan
+	test fresh export-statique data-serve data-serve-lan \
+	mobile-dev-android mobile-dev-ios
 
 help:  ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -80,3 +81,14 @@ test:  ## Lance la suite de tests
 
 fresh: db-up migrate data  ## De zéro à base peuplée (db + migrations + pipeline)
 	@echo "Base prête. Exporter les artefacts : make export-statique"
+
+# Expo Go n'embarque pas les modules natifs (MapLibre, view-shot) : ces
+# cibles compilent un dev client local qui les inclut, seul moyen de tester
+# la Carte. Nécessite un appareil/émulateur Android ou un simulateur iOS.
+# JAVA_HOME forcé sur un JDK 17 : Gradle/AGP plantent sur un JDK trop récent
+# (JvmVendorSpec ne connaît plus certains vendors attendus par le toolchain).
+mobile-dev-android:  ## Build + lance un dev client Android (carte testable, contrairement à Expo Go)
+	cd mobile && JAVA_HOME=/usr/lib/jvm/java-17-openjdk npx expo run:android
+
+mobile-dev-ios:  ## Build + lance un dev client iOS (carte testable, contrairement à Expo Go)
+	cd mobile && npx expo run:ios
