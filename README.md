@@ -157,20 +157,14 @@ En local, `make data-serve` sert exactement ce contrat. Les types TypeScript du 
 cd mobile && npm install && npx expo start
 ```
 
-Pour tester sur un téléphone (Expo Go SDK 56, export local servi sur le LAN, limites
-d'Expo Go, APK de QA) : voir [`mobile/README.md`](mobile/README.md).
+Pour tester sur un téléphone (Expo Go SDK 56, export local servi sur le LAN, APK de QA) :
+voir [`mobile/README.md`](mobile/README.md).
 
-## État d'avancement (MVP)
-
-**Étapes 0→6 faites** : fondations, contours, ingestion des scrutins, calcul des couleurs,
-application mobile, tuiles vectorielles (`make tiles`, voir [`tiles/README.md`](tiles/README.md))
-**et carte MapLibre intégrée** (onglet Carte : choroplèthe des ~35 000 communes, tap → fiche).
-
-**Étape 7** : hébergement de production **statique** en place (CDN `data.cavotequoiici.fr`) —
-l'API FastAPI historique a été décommissionnée. CI/CD : `ci.yml` (garde-fou de PR : tests,
-migrations, typecheck + bundle mobile), `integration.yml` (nocturne, pipeline complet sur
-données réelles + communes repères + export statique), `android-test.yml` (APK de QA +
-distribution Firebase). Reste : la publication sur les stores.
+> **Limite d'Expo Go** : `@maplibre/maplibre-react-native` est un module natif absent
+> d'Expo Go — l'onglet Carte n'y fonctionne pas (recherche et fiches communes, oui).
+> Pour tester la carte, il faut un **dev client** natif :
+> `make mobile-dev-android` / `make mobile-dev-ios` (racine du dépôt) build et lance
+> un dev client incluant MapLibre, avec le rechargement à chaud de Metro conservé.
 
 ## Licence
 

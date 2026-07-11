@@ -61,7 +61,26 @@ carte de partage) sont des **modules natifs, absents d'Expo Go** : l'onglet **Ca
 (exception « MLRN module cannot be found », qui peut se fermer) et l'export d'image est
 indisponible. **Rechercher, les fiches communes et Méthode fonctionnent normalement.**
 
-Pour tester la carte, il faut un **build natif** — voir ci-dessous.
+Pour tester la carte, il faut un **build natif** — soit un dev client local (ci-dessous),
+soit l'APK de QA généré par CI (plus bas).
+
+## Tester la carte en local : dev client
+
+Depuis la racine du dépôt (pas `mobile/`) :
+
+```bash
+make mobile-dev-android   # ou mobile-dev-ios
+```
+
+Build et installe un dev client (inclut MapLibre et view-shot) sur un émulateur/simulateur
+ou un appareil connecté, puis démarre Metro — rechargement à chaud conservé, contrairement
+à l'APK de QA. Nécessite Android Studio (SDK, `ANDROID_HOME`, un AVD ou un appareil en
+débogage USB) ; la cible Android force `JAVA_HOME` sur un JDK 17, Gradle/AGP étant
+incompatibles avec un JDK trop récent (`JvmVendorSpec` sans certains vendors attendus).
+
+**`make mobile-dev-android` est la voie recommandée** : `npm run android` (= `expo run:android`)
+ne force pas `JAVA_HOME` et retombera sur cette même erreur si votre JDK par défaut est trop
+récent — dans ce cas, exportez `JAVA_HOME` vers un JDK 17 avant de lancer la commande npm.
 
 ## QA réelle : APK de build natif
 
