@@ -1,0 +1,11 @@
+{
+  "_": "Mapping famille → bloc pour le port TypeScript de pipeline.couleur.BLOCS (mobile/src/lib/blocs.ts). Vérifié à jour par tests/test_couleur.py ; consommé par le test TS du mobile. « divers » est volontairement absent (hors blocs, cf. algo « blocs »).",
+  "blocs": {
+    "extreme_gauche": "gauche",
+    "gauche": "gauche",
+    "ecologistes": "gauche",
+    "centre": "centre",
+    "droite": "droite",
+    "extreme_droite": "droite"
+  }
+}

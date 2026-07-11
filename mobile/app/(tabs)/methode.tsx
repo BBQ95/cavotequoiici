@@ -110,11 +110,12 @@ export default function Methode() {
         <Point icone="tune" couleur={colors.accentBright}>
           <Text style={styles.b}>Par blocs</Text> : gauche, centre et droite sont
           regroupés avant de désigner la teinte — un camp divisé ne perd plus la
-          première place face à un camp uni.
+          première place face à un camp uni. La fiche montre alors la répartition
+          par bloc (les « divers » restent affichés, hors calcul).
         </Point>
         <Point icone="settings" couleur={colors.textTertiary}>
           Le choix se fait dans l'onglet <Text style={styles.b}>Paramètres</Text> et ne
-          change que la teinte affichée, jamais les chiffres.
+          change que la présentation (teinte, regroupement), jamais les chiffres.
         </Point>
       </View>
 

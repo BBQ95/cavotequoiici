@@ -8,10 +8,12 @@ import { ColorHero } from "../../src/components/ColorHero";
 import { StatCard } from "../../src/components/StatCard";
 import { RepartitionBar } from "../../src/components/RepartitionBar";
 import { TransparenceEncart } from "../../src/components/TransparenceEncart";
+import { ALGOS, useAlgo } from "../../src/lib/algo";
+import { agregerParBlocs } from "../../src/lib/blocs";
 import { familleInfo } from "../../src/lib/familles";
 import { pourcent } from "../../src/lib/color";
 import { addRecent } from "../../src/lib/recents";
-import { colors, space, type } from "../../src/theme/tokens";
+import { colors, radius, space, type } from "../../src/theme/tokens";
 
 /** Période couverte par les scrutins (« 2022 – 2026 » ou année unique). */
 function periode(dates: string[]): string {
@@ -26,6 +28,7 @@ export default function FicheCommune() {
   const { insee } = useLocalSearchParams<{ insee: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { algo } = useAlgo();
   const fiche = useFiche(insee);
   const scrutins = useScrutins(insee);
 
@@ -72,6 +75,15 @@ export default function FicheCommune() {
   const { nom, departement, code_insee, couleur } = data;
   const lignesScrutins = scrutins.data?.scrutins ?? [];
 
+  // La fiche suit le paramètre actif (`useFiche` sert déjà la couleur de
+  // l'algo courant) : en mode « blocs », la répartition affichée est agrégée
+  // par bloc, comme la teinte du hero.
+  const parBlocs = algo === "blocs";
+  const segments = parBlocs
+    ? agregerParBlocs(couleur.repartition)
+    : couleur.repartition.map((f) => ({ famille: f.famille, part: f.part }));
+  const algoLabel = ALGOS.find((a) => a.id === algo)?.label ?? algo;
+
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + space.xxl }}>
@@ -89,6 +101,13 @@ export default function FicheCommune() {
         />
 
         <View style={styles.contenu}>
+          {/* Paramètre actif : la couleur et la répartition en dépendent. */}
+          <View style={styles.algoPill}>
+            <Text style={styles.algoPillTexte}>
+              Couleur calculée : <Text style={styles.algoPillLabel}>{algoLabel}</Text>
+            </Text>
+          </View>
+
           <View style={styles.statsRow}>
             <StatCard
               valeur={pourcent(couleur.participation_mediane)}
@@ -102,15 +121,18 @@ export default function FicheCommune() {
             />
           </View>
 
-          {couleur.repartition.length > 0 ? (
+          {segments.length > 0 ? (
             <View style={styles.bloc}>
-              <Text style={styles.sectionTitre}>Répartition des familles</Text>
-              <RepartitionBar
-                segments={couleur.repartition.map((f) => ({
-                  famille: f.famille,
-                  part: f.part,
-                }))}
-              />
+              <Text style={styles.sectionTitre}>
+                {parBlocs ? "Répartition par blocs" : "Répartition des familles"}
+              </Text>
+              <RepartitionBar segments={segments} />
+              {parBlocs ? (
+                <Text style={styles.noteBlocs}>
+                  « Divers / régionalistes » reste affiché ici mais n'entre pas
+                  dans le calcul de la couleur par blocs.
+                </Text>
+              ) : null}
             </View>
           ) : null}
 
@@ -139,9 +161,28 @@ const styles = StyleSheet.create({
   },
   err: { fontSize: 16, color: "#e0707a", ...type.body },
   contenu: { paddingHorizontal: space.xl, paddingTop: space.xl },
+  algoPill: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+    marginBottom: space.lg,
+  },
+  algoPillTexte: { fontSize: 13, color: colors.textSecondary, ...type.body },
+  algoPillLabel: { color: colors.textLight, ...type.label },
   statsRow: { flexDirection: "row", gap: space.md },
   bloc: { marginTop: space.xl },
   sectionTitre: { fontSize: 16, color: colors.text, marginBottom: space.md, ...type.heading },
+  noteBlocs: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 19,
+    marginTop: space.md,
+    ...type.body,
+  },
   honnete: {
     fontSize: 14,
     color: colors.textSecondary,
