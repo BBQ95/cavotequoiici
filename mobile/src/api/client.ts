@@ -92,11 +92,11 @@ export function versScrutins(fiche: FicheStatique): ListeScrutinsResponse {
     insee: fiche.code_insee,
     scrutins: fiche.scrutins
       .map(({ detail: _detail, ...scrutin }) => scrutin)
-      .sort((a, b) =>
-        a.date === b.date
-          ? (a.scrutin_id < b.scrutin_id ? -1 : 1)
-          : (a.date > b.date ? -1 : 1),
-      ),
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date > b.date ? -1 : 1;
+        if (a.scrutin_id === b.scrutin_id) return 0;
+        return a.scrutin_id < b.scrutin_id ? -1 : 1;
+      }),
   };
 }
 
