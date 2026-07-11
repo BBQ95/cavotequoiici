@@ -83,11 +83,20 @@ export function versFiche(fiche: FicheStatique, algo: Algo): CommuneFiche {
   return { ...meta, couleur: couleurs[algo] };
 }
 
-/** Réponse « liste des scrutins » reconstituée (sans les détails embarqués). */
+/** Réponse « liste des scrutins » reconstituée (sans les détails embarqués).
+ * Triée du plus récent au plus ancien (l'ordre des fiches publiées suit le
+ * pipeline, pas la chronologie) ; départage par `scrutin_id` — comparaisons
+ * binaires sur dates ISO, pas d'Intl (cf. piège Hermes). */
 export function versScrutins(fiche: FicheStatique): ListeScrutinsResponse {
   return {
     insee: fiche.code_insee,
-    scrutins: fiche.scrutins.map(({ detail: _detail, ...scrutin }) => scrutin),
+    scrutins: fiche.scrutins
+      .map(({ detail: _detail, ...scrutin }) => scrutin)
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date > b.date ? -1 : 1;
+        if (a.scrutin_id === b.scrutin_id) return 0;
+        return a.scrutin_id < b.scrutin_id ? -1 : 1;
+      }),
   };
 }
 
