@@ -71,9 +71,10 @@ export default function Parametres() {
 
       <Text style={styles.note}>
         Ce choix change la <Text style={styles.b}>teinte</Text> affichée partout
-        (recherche, fiche, carte, partage). Les données, elles, ne bougent pas :
-        la répartition complète des familles — divers compris — reste visible
-        sur chaque fiche.
+        (recherche, fiche, carte, partage) et la façon dont la fiche présente la
+        répartition : par famille, ou par bloc en mode « Par blocs ». Les données,
+        elles, ne bougent pas — les « divers » restent toujours visibles, et la
+        fiche rappelle le mode actif.
       </Text>
 
       <Pressable

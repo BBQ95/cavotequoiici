@@ -4,10 +4,14 @@ Spécification : Outline « Concept & modèle de couleur politique » §5.
 TDD strict : tests écrits avant l'implémentation.
 """
 
+import json
 import math
+from pathlib import Path
+
 import pytest
 
 from pipeline.couleur import (
+    BLOCS,
     DEMI_VIE_ANNEES,
     PLANCHER_DESATURATION,
     POIDS_TYPE,
@@ -789,6 +793,16 @@ class TestInvarianceDateCalcul:
 # ---------------------------------------------------------------------------
 # Config poids.toml — tous les paramètres viennent du fichier (source unique)
 # ---------------------------------------------------------------------------
+
+
+class TestFixturesBlocs:
+    def test_fixtures_a_jour(self):
+        """Le fichier de parité consommé par le test TS du mobile doit refléter
+        BLOCS : s'il casse ici, mettre à jour la fixture ET le port TS
+        (mobile/src/lib/blocs.ts)."""
+        fixture = Path(__file__).parent / "fixtures" / "blocs_parite.json"
+        blocs = json.loads(fixture.read_text("utf-8"))["blocs"]
+        assert blocs == BLOCS
 
 
 class TestConfigPoids:
