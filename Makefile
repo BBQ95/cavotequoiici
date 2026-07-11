@@ -87,8 +87,13 @@ fresh: db-up migrate data  ## De zéro à base peuplée (db + migrations + pipel
 # la Carte. Nécessite un appareil/émulateur Android ou un simulateur iOS.
 # JAVA_HOME forcé sur un JDK 17 : Gradle/AGP plantent sur un JDK trop récent
 # (JvmVendorSpec ne connaît plus certains vendors attendus par le toolchain).
+# Chemin détecté par wildcard : le nom du dossier varie selon la distro
+# (Arch/Fedora : java-17-openjdk ; Debian/Ubuntu : java-17-openjdk-amd64).
+JAVA17_HOME := $(firstword $(wildcard /usr/lib/jvm/java-17-openjdk /usr/lib/jvm/java-17-openjdk-amd64 /usr/lib/jvm/temurin-17-jdk-amd64))
+
 mobile-dev-android:  ## Build + lance un dev client Android (carte testable, contrairement à Expo Go)
-	cd mobile && JAVA_HOME=/usr/lib/jvm/java-17-openjdk npx expo run:android
+	@test -n "$(JAVA17_HOME)" || { echo "JDK 17 introuvable dans /usr/lib/jvm — installez-le (ex : jdk17-openjdk / openjdk-17-jdk) ou exportez JAVA_HOME manuellement" >&2; exit 1; }
+	cd mobile && JAVA_HOME=$(JAVA17_HOME) npx expo run:android
 
 mobile-dev-ios:  ## Build + lance un dev client iOS (carte testable, contrairement à Expo Go)
 	cd mobile && npx expo run:ios
