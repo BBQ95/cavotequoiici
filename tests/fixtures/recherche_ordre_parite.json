@@ -1,0 +1,21 @@
+{
+  "_": "Ordre attendu de l'affichage de recherche : tri BINAIRE (points de code) sur le nom normalisé (normaliser_nom / normaliserNom), tiebreak binaire sur le nom brut. Parité entre le tri Python de référence (tests/test_export_communes.py) et comparerCommunes (mobile/src/lib/recherche.ts, testé sous Node). Cas couverts : accents en tête (Epernay < Épinay), ligatures (Œting → oeting), ÿ, apostrophe typographique, espace/tiret (espace binaire d'abord : « saint etienne » < « sainte colombe », « La Chapelle d'… » < « La Chapelle-d'… »), tiebreak sur le brut (Saint-Etienne < Saint-Étienne), homonymes stricts.",
+  "noms": [
+    "Aÿ-Champagne",
+    "Ay-sur-Moselle",
+    "Denain",
+    "Epernay",
+    "Épinay-sur-Seine",
+    "Faÿ-lès-Nemours",
+    "L’Abergement-Clémenciat",
+    "L'Haÿ-les-Roses",
+    "La Chapelle d'Armentières",
+    "La Chapelle-d'Armentières",
+    "Nîmes",
+    "Œting",
+    "Saint-Etienne",
+    "Saint-Étienne",
+    "Sainte-Colombe",
+    "Sainte-Colombe"
+  ]
+}

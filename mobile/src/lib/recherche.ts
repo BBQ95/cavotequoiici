@@ -61,8 +61,10 @@ export function indexerEntree(entree: EntreeIndex): CommuneIndexee {
  * sur le nom brut. ⚠️ Pas de `localeCompare` ici : sur Hermes (Android),
  * chaque appel Intl traverse JNI vers java.text.Collator — des SECONDES de
  * tri par frappe sur une requête courte (constaté en QA le 10/07).
+ * Parité avec le tri Python de référence verrouillée par
+ * `tests/fixtures/recherche_ordre_parite.json` (gardée à jour côté backend).
  */
-function comparerCommunes(a: CommuneIndexee, b: CommuneIndexee): number {
+export function comparerCommunes(a: CommuneIndexee, b: CommuneIndexee): number {
   if (a.nomRecherche !== b.nomRecherche) {
     return a.nomRecherche < b.nomRecherche ? -1 : 1;
   }

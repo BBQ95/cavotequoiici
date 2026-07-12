@@ -385,3 +385,22 @@ class TestFixturesNormalisation:
         assert len(cas) >= 10
         for c in cas:
             assert normaliser_nom(c["entree"]) == c["attendu"], c["entree"]
+
+
+class TestFixtureOrdreRecherche:
+    def test_fixtures_a_jour(self):
+        """L'ordre d'affichage de la recherche n'a plus qu'une définition
+        vivante : `comparerCommunes` côté mobile (l'ORDER BY de l'API a disparu
+        avec elle). Ce test garde la fixture alignée sur la référence Python ;
+        le test Node vérifie que `comparerCommunes` produit le même ordre.
+
+        Comparaison BINAIRE (points de code), jamais de locale : identique à
+        l'ordre UTF-16 de JS car tous les caractères des noms de communes
+        français sont dans le BMP (aucune paire de substitution). Clé = nom
+        normalisé, tiebreak = nom brut — le miroir exact de comparerCommunes.
+        """
+        noms = json.loads(
+            (FIXTURES / "recherche_ordre_parite.json").read_text("utf-8")
+        )["noms"]
+        assert len(noms) >= 10
+        assert sorted(noms, key=lambda n: (normaliser_nom(n), n)) == noms
