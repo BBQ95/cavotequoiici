@@ -1,0 +1,205 @@
+name: Data release (export → R2 → purge CDN)
+
+# Publication des données sur le CDN de production (data.cavotequoiici.fr).
+# Reproduit la procédure manuelle du runbook « Hébergement statique » :
+# pipeline complet sur données réelles → tests repères → export statique →
+# rclone vers le bucket R2 → purge du cache Cloudflare → vérification en ligne.
+#
+# Déclenchement MANUEL uniquement : publier est une décision humaine, et la
+# purge (purge_everything, contrainte du plan Free) vide tout le cache de la
+# zone — on ne veut pas ça sur un événement automatique.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publier_tuiles:
+        type: boolean
+        default: false
+        description: "Régénérer et publier aussi tiles/communes.pmtiles (nécessite tippecanoe)"
+
+# Le GITHUB_TOKEN ne sert à rien ici (pas de push, pas d'API GitHub) :
+# permissions minimales.
+permissions:
+  contents: read
+
+# Jamais deux publications en parallèle, et jamais annuler une publication
+# en cours (le bucket serait dans un état intermédiaire).
+concurrency:
+  group: data-release
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    name: Pipeline + export + publication R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: cavote
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:cavote@localhost:5432/postgres
+      # Identifiant public de la zone cavotequoiici.fr (inutilisable sans token).
+      CLOUDFLARE_ZONE_ID: 69a012293013da083c0ba999c19bf8b5
+      # rclone est configuré entièrement par variables d'environnement (pas de
+      # rclone.conf). Le `.eu.` de l'endpoint est OBLIGATOIRE (bucket en
+      # juridiction UE, invisible sinon). NO_CHECK_BUCKET : le token S3 est
+      # scopé au bucket, sans droit de création.
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      RCLONE_CONFIG_R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.eu.r2.cloudflarestorage.com
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+    steps:
+      # Échec précoce (< 10 s) si les secrets de publication manquent : ce
+      # workflow n'est lancé que par un dispatch humain délibéré — pas de skip
+      # silencieux, contrairement au job notify.
+      - name: Vérifier les secrets de publication
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          manquants=""
+          for v in R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN; do
+            [ -n "${!v}" ] || manquants="$manquants $v"
+          done
+          if [ -n "$manquants" ]; then
+            echo "::error::Secrets de dépôt manquants :$manquants (voir README, section « Artefacts statiques »)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: alembic upgrade head
+        run: python -m alembic upgrade head
+      - name: Pipeline complet (contours + 4 scrutins + couleurs)
+        run: python -m pipeline.run_all
+      # On ne publie JAMAIS des données qui échouent aux repères
+      # (Saint-Denis rouge, Nice marine) : pytest AVANT l'export et l'upload.
+      - name: Tests d'intégration (repères)
+        run: python -m pytest -q
+      - name: Export statique (fiches + index + nuances + glyphes)
+        run: python -m pipeline.export_communes
+      - name: Tests marqués integration (rejouabilité, municipales)
+        run: python -m pytest -q -m integration
+
+      - name: Tuiles vectorielles (tippecanoe)
+        if: ${{ inputs.publier_tuiles }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tippecanoe
+          python -m pipeline.export_tiles
+
+      - name: Installer rclone
+        # Le provider Cloudflare exige rclone >= 1.59 ; noble fournit plus récent.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rclone
+          rclone version
+
+      # ⚠️ JAMAIS de sync sur la racine du bucket : tiles/ suit son propre
+      # cycle (make tiles) et serait supprimé. Synchronisation PAR SOUS-CHEMIN.
+      # meta/ passe en DERNIER : version.json est le pointeur lu par l'app, il
+      # ne doit jamais annoncer un jeu de données pas encore téléversé.
+      - name: Publier l'export vers R2 (meta en dernier)
+        run: |
+          rclone sync export/communes r2:cavotequoiici-data/communes --checksum --transfers 32
+          rclone sync export/index    r2:cavotequoiici-data/index    --checksum
+          rclone sync export/fonts    r2:cavotequoiici-data/fonts    --checksum
+          rclone copyto export/nuances.json r2:cavotequoiici-data/nuances.json --checksum
+          rclone sync export/meta     r2:cavotequoiici-data/meta     --checksum
+          rclone size r2:cavotequoiici-data
+
+      - name: Publier les tuiles vers R2
+        if: ${{ inputs.publier_tuiles }}
+        # copyto ciblé sur le seul .pmtiles — jamais de sync du préfixe tiles/.
+        run: rclone copyto tiles/communes.pmtiles r2:cavotequoiici-data/tiles/communes.pmtiles --checksum
+
+      # Plan Cloudflare Free : pas de purge par préfixe → purge_everything sur
+      # la zone (sans conséquence : seul data. sert du contenu). Le TTL Edge
+      # est de 7 jours, la purge est donc OBLIGATOIRE après republication.
+      - name: Purger le cache Cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          reponse=$(curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}')
+          echo "$reponse" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d); sys.exit(0 if d.get('success') else 1)"
+
+      # Le CDN doit servir la version qu'on vient d'exporter. Pas d'en-tête de
+      # contournement de cache (ignoré par Cloudflare) : on compare le contenu,
+      # avec retries le temps que la purge se propage.
+      - name: Vérifier la version servie par le CDN
+        run: |
+          attendu=$(python3 -c "import json; print(json.load(open('export/meta/version.json'))['genere_le'])")
+          recu=""
+          for i in $(seq 1 10); do
+            recu=$(curl -fsS https://data.cavotequoiici.fr/meta/version.json \
+              | python3 -c "import json,sys; print(json.load(sys.stdin)['genere_le'])" || true)
+            if [ "$recu" = "$attendu" ]; then
+              echo "✓ version servie = $recu"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::version servie ($recu) ≠ exportée ($attendu) après purge"
+          exit 1
+
+      - name: Vérifier les requêtes Range sur les tuiles (206)
+        if: ${{ inputs.publier_tuiles }}
+        # pmtiles:// lit le fichier par requêtes Range : sans 206, la carte
+        # casse en silence.
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" -r 0-16383 https://data.cavotequoiici.fr/tiles/communes.pmtiles)
+          if [ "$code" != "206" ]; then
+            echo "::error::Range non honoré sur communes.pmtiles (HTTP $code)"
+            exit 1
+          fi
+          echo "✓ Range → 206"
+
+  notify:
+    name: Notifier Boss (webhook Hermès)
+    needs: [publier]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    env:
+      # Ici le skip silencieux est acceptable : la notification est de l'infra
+      # optionnelle (un fork sans configuration Hermès passe sans bruit).
+      HAS_WEBHOOK: ${{ secrets.HERMES_WEBHOOK_SECRET != '' && vars.HERMES_WEBHOOK_URL != '' }}
+    steps:
+      - name: POST signé vers le webhook build-status
+        if: ${{ env.HAS_WEBHOOK == 'true' }}
+        env:
+          HERMES_WEBHOOK_SECRET: ${{ secrets.HERMES_WEBHOOK_SECRET }}
+          HERMES_WEBHOOK_URL: ${{ vars.HERMES_WEBHOOK_URL }}
+          STATUT: ${{ needs.publier.result == 'success' && 'success' || 'failure' }}
+          REPO: ${{ github.repository }}
+          BRANCHE: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          BODY=$(printf '{"status":"%s","repo":"%s","branch":"%s","sha":"%s","run_url":"%s"}' \
+            "$STATUT" "$REPO" "$BRANCHE" "$SHA" "$RUN_URL")
+          SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$HERMES_WEBHOOK_SECRET" | sed 's/^.* //')
+          curl -s -X POST "$HERMES_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Signature: $SIG" \
+            --data "$BODY"
