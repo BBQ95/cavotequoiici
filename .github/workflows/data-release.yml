@@ -107,10 +107,15 @@ jobs:
           python -m pipeline.export_tiles
 
       - name: Installer rclone
-        # Le provider Cloudflare exige rclone >= 1.59 ; noble fournit plus récent.
+        # ⚠️ PAS le paquet apt : le rclone 1.60 de noble renvoie
+        # « NotImplemented » sur chaque PutObject R2 (constaté au 1er dispatch,
+        # run 29187981718). Binaire officiel épinglé — même version que celle
+        # validée sur le VPS contre ce bucket.
+        env:
+          RCLONE_VERSION: "1.74.4"
         run: |
-          sudo apt-get update
-          sudo apt-get install -y rclone
+          curl -fsSL "https://downloads.rclone.org/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-amd64.zip" -o /tmp/rclone.zip
+          sudo unzip -j -o /tmp/rclone.zip "*/rclone" -d /usr/local/bin
           rclone version
 
       # ⚠️ JAMAIS de sync sur la racine du bucket : tiles/ suit son propre
