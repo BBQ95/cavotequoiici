@@ -10,9 +10,11 @@
  * `types-statiques.ts` pour les artefacts composés).
  */
 
-/** Algo de dominance (pipeline/couleur.py::ALGOS). En statique, l'algo
- * sélectionne la clé `couleurs[algo]` de la fiche (plus de `?algo=`). */
-export type Algo = "complet" | "tendance" | "blocs";
+/** Algos de dominance (pipeline/couleur.py::ALGOS). En statique, l'algo
+ * sélectionne la clé `couleurs[algo]` de la fiche (plus de `?algo=`).
+ * Parité avec le pipeline verrouillée par tests/fixtures/algos_parite.json. */
+export const ALGOS = ["complet", "tendance", "blocs"] as const;
+export type Algo = (typeof ALGOS)[number];
 
 /** Part synthétique (pondérée) d'une famille politique dans la couleur de la ville. */
 export type FamilleSynthese = {
