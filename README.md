@@ -147,7 +147,14 @@ géolocalisation sont **locales**, sur l'index embarqué) :
 | `fonts/{fontstack}/{range}.pbf` | Glyphes MapLibre (étiquettes de la carte) |
 | `tiles/communes.pmtiles` | Tuiles vectorielles, lues en `pmtiles://` (requêtes Range) |
 
-Publication : `make export-statique` puis synchronisation vers le bucket R2 (runbook interne).
+Publication : workflow [`data-release.yml`](.github/workflows/data-release.yml) (déclenchement
+manuel — pipeline complet, tests repères, export, synchronisation rclone vers le bucket R2,
+purge du cache, vérification en ligne). Il exige quatre secrets de dépôt : `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` (token S3 scopé au bucket), `CLOUDFLARE_ACCOUNT_ID` et
+`CLOUDFLARE_API_TOKEN` (permission Cache Purge). En secours, la procédure manuelle reste :
+`make export-statique` puis `rclone sync` **par sous-chemin** (jamais la racine du bucket —
+`tiles/` suit son propre cycle), en synchronisant `meta/` **en dernier** (c'est le pointeur de
+version lu par l'app), puis purge du cache (runbook interne).
 En local, `make data-serve` sert exactement ce contrat. Les types TypeScript du client mobile
 (`mobile/src/api/types.ts`) sont **manuels**, miroir des schémas `pipeline/schemas/*.py`.
 
