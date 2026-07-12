@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from pipeline.couleur import (
+    ALGOS,
     BLOCS,
     DEMI_VIE_ANNEES,
     PLANCHER_DESATURATION,
@@ -803,6 +804,16 @@ class TestFixturesBlocs:
         fixture = Path(__file__).parent / "fixtures" / "blocs_parite.json"
         blocs = json.loads(fixture.read_text("utf-8"))["blocs"]
         assert blocs == BLOCS
+
+
+class TestFixturesAlgos:
+    def test_fixtures_a_jour(self):
+        """Le fichier de parité consommé par le test TS du mobile doit refléter
+        ALGOS : s'il casse ici, mettre à jour la fixture ET la const TS
+        (mobile/src/api/types.ts)."""
+        fixture = Path(__file__).parent / "fixtures" / "algos_parite.json"
+        algos = json.loads(fixture.read_text("utf-8"))["algos"]
+        assert algos == list(ALGOS)
 
 
 class TestConfigPoids:

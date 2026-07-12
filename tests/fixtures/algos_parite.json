@@ -1,0 +1,4 @@
+{
+  "_": "Liste ordonnée des algorithmes de couleur, parité entre pipeline.couleur.ALGOS et la const ALGOS du mobile (mobile/src/api/types.ts). Vérifiée à jour par tests/test_couleur.py ; consommée par le test TS du mobile. Un algo ajouté d'un seul côté casse l'un des deux dépôts.",
+  "algos": ["complet", "tendance", "blocs"]
+}
