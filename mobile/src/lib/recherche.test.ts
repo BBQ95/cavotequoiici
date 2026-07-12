@@ -13,6 +13,7 @@ import { test } from "node:test";
 
 import type { EntreeIndex } from "../api/types-statiques";
 import {
+  comparerCommunes,
   distanceM,
   indexerEntree,
   normaliserNom,
@@ -21,6 +22,10 @@ import {
 } from "./recherche";
 
 const FIXTURES = join(__dirname, "../../../tests/fixtures/normalisation_parite.json");
+const FIXTURE_ORDRE = join(
+  __dirname,
+  "../../../tests/fixtures/recherche_ordre_parite.json",
+);
 
 test("normaliserNom — parité avec pipeline.normalisation (fixtures backend)", () => {
   const { cas } = JSON.parse(readFileSync(FIXTURES, "utf-8")) as {
@@ -30,6 +35,29 @@ test("normaliserNom — parité avec pipeline.normalisation (fixtures backend)",
   for (const { entree, attendu } of cas) {
     assert.equal(normaliserNom(entree), attendu, `entrée : ${entree}`);
   }
+});
+
+test("comparerCommunes — parité avec le tri Python de référence (fixture backend)", () => {
+  // La fixture liste les noms bruts DANS L'ORDRE attendu : tri binaire sur le
+  // nom normalisé, tiebreak binaire sur le nom brut. Identique des deux côtés
+  // (points de code Python ≡ unités UTF-16 JS : les noms de communes français
+  // vivent tous dans le BMP, aucune paire de substitution).
+  const { noms } = JSON.parse(readFileSync(FIXTURE_ORDRE, "utf-8")) as {
+    noms: string[];
+  };
+  assert.ok(noms.length >= 10, "fixture anormalement courte");
+  // Mélange déterministe (indices pairs puis impairs, inversés) : le tri doit
+  // reconstruire exactement l'ordre de la fixture. `indexerEntree` calcule
+  // `nomRecherche` par le chemin de prod (normaliserNom).
+  const melange = [
+    ...noms.filter((_, i) => i % 2 === 0),
+    ...noms.filter((_, i) => i % 2 === 1),
+  ].reverse();
+  const tries = melange
+    .map((nom, i) => indexerEntree(entree(String(30000 + i), nom)))
+    .sort(comparerCommunes)
+    .map((c) => c.nom);
+  assert.deepStrictEqual(tries, noms);
 });
 
 const FAMILLES = ["gauche", "extreme_droite"];
