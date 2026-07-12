@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CaVoteQuoiIci — la couleur politique de votre commune</title>
+  <meta name="description" content="Application mobile open source qui visualise la couleur politique de synthèse de chaque commune française, à partir des résultats électoraux officiels.">
+  <link rel="icon" href="/favicon.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="site">
+    <img src="/favicon.png" alt="" width="64" height="64">
+    <h1>CaVoteQuoiIci</h1>
+    <p class="soustitre">La couleur politique de chaque commune française, en un coup d'œil — calculée à partir des résultats électoraux officiels.</p>
+    <p>
+      <span class="badge">Gratuit, sans publicité</span>
+      <span class="badge">Open source (AGPL&nbsp;v3)</span>
+      <span class="badge">Aucune donnée collectée</span>
+    </p>
+  </header>
+
+  <main>
+    <section class="carte">
+      <h2>Qu'est-ce que c'est&nbsp;?</h2>
+      <p>CaVoteQuoiIci est une application mobile qui affiche, sur une carte de France et commune par commune, une <strong>couleur politique de synthèse</strong> : une agrégation des résultats des derniers scrutins (présidentielle, législatives, européennes, municipales). Chaque fiche commune détaille les scrutins pris en compte et permet de comparer plusieurs méthodes de calcul.</p>
+      <p>La recherche et la géolocalisation fonctionnent <strong>hors ligne</strong> après le premier usage&nbsp;: votre position ne quitte jamais votre téléphone.</p>
+    </section>
+
+    <section class="carte">
+      <h2>Neutralité et méthode</h2>
+      <p>L'application n'exprime aucune opinion éditoriale. Les couleurs sont calculées par des algorithmes documentés, appliqués uniformément à toutes les communes, à partir de données publiques&nbsp;:</p>
+      <ul>
+        <li>les <a href="https://www.data.gouv.fr">résultats électoraux officiels</a> publiés par l'État sur data.gouv.fr&nbsp;;</li>
+        <li>les contours des communes de l'<a href="https://geoservices.ign.fr">IGN</a> (ADMIN&nbsp;EXPRESS).</li>
+      </ul>
+      <p>La méthodologie complète est expliquée dans l'application (écran «&nbsp;Méthode&nbsp;») et vérifiable dans le code source.</p>
+    </section>
+
+    <section class="carte">
+      <h2>Respect de la vie privée</h2>
+      <p>Pas de compte, pas de traceur, pas de publicité&nbsp;: l'application <strong>ne collecte aucune donnée personnelle</strong>. Elle ne contacte qu'un seul serveur, qui distribue des fichiers publics. Ce site est à la même enseigne&nbsp;: aucun script, aucun cookie.</p>
+      <p><a href="/confidentialite/">Lire la politique de confidentialité</a></p>
+    </section>
+
+    <section class="carte">
+      <h2>Télécharger</h2>
+      <p>L'application arrive <strong>prochainement sur Google Play</strong> (phase de test en préparation). Pour être informé de la sortie ou participer au test, écrivez-nous&nbsp;: <a href="mailto:contact@cavotequoiici.fr">contact@cavotequoiici.fr</a>.</p>
+    </section>
+
+    <section class="carte">
+      <h2>Open source</h2>
+      <p>Le code de l'application, le pipeline de données et ce site sont publiés sous licence <strong>AGPL&nbsp;v3</strong>&nbsp;: <a href="https://github.com/BBQ95/cavotequoiici">github.com/BBQ95/cavotequoiici</a>. Les contributions et signalements sont bienvenus.</p>
+    </section>
+  </main>
+
+  <footer>
+    <nav>
+      <a href="/confidentialite/">Confidentialité</a>
+      <a href="https://github.com/BBQ95/cavotequoiici">Code source</a>
+      <a href="mailto:contact@cavotequoiici.fr">Contact</a>
+    </nav>
+    <p>CaVoteQuoiIci — projet indépendant, sans but lucratif, financé par dons.</p>
+  </footer>
+</body>
+</html>

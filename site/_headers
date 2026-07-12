@@ -1,0 +1,7 @@
+# En-têtes servis par Cloudflare Pages (https://developers.cloudflare.com/pages/configuration/headers/)
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'
+  Permissions-Policy: geolocation=(), camera=(), microphone=()

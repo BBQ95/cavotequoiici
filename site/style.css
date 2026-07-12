@@ -1,0 +1,118 @@
+/* Site vitrine CaVoteQuoiIci — feuille unique, sans dépendance externe. */
+
+:root {
+  --fond: #fdfcfa;
+  --encre: #1f2430;
+  --encre-douce: #5a6072;
+  --accent: #2f5d8a;
+  --carte: #ffffff;
+  --bord: #e3e1dc;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #15181f;
+    --encre: #e8e9ec;
+    --encre-douce: #a3a8b4;
+    --accent: #8ab4dd;
+    --carte: #1d212b;
+    --bord: #2e3340;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--encre);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.65;
+  font-size: 1.06rem;
+}
+
+main {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+header.site {
+  text-align: center;
+  padding: 2.5rem 1.25rem 1rem;
+}
+
+header.site img {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+}
+
+h1 {
+  font-size: 1.9rem;
+  line-height: 1.25;
+  margin: 0.5rem 0 0.25rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin-top: 2.2rem;
+  padding-top: 0.4rem;
+}
+
+.soustitre {
+  color: var(--encre-douce);
+  margin: 0 auto;
+  max-width: 34rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+section.carte {
+  background: var(--carte);
+  border: 1px solid var(--bord);
+  border-radius: 12px;
+  padding: 0.25rem 1.25rem 1rem;
+  margin-top: 1.5rem;
+}
+
+ul {
+  padding-left: 1.2rem;
+}
+
+li {
+  margin: 0.35rem 0;
+}
+
+.badge {
+  display: inline-block;
+  border: 1px solid var(--bord);
+  background: var(--carte);
+  border-radius: 999px;
+  padding: 0.15rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--encre-douce);
+  margin: 0.15rem;
+}
+
+footer {
+  border-top: 1px solid var(--bord);
+  color: var(--encre-douce);
+  font-size: 0.92rem;
+  text-align: center;
+  padding: 1.5rem 1.25rem 2.5rem;
+}
+
+footer nav a {
+  margin: 0 0.6rem;
+}
+
+.retour {
+  display: inline-block;
+  margin-bottom: 1rem;
+}

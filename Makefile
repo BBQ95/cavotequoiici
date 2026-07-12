@@ -8,7 +8,7 @@ export
 
 .PHONY: help venv db-up db-down migrate data couleurs tiles \
 	test fresh export-statique data-serve data-serve-lan \
-	mobile-dev-android mobile-dev-ios
+	mobile-dev-android mobile-dev-ios site-serve
 
 help:  ## Affiche cette aide
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -78,6 +78,11 @@ data-serve-lan:  ## Comme data-serve, accessible depuis le LAN (test sur device 
 
 test:  ## Lance la suite de tests
 	$(PY) -m pytest -q
+
+# Pages HTML simples, sans Range ni CORS : http.server suffit (contrairement
+# aux données pmtiles servies par data-serve).
+site-serve:  ## Prévisualise le site vitrine (site/) sur 127.0.0.1:8500
+	$(PY) -m http.server 8500 --bind 127.0.0.1 --directory site
 
 fresh: db-up migrate data  ## De zéro à base peuplée (db + migrations + pipeline)
 	@echo "Base prête. Exporter les artefacts : make export-statique"
