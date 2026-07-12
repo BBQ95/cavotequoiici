@@ -17,6 +17,11 @@ on:
         default: false
         description: "Régénérer et publier aussi tiles/communes.pmtiles (nécessite tippecanoe)"
 
+# Le GITHUB_TOKEN ne sert à rien ici (pas de push, pas d'API GitHub) :
+# permissions minimales.
+permissions:
+  contents: read
+
 # Jamais deux publications en parallèle, et jamais annuler une publication
 # en cours (le bucket serait dans un état intermédiaire).
 concurrency:
