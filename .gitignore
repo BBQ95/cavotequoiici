@@ -45,3 +45,6 @@ export/
 
 # Artefact généré par `make types` (transitoire)
 openapi.json
+
+# Cache local wrangler (créé par infra/deploy-site.sh — contient l'account_id)
+.wrangler/
