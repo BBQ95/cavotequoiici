@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 
 from pipeline.synthese import (
-    TYPE_VERS_POIDS,
+    TYPE_LONG_VERS_COURT,
     age_annees,
     participation,
     parts_familles,
@@ -15,13 +15,13 @@ from pipeline.couleur import POIDS_TYPE
 
 def test_type_vers_poids_cible_existe():
     # chaque type long mappe vers une clé connue du modèle couleur
-    for court in TYPE_VERS_POIDS.values():
+    for court in TYPE_LONG_VERS_COURT.values():
         assert court in POIDS_TYPE
 
 
 def test_type_vers_poids_couvre_le_panier():
     for t in ["presidentielle_t1", "legislatives_t1", "europeennes", "municipales_t1"]:
-        assert t in TYPE_VERS_POIDS
+        assert t in TYPE_LONG_VERS_COURT
 
 
 def test_age_annees():

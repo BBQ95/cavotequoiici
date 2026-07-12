@@ -26,7 +26,7 @@ from sqlalchemy import create_engine, text
 
 from pipeline.couleur import ALGOS, ResultatScrutin, couleur_ville, hex_to_oklch
 from pipeline.ingest.common import charger_nuances
-from pipeline.synthese import TYPE_VERS_POIDS, age_annees, participation, parts_familles
+from pipeline.synthese import TYPE_LONG_VERS_COURT, age_annees, participation, parts_familles
 
 DEFAUT_DB_URL = "postgresql+psycopg2://postgres:cavote@localhost:5432/postgres"
 
@@ -70,14 +70,14 @@ def _construire(engine, reference: date):
     communes: dict[str, dict[str, dict]] = defaultdict(dict)
     ignores: list[tuple[str, str]] = []
     for sid, type_long, d in scrutins:
-        if type_long not in TYPE_VERS_POIDS:
+        if type_long not in TYPE_LONG_VERS_COURT:
             ignores.append((sid, type_long))
             continue  # type non pris en charge (ex. second tour, hors panier)
         mapping = charger_nuances(sid)
         familles, meta = _charger_voix_par_famille(engine, sid, mapping)
         bloc_base = {
             r["code_insee"]: {
-                "type": TYPE_VERS_POIDS[type_long],
+                "type": TYPE_LONG_VERS_COURT[type_long],
                 "age": age_annees(d, reference),
                 "exprimes": r["exprimes"],
                 "inscrits": r["inscrits"],
@@ -95,7 +95,7 @@ def _construire(engine, reference: date):
         details = ", ".join(f"{sid} ({t})" for sid, t in ignores)
         print(
             f"  ⚠ {len(ignores)} scrutin(s) ignoré(s) — type absent de "
-            f"TYPE_VERS_POIDS/poids.toml : {details}"
+            f"TYPE_LONG_VERS_COURT/poids.toml : {details}"
         )
     return communes
 

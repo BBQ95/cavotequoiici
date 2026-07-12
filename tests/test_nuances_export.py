@@ -9,9 +9,44 @@ import json
 
 import pytest
 
-from pipeline.export_communes import exporter_nuances
+from pipeline.export_communes import _verifier_homogeneite, exporter_nuances
 
 TYPES_COURTS = {"pres_t1", "leg_t1", "euro", "mun_t1"}
+
+
+class TestVerifierHomogeneite:
+    """Les champs scrutin-level d'un CSV de nuances (un fichier = UN scrutin)
+    doivent être identiques sur toutes les lignes : _charger_toutes_nuances ne
+    lit que la première, une divergence passerait silencieusement."""
+
+    def _lignes(self, **divergence):
+        base = {
+            "scrutin_type": "presidentielle",
+            "annee": 2022,
+            "date_classification": "2022-03-08",
+        }
+        return [dict(base), dict(base, **divergence)]
+
+    def test_homogene_ne_leve_pas(self):
+        _verifier_homogeneite(self._lignes(), "presidentielle_2022_t1.csv")
+
+    def test_annee_divergente(self):
+        with pytest.raises(ValueError, match=r"presidentielle_2022_t1\.csv.*annee"):
+            _verifier_homogeneite(
+                self._lignes(annee=2027), "presidentielle_2022_t1.csv"
+            )
+
+    def test_date_classification_divergente(self):
+        with pytest.raises(ValueError, match="date_classification"):
+            _verifier_homogeneite(
+                self._lignes(date_classification="2024-01-01"), "x.csv"
+            )
+
+    def test_scrutin_type_divergent(self):
+        with pytest.raises(ValueError, match="scrutin_type"):
+            _verifier_homogeneite(
+                self._lignes(scrutin_type="europeennes"), "x.csv"
+            )
 
 
 @pytest.fixture(scope="module")

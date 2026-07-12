@@ -19,7 +19,7 @@ nuance,famille,scrutin_type,annee,date_classification,date_debut,date_fin,source
 |---------|------|
 | `nuance` | Code officiel de nuance (ou code parti/candidat pour la présidentielle) |
 | `famille` | Famille de l'app (cf. `../familles.csv`) : extreme_gauche, gauche, ecologistes, centre, droite, extreme_droite, divers |
-| `scrutin_type` | Type de scrutin (types supportés : `TYPE_VERS_POIDS` dans `../../synthese.py` ; poids : `../poids.toml`) |
+| `scrutin_type` | Type de scrutin (types supportés : `TYPE_LONG_VERS_COURT` dans `../../synthese.py` ; poids : `../poids.toml`) |
 | `annee` | Année du scrutin |
 | `date_classification` | Date de la circulaire/instruction MI (ou décision CE) établissant cette grille |
 | `date_debut` / `date_fin` | Intervalle de validité de la classification de cette nuance (vide = ouvert) |

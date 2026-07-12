@@ -50,7 +50,7 @@ from pipeline.schemas.scrutins import (
 from pipeline.couleur import ALGOS, OKLCH, oklch_to_hex
 from pipeline.ingest.common import NUANCES_DIR, charger_nuances, charger_nuances_completes
 from pipeline.jsoncol import decode_json_col
-from pipeline.synthese import TYPE_VERS_POIDS
+from pipeline.synthese import TYPE_LONG_VERS_COURT
 
 DEFAUT_DB_URL = "postgresql+psycopg2://postgres:cavote@localhost:5432/postgres"
 
@@ -305,12 +305,12 @@ def charger_couleurs_algo(conn) -> dict[str, dict[str, Mapping[str, Any]]]:
 def charger_scrutins_meta(conn) -> dict[str, tuple[str, str]]:
     """Table scrutins indexée par type court : {type_court: (scrutin_id, date)}.
 
-    Même jointure TYPE_VERS_POIDS que le routeur scrutins (un type long hors
+    Même jointure TYPE_LONG_VERS_COURT que le routeur scrutins (un type long hors
     panier est ignoré).
     """
     meta: dict[str, tuple[str, str]] = {}
     for scrutin_id, type_long, date in conn.execute(_SQL_SCRUTINS_META):
-        type_court = TYPE_VERS_POIDS.get(type_long)
+        type_court = TYPE_LONG_VERS_COURT.get(type_long)
         if type_court:
             meta[type_court] = (scrutin_id, str(date) if date else None)
     return meta
@@ -351,28 +351,71 @@ def charger_familles_scrutin(conn) -> dict[str, dict[str, list[dict[str, Any]]]]
 
 
 def _ecrire_json(donnees: Any, chemin: Path) -> None:
-    """Écrit un JSON compact UTF-8 (même sérialisation pour tous les artefacts)."""
+    """Écrit un JSON compact UTF-8 (même sérialisation pour tous les artefacts).
+
+    Écriture atomique (temporaire dans le même dossier puis os.replace) : un
+    crash ne laisse jamais un artefact tronqué sous son nom final.
+    """
     chemin.parent.mkdir(parents=True, exist_ok=True)
-    chemin.write_text(
+    tmp = chemin.with_name(chemin.name + ".tmp")
+    tmp.write_text(
         json.dumps(donnees, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
+    os.replace(tmp, chemin)
+
+
+def _remplacer_dossier(tampon: Path, dossier: Path) -> None:
+    """Substitue `dossier` par `tampon` (construit à côté, même filesystem).
+
+    os.replace ne remplace pas un dossier non vide : la fenêtre rmtree→rename
+    n'est pas strictement atomique, mais elle est réduite à quelques
+    millisecondes — contre des minutes d'écriture pour ~35 000 fiches. Suffisant
+    ici : export/ n'est pas servi directement, c'est rclone qui publie.
+    """
+    if dossier.exists():
+        shutil.rmtree(dossier)
+    os.replace(tampon, dossier)
+
+
+def _dossier_tampon(dossier: Path) -> Path:
+    """Dossier frère `<nom>.tmp`, reconstruit de zéro (reliquat de crash purgé)."""
+    tampon = dossier.with_name(dossier.name + ".tmp")
+    if tampon.exists():
+        shutil.rmtree(tampon)
+    tampon.mkdir(parents=True)
+    return tampon
 
 
 def ecrire_fiches(fiches: Iterable[dict[str, Any]], dossier: Path) -> int:
     """Écrit un `{code_insee}.json` par fiche. Retourne le nombre écrit.
 
-    Le dossier est vidé d'abord : une commune disparue entre deux exports ne
-    doit pas laisser un JSON périmé (rclone sync le republierait).
+    Le dossier final est intégralement remplacé : une commune disparue entre
+    deux exports ne doit pas laisser un JSON périmé (rclone sync le
+    republierait). Toute la partie risquée (itération BDD) écrit dans un
+    tampon : un échec en cours laisse l'export précédent intact.
     """
-    if dossier.exists():
-        shutil.rmtree(dossier)
-    dossier.mkdir(parents=True)
+    tampon = _dossier_tampon(dossier)
     n = 0
     for fiche in fiches:
-        _ecrire_json(fiche, dossier / f"{fiche['code_insee']}.json")
+        _ecrire_json(fiche, tampon / f"{fiche['code_insee']}.json")
         n += 1
+    _remplacer_dossier(tampon, dossier)
     return n
+
+
+def _verifier_homogeneite(lignes: list[dict[str, Any]], nom_fichier: str) -> None:
+    """Un CSV de nuances décrit UN scrutin : ses champs scrutin-level doivent
+    être identiques sur toutes les lignes. `_charger_toutes_nuances` ne lit que
+    la première — sans ce garde-fou, une divergence passerait silencieusement.
+    """
+    for champ in ("scrutin_type", "annee", "date_classification"):
+        valeurs = {l[champ] for l in lignes}
+        if len(valeurs) > 1:
+            raise ValueError(
+                f"{nom_fichier}: champ '{champ}' hétérogène "
+                f"({sorted(map(str, valeurs))}) — un CSV de nuances décrit UN scrutin"
+            )
 
 
 def _charger_toutes_nuances() -> NuancesResponse:
@@ -383,12 +426,13 @@ def _charger_toutes_nuances() -> NuancesResponse:
     for path in NUANCES_DIR.glob("*.csv"):
         scrutin_id = path.stem
         lignes = charger_nuances_completes(scrutin_id)
+        _verifier_homogeneite(lignes, path.name)
         scrutins.append(
             ScrutinNuances(
                 scrutin_id=scrutin_id,
                 # Type court (celui que le mobile sait libeller) ; fallback
                 # identité purement défensif pour un futur type hors panier.
-                type=TYPE_VERS_POIDS.get(lignes[0]["scrutin_type"],
+                type=TYPE_LONG_VERS_COURT.get(lignes[0]["scrutin_type"],
                                          lignes[0]["scrutin_type"]),
                 annee=lignes[0]["annee"],
                 date_classification=lignes[0]["date_classification"],
@@ -435,19 +479,20 @@ def copier_glyphes(src: Path, dest: Path) -> int:
 
     Préserve l'arborescence `{fontstack}/{range}.pbf` attendue par MapLibre.
     Le README du dossier source est de la doc dépôt, pas un artefact à servir.
-    Retourne le nombre de .pbf copiés.
+    Retourne le nombre de .pbf copiés. Même remplacement par tampon que
+    `ecrire_fiches` : un échec en cours laisse les glyphes précédents intacts.
     """
-    if dest.exists():
-        shutil.rmtree(dest)
+    tampon = _dossier_tampon(dest)
     n = 0
     for pbf in sorted(src.rglob("*.pbf")):
-        cible = dest / pbf.relative_to(src)
+        cible = tampon / pbf.relative_to(src)
         cible.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(pbf, cible)
         n += 1
     licence = src / "OFL.txt"
     if licence.exists():
-        shutil.copy2(licence, dest / "OFL.txt")
+        shutil.copy2(licence, tampon / "OFL.txt")
+    _remplacer_dossier(tampon, dest)
     return n
 
 
