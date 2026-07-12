@@ -112,10 +112,16 @@ jobs:
         # run 29187981718). Binaire officiel épinglé — même version que celle
         # validée sur le VPS contre ce bucket.
         env:
-          RCLONE_VERSION: "1.74.4"
+          # ⚠️ ne PAS nommer cette variable RCLONE_* : rclone lit toutes les
+          # env RCLONE_* comme des flags (RCLONE_VERSION => --version, crash).
+          VERSION_RCLONE: "1.74.4"
         run: |
-          curl -fsSL "https://downloads.rclone.org/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-amd64.zip" -o /tmp/rclone.zip
-          sudo unzip -j -o /tmp/rclone.zip "*/rclone" -d /usr/local/bin
+          cd /tmp
+          zip="rclone-v${VERSION_RCLONE}-linux-amd64.zip"
+          curl -fsSLO "https://downloads.rclone.org/v${VERSION_RCLONE}/${zip}"
+          curl -fsSL "https://downloads.rclone.org/v${VERSION_RCLONE}/SHA256SUMS" -o SHA256SUMS
+          grep " ${zip}\$" SHA256SUMS | sha256sum -c -
+          sudo unzip -j -o "$zip" "*/rclone" -d /usr/local/bin
           rclone version
 
       # ⚠️ JAMAIS de sync sur la racine du bucket : tiles/ suit son propre
