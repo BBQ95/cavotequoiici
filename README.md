@@ -22,6 +22,8 @@
 | `pipeline/` | Ingestion & calcul (Python + Polars), export des artefacts statiques (fiches, index de recherche, nuances, glyphes) |
 | `mobile/` | Application React Native / Expo (TypeScript) |
 | `tiles/` | Génération des tuiles vectorielles (tippecanoe → PMTiles) |
+| `site/` | Site vitrine statique (cavotequoiici.fr) + politique de confidentialité — prévisualisation : `make site-serve` ; déploiement : `infra/deploy-site.sh` |
+| `infra/` | Scripts de déploiement (Cloudflare Pages) |
 | `docs/` | Documentation complémentaire |
 
 ```
