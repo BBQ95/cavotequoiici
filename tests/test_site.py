@@ -127,6 +127,31 @@ def test_index_contenu_essentiel():
     ), "l'accueil ne pointe pas vers /confidentialite"
 
 
+@pytest.mark.parametrize("nom", sorted(PAGES))
+def test_emails_proteges_des_reecritures_cloudflare(nom):
+    """L'obfuscation d'emails Cloudflare injecte un script de décodage que
+    notre CSP (aucun script) bloque — les adresses resteraient masquées.
+    Chaque occurrence de l'adresse doit être entre <!--email_off--> et
+    <!--/email_off--> pour que Cloudflare la laisse intacte, sans désactiver
+    la fonctionnalité sur le reste de la zone."""
+    brut = PAGES[nom].read_text(encoding="utf-8")
+    email = "contact@cavotequoiici.fr"
+    assert email in brut
+    zones = []
+    debut = 0
+    while (ouv := brut.find("<!--email_off-->", debut)) != -1:
+        fer = brut.find("<!--/email_off-->", ouv)
+        assert fer != -1, "marqueur email_off ouvert mais jamais fermé"
+        zones.append((ouv, fer))
+        debut = fer + 1
+    pos = 0
+    while (i := brut.find(email, pos)) != -1:
+        assert any(o < i < f for o, f in zones), (
+            f"occurrence de {email} hors marqueurs email_off (offset {i})"
+        )
+        pos = i + 1
+
+
 def test_headers_pages_csp():
     """_headers (Cloudflare Pages) : la CSP est un point sensible vie privée —
     verrouiller sa présence et l'absence d'unsafe-inline (remarque Fred #79)."""
