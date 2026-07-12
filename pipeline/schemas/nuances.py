@@ -16,7 +16,7 @@ class NuanceClassee(BaseModel):
 class ScrutinNuances(BaseModel):
     """Grille de nuances d'un scrutin (une ligne par nuance, ordre du CSV)."""
     scrutin_id: str
-    type: str  # type court (pres_t1, leg_t1, euro, mun_t1), cf. TYPE_VERS_POIDS
+    type: str  # type court (pres_t1, leg_t1, euro, mun_t1), cf. TYPE_LONG_VERS_COURT
     annee: int
     date_classification: str
     nuances: list[NuanceClassee]

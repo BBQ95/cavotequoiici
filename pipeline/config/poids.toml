@@ -3,7 +3,7 @@
 # Justification des choix : docs/methodologie.md et Outline (P1).
 # Ces choix sont assumés, publics et discutables (dépôt AGPL v3).
 
-# S1 — barème de base par TYPE de scrutin (clés courtes, cf. TYPE_VERS_POIDS).
+# S1 — barème de base par TYPE de scrutin (clés courtes, cf. TYPE_LONG_VERS_COURT).
 # Le poids effectif d'un scrutin = poids_brut × poids_recence (demi-vie 6 ans).
 # Les seconds tours sont EXCLUS (absents d'ici) : ils mesurent un report, pas une préférence.
 [defaut]

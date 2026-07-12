@@ -154,6 +154,37 @@ class TestEcrireFiches:
         ecrire_fiches(iter(self._fiches()), dossier)
         assert not (dossier / "99999.json").exists()
 
+    def test_aucun_residu_temporaire(self, tmp_path):
+        ecrire_fiches(iter(self._fiches()), tmp_path / "communes")
+        assert list(tmp_path.rglob("*.tmp")) == []
+
+    def test_echec_en_cours_laisse_le_dossier_precedent_intact(self, tmp_path):
+        """Un crash au milieu des ~35 000 écritures (minutes) ne doit jamais
+        laisser un dossier tronqué sous son nom final : l'export précédent
+        reste servi tel quel jusqu'au swap."""
+        dossier = tmp_path / "communes"
+        dossier.mkdir(parents=True)
+        (dossier / "93066.json").write_text('{"precedent":true}')
+
+        def fiches_qui_cassent():
+            yield fiche_statique(_ligne(), _lignes_algo())
+            raise RuntimeError("BDD perdue en cours d'itération")
+
+        with pytest.raises(RuntimeError, match="BDD perdue"):
+            ecrire_fiches(fiches_qui_cassent(), dossier)
+        assert json.loads((dossier / "93066.json").read_text()) == {"precedent": True}
+
+    def test_nettoie_un_temporaire_preexistant(self, tmp_path):
+        """Reliquat d'un crash précédent : le dossier tampon est reconstruit
+        de zéro, pas fusionné."""
+        dossier = tmp_path / "communes"
+        tampon = tmp_path / "communes.tmp"
+        tampon.mkdir(parents=True)
+        (tampon / "99999.json").write_text("{}")
+        ecrire_fiches(iter(self._fiches()), dossier)
+        assert not tampon.exists()
+        assert not (dossier / "99999.json").exists()
+
 
 class TestMetaVersion:
     def test_champs(self):
@@ -192,7 +223,7 @@ class TestCopierGlyphes:
 
 
 def _scrutins_meta():
-    """Table scrutins jointe TYPE_VERS_POIDS : type court → (scrutin_id, date)."""
+    """Table scrutins jointe TYPE_LONG_VERS_COURT : type court → (scrutin_id, date)."""
     return {
         "presidentielle": ("presidentielle_2022_t1", "2022-04-10"),
         "europeennes": ("europeennes_2024", "2024-06-09"),
