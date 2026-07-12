@@ -36,8 +36,10 @@ fi
 
 # Garde-fou : les tests du site verrouillent la politique de confidentialité
 # (engagements, liens internes, absence de traceurs) — ne rien publier qui ne
-# les passe pas.
-"$REPO_DIR/.venv/bin/python" -m pytest -q "$REPO_DIR/tests/test_site.py"
+# les passe pas. PY surchargeable si le venv n'est pas à l'endroit habituel.
+PY="${PY:-$REPO_DIR/.venv/bin/python}"
+[ -x "$PY" ] || PY="$(command -v python3)"
+"$PY" -m pytest -q "$REPO_DIR/tests/test_site.py"
 
 wrangler pages deploy "$SITE_DIR" \
     --project-name "$PROJET" \

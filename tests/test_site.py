@@ -127,6 +127,16 @@ def test_index_contenu_essentiel():
     ), "l'accueil ne pointe pas vers /confidentialite"
 
 
+def test_headers_pages_csp():
+    """_headers (Cloudflare Pages) : la CSP est un point sensible vie privée —
+    verrouiller sa présence et l'absence d'unsafe-inline (remarque Fred #79)."""
+    contenu = (SITE / "_headers").read_text(encoding="utf-8")
+    assert "Content-Security-Policy:" in contenu
+    assert "default-src 'none'" in contenu
+    assert "unsafe-inline" not in contenu
+    assert "X-Content-Type-Options: nosniff" in contenu
+
+
 def test_politique_engagements():
     """Le texte publié doit porter les engagements actés (doc Outline)."""
     p, brut = _page("confidentialite")
