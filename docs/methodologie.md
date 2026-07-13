@@ -45,12 +45,14 @@ ligne) et consultables dans l'app (Méthode → « D'où viennent les familles ?
 ### Contrôle du Conseil d'État
 
 Les grilles de nuances sont fixées par circulaire ou instruction du ministère de
-l'Intérieur ; en cas de recours, le **Conseil d'État** tranche, et il a déjà corrigé
-plusieurs classements :
+l'Intérieur ; en cas de recours, le **Conseil d'État** tranche, et son contrôle a déjà
+fait évoluer plusieurs classements :
 
-- **2020** (décision CE n° 437675) : circulaire des municipales partiellement suspendue —
-  seuil des 9 000 habitants, et classer « Debout la France » à l'extrême droite était une
-  erreur manifeste (→ famille « droite ») ;
+- **2020** (ordonnance de référé CE n° 437675) : circulaire des municipales partiellement
+  **suspendue** — seuil des 9 000 habitants, et le classement de « Debout la France » à
+  l'extrême droite soulevait un **doute sérieux** de légalité (pas de faisceau d'indices
+  objectifs) ; le ministère l'a reclassée en « droite » dès février 2020, sans que le fond
+  soit jamais tranché ;
 - **2022** : injonction faite au ministère d'ajouter la nuance **NUPES** aux législatives
   (sans elle, les candidats de l'union restaient ventilés par parti) ;
 - la classification de **La France insoumise** en « extrême gauche » dans les grilles

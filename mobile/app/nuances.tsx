@@ -136,10 +136,12 @@ export default function Nuances() {
           <Text style={styles.b}>Conseil d'État</Text> qui tranche.
         </Point>
         <Point icone="gavel" couleur={colors.accentBright}>
-          <Text style={styles.b}>2020</Text> (décision CE n° 437675) : la circulaire des
-          municipales est partiellement suspendue — seuil des 9 000 habitants, et
-          classer « Debout la France » à l'extrême droite était une{" "}
-          <Text style={styles.b}>erreur manifeste</Text> → famille « droite ».
+          <Text style={styles.b}>2020</Text> (ord. de référé CE n° 437675) : la circulaire
+          des municipales est partiellement{" "}
+          <Text style={styles.b}>suspendue</Text> — seuil des 9 000 habitants, et le
+          classement de « Debout la France » à l'extrême droite soulevait un{" "}
+          <Text style={styles.b}>doute sérieux</Text> de légalité (pas de faisceau
+          d'indices objectifs). Le ministère l'a reclassée en « droite » dès février 2020.
         </Point>
         <Point icone="gavel" couleur={colors.accentBright}>
           <Text style={styles.b}>2022</Text> : le Conseil d'État enjoint au ministère

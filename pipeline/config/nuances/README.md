@@ -37,14 +37,18 @@ nuance,famille,scrutin_type,annee,date_classification,date_debut,date_fin,source
 | Européennes 2024 | listes (nuance = parti/tête de liste) | 2024-06-09 | data.gouv.fr |
 | Législatives 2024 | instruction « attribution des nuances » (24 nuances) | 2024-06-11 | Légifrance id/45565 |
 | Municipales 2026 | circulaire « attribution des nuances » | 2026 | circulaire non encore publiée au 2026-06-27 (référence à confirmer : Légifrance id/45645 ou data.gouv.fr) |
-| Précédent CE | circulaire municipales 2020 partiellement suspendue (seuil 9000 hab. ; « Debout la France » mal classé extrême droite) | 2020-01-31 | CE n° 437675 |
+| Précédent CE | circulaire municipales 2020 partiellement suspendue (seuil 9000 hab. ; classement « Debout la France » en extrême droite suspendu — doute sérieux) | 2020-01-31 | CE, ord. réf., n° 437675 |
 
 ## Remarques de classification
 
 - **LFI / FI** : classée « extrême gauche » dans certaines grilles récentes — point contesté
   (cf. contrôle du Conseil d'État). À documenter via `source` ligne par ligne.
-- **Debout la France (DLF)** : le CE a jugé (2020) que la classer à l'extrême droite était une
-  erreur manifeste → famille `droite`.
+- **Debout la France (DLF)** : en référé (ord. 31 janv. 2020, n° 437675), le CE a **suspendu**
+  son classement en « extrême droite » : le moyen d'erreur manifeste d'appréciation créait un
+  **doute sérieux** sur la légalité (classement fondé sur le seul soutien de N. Dupont-Aignan à
+  M. Le Pen en 2017, sans faisceau d'indices objectifs). Le ministère a reclassé DLF dans le
+  bloc « droite » dès la circulaire du 3 février 2020 — le fond n'a jamais été tranché.
+  → famille `droite`.
 - **NUPES (2022)** : le CE a enjoint au MI d'ajouter la nuance ; les candidats restaient sinon
   ventilés en FI/SOC/VEC/COM.
 
