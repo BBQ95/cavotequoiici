@@ -14,10 +14,16 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_DATA_URL": "https://data.cavotequoiici.fr"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_DATA_URL": "https://data.cavotequoiici.fr"
+      }
     }
   },
   "submit": {
