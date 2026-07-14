@@ -7,6 +7,10 @@
 // EXPO_BUILD_NUMBER, alimenté par la CI avec github.run_number (séquentiel, jamais
 // réinitialisé). En local (variable absente) → 1, pour un prebuild reproductible.
 //
+// ⚠️ Ne vaut que pour les builds Gradle directs (QA android-test.yml, dev local) :
+// les builds EAS destinés au store ignorent cette valeur — eas.json déclare
+// `appVersionSource: "remote"` + `autoIncrement`, EAS tient son propre compteur.
+//
 // La version sémantique (versionName, ex. 1.0.0) reste dans app.json : on la bump
 // à la main pour une vraie release (`expo.version`).
 module.exports = ({ config }) => {
