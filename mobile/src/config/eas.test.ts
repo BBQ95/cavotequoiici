@@ -103,3 +103,11 @@ test("pas d'OTA — app.json sans bloc updates ni runtimeVersion", () => {
   assert.equal(appJson.expo.updates, undefined);
   assert.equal(appJson.expo.runtimeVersion, undefined);
 });
+
+test("app.json — projet EAS lié (owner + projectId, posés par eas init)", () => {
+  assert.equal(appJson.expo.owner, "barbecue95s-team");
+  assert.equal(
+    appJson.expo.extra?.eas?.projectId,
+    "ea97580e-d326-4082-af40-6c59fe2204e6",
+  );
+});

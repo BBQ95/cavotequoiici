@@ -42,6 +42,13 @@
           "locationWhenInUsePermission": "Autorisez la localisation pour vous repérer sur la carte."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ea97580e-d326-4082-af40-6c59fe2204e6"
+      }
+    },
+    "owner": "barbecue95s-team"
   }
 }
