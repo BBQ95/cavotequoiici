@@ -58,6 +58,17 @@ test("eas.json — preview : distribution interne, APK, sans dev client", () => 
   assert.equal(preview.developmentClient, undefined);
 });
 
+test("eas.json — preview et production embarquent EXPO_PUBLIC_DATA_URL", () => {
+  // La variable est inlinée au build Metro et mobile/.env est gitignoré (donc
+  // absent des archives envoyées à EAS Build) : sans elle dans le profil,
+  // l'app sortirait du build avec BASE_URL vide (« Données non configurées »).
+  // Le profil development est exempté : le dev client charge le JS depuis le
+  // serveur Metro local, qui lit mobile/.env.
+  const CDN = "https://data.cavotequoiici.fr";
+  assert.equal(easJson.build.preview.env?.EXPO_PUBLIC_DATA_URL, CDN);
+  assert.equal(easJson.build.production.env?.EXPO_PUBLIC_DATA_URL, CDN);
+});
+
 test("eas.json — production : .aab store, versionCode auto-incrémenté", () => {
   const production = easJson.build.production;
   assert.equal(production.autoIncrement, true);
