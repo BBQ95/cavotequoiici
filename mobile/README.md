@@ -50,6 +50,13 @@ côté backend).
    des communes (~1 Mo compressé) et le met en cache sur disque, invalidé par
    `meta/version.json` — les recherches suivantes fonctionnent sans réseau.
 
+   **Confirmation de la commune** : « Utiliser ma position » propose jusqu'à dix communes,
+   classées par distance à leur point représentatif, sans limite de rayon. L'utilisateur
+   doit choisir une commune avant l'ouverture de sa fiche, même s'il n'y a qu'une suggestion.
+   Ces points ne permettent pas d'identifier le polygone contenant la position : la bonne
+   commune peut manquer à la liste, notamment près des limites ou dans les grandes communes.
+   Un bouton permet de revenir à la recherche par nom. Aucun service de géocodage n'est appelé.
+
 3. **Expo Go — attention à la version** : le projet est en **SDK 56**, or le Play Store
    distribue Expo Go pour le SDK courant (57+), qui refuse le projet (« incompatible SDK
    version »). Télécharger l'Expo Go **SDK 56** sur <https://expo.dev/go>.
