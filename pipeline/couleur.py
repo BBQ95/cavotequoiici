@@ -255,7 +255,11 @@ def _poids_scrutins(scrutins: list["ResultatScrutin"], moduler: bool) -> list[tu
 
 
 def _dominance(classement: list[tuple[str, float]], algo: str) -> tuple[str, float, float]:
-    """Choisit (gagnante, part, marge) dans un classement trié décroissant.
+    """Choisit (gagnante, part, marge) dans un classement trié par (-part, id).
+
+    Une égalité exacte est départagée par identifiant alphabétique, y compris
+    entre blocs et entre sous-familles du bloc gagnant. La marge entre deux
+    familles ou blocs ex æquo reste nulle.
 
     - complet : pluralité brute sur tout le classement.
     - tendance : divers exclu, parts renormalisées sur le total politique ;
@@ -279,7 +283,7 @@ def _dominance(classement: list[tuple[str, float]], algo: str) -> tuple[str, flo
             par_bloc: dict[str, float] = {}
             for f, v in politiques:
                 par_bloc[BLOCS[f]] = par_bloc.get(BLOCS[f], 0.0) + v
-            blocs = sorted(par_bloc.items(), key=lambda kv: kv[1], reverse=True)
+            blocs = sorted(par_bloc.items(), key=lambda kv: (-kv[1], kv[0]))
             bloc_gagnant, part_bloc = blocs[0]
             part_bloc2 = blocs[1][1] if len(blocs) > 1 else 0.0
             # Teinte = sous-famille dominante du bloc gagnant (1re du classement)
@@ -359,7 +363,10 @@ def couleur_ville(
     participation = sum(p * s.participation for s, p in poids) / total_poids
 
     # 3. Famille dominante et marge, selon l'algo choisi
-    classement = sorted(synthese.items(), key=lambda kv: kv[1], reverse=True)
+    # Le set de familles n'a pas d'ordre stable entre processus. Départager
+    # les égalités par identifiant AVANT l'arrondi stabilise aussi la
+    # répartition exportée et la sous-famille choisie dans le bloc gagnant.
+    classement = sorted(synthese.items(), key=lambda kv: (-kv[1], kv[0]))
     gagnante, part, marge = _dominance(classement, algo)
 
     # 4. Couleur : teinte de la famille dominante,

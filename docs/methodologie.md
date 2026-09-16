@@ -179,6 +179,17 @@ explicitement sa préférence.
 
 ## La transparence dans l'app
 
+En cas d'**égalité exacte** des parts calculées, le départage suit l'ordre
+alphabétique croissant des identifiants techniques (par exemple, `droite` avant
+`gauche`). Cette règle s'applique aux familles, aux blocs et aux sous-familles
+du bloc gagnant ; elle stabilise aussi l'ordre de la répartition. Elle est
+appliquée **avant l'arrondi d'affichage** : deux parts affichées à 50 % peuvent
+donc avoir un ordre déterminé par leurs valeurs non arrondies.
+
+Ce départage est une convention technique pour obtenir une couleur reproductible,
+sans signification de préférence politique. La marge entre deux familles ou
+blocs ex æquo reste nulle ; la couleur ne prouve alors aucune avance électorale.
+
 La fiche d'une commune affiche d'abord la couleur synthétique, puis le **détail scrutin par
 scrutin** (chacun avec sa mini-couleur et sa répartition) : on voit d'où vient la synthèse, et
 quand les scrutins divergent. L'encart « comment cette couleur est calculée » liste les scrutins
