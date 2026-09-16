@@ -49,6 +49,11 @@ côté backend).
 2. **Recherche et géolocalisation hors ligne** : au premier usage, l'app télécharge l'index
    des communes (~1 Mo compressé) et le met en cache sur disque, invalidé par
    `meta/version.json` — les recherches suivantes fonctionnent sans réseau.
+   Si les métadonnées ou le nouvel index sont indisponibles (ou invalides), l'ancien
+   cache valide reste utilisable pour la recherche et les suggestions de communes.
+   La mise à jour est retentée au prochain appel, sans redémarrer l'application ;
+   les appels simultanés partagent le même téléchargement. L'index et sa version
+   ne sont enregistrés qu'après validation des données reçues.
 
    **Confirmation de la commune** : « Utiliser ma position » propose jusqu'à dix communes,
    classées par distance à leur point représentatif, sans limite de rayon. L'utilisateur
