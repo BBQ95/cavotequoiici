@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,7 +16,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 
 import { useSearch } from "../../src/api/queries";
-import { communeLaPlusProche } from "../../src/lib/indexCommunes";
+import { suggererCommunesProches } from "../../src/lib/indexCommunes";
 import { familleInfo } from "../../src/lib/familles";
 import { getRecents, addRecent, type Recent } from "../../src/lib/recents";
 import { colors, fontScaleCap, radius, space, type } from "../../src/theme/tokens";
@@ -26,6 +27,7 @@ export default function Accueil() {
   const [q, setQ] = useState("");
   const [recents, setRecents] = useState<Recent[]>([]);
   const [geoloc, setGeoloc] = useState(false);
+  const [suggestions, setSuggestions] = useState<Recent[] | null>(null);
   const { data: resultats, isFetching } = useSearch(q);
 
   useFocusEffect(
@@ -48,14 +50,14 @@ export default function Accueil() {
         return;
       }
       const pos = await Location.getCurrentPositionAsync({});
-      // Calcul local sur l'index statique (ex-endpoint /communes/proximite).
-      const proche = await communeLaPlusProche(
+      const proches = await suggererCommunesProches(
         pos.coords.latitude,
         pos.coords.longitude,
-        5000,
       );
-      if (proche) {
-        ouvrir({ code_insee: proche.code_insee, nom: proche.nom });
+      if (proches.length > 0) {
+        // Même une suggestion unique exige un choix explicite : le point
+        // représentatif le plus proche peut être dans une commune voisine.
+        setSuggestions(proches);
       } else {
         Alert.alert("Aucune commune trouvée", "Essayez la recherche par nom.");
       }
@@ -175,6 +177,51 @@ export default function Accueil() {
           );
         }}
       />
+      <Modal
+        visible={suggestions !== null}
+        animationType="slide"
+        onRequestClose={() => setSuggestions(null)}
+      >
+        <View style={[
+          styles.page,
+          { paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.lg },
+        ]}>
+          <Text style={styles.accroche} accessibilityRole="header">
+            Confirmez votre commune
+          </Text>
+          <Text style={styles.sousTitre}>
+            Choisissez votre commune parmi ces suggestions ou recherchez-la par nom.
+          </Text>
+          <FlatList
+            style={styles.liste}
+            data={suggestions ?? []}
+            keyExtractor={(c) => c.code_insee}
+            renderItem={({ item }) => (
+              <Pressable
+                style={styles.ligne}
+                accessibilityRole="button"
+                onPress={() => {
+                  setSuggestions(null);
+                  ouvrir(item);
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.ligneNom}>{item.nom}</Text>
+                  <Text style={styles.ligneMeta}>{item.departement}</Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
+              </Pressable>
+            )}
+          />
+          <Pressable
+            style={styles.geoBtn}
+            accessibilityRole="button"
+            onPress={() => setSuggestions(null)}
+          >
+            <Text style={styles.geoTxt}>Revenir à la recherche par nom</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }

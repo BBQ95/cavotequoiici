@@ -1,0 +1,191 @@
+{
+  "source": "Etalab communes-100m.geojson 2024 ; points représentatifs Shapely arrondis à 5 décimales comme export_communes. Appartenance des positions vérifiée sur les polygones locaux. Douze points représentatifs les plus proches par cas.",
+  "cas": [
+    {
+      "position": {
+        "lat": 43.6606,
+        "lon": 7.2149
+      },
+      "commune_contenant_position": "06088",
+      "communes": [
+        {
+          "code_insee": "06123",
+          "nom": "Saint-Laurent-du-Var",
+          "departement": "06",
+          "lat": 43.68895,
+          "lon": 7.18252
+        },
+        {
+          "code_insee": "06088",
+          "nom": "Nice",
+          "departement": "06",
+          "lat": 43.70515,
+          "lon": 7.24387
+        },
+        {
+          "code_insee": "06027",
+          "nom": "Cagnes-sur-Mer",
+          "departement": "06",
+          "lat": 43.67145,
+          "lon": 7.14851
+        },
+        {
+          "code_insee": "06065",
+          "nom": "La Gaude",
+          "departement": "06",
+          "lat": 43.7176,
+          "lon": 7.15834
+        },
+        {
+          "code_insee": "06128",
+          "nom": "Saint-Paul-de-Vence",
+          "departement": "06",
+          "lat": 43.6932,
+          "lon": 7.1263
+        },
+        {
+          "code_insee": "06161",
+          "nom": "Villeneuve-Loubet",
+          "departement": "06",
+          "lat": 43.6469,
+          "lon": 7.10241
+        },
+        {
+          "code_insee": "06159",
+          "nom": "Villefranche-sur-Mer",
+          "departement": "06",
+          "lat": 43.70805,
+          "lon": 7.31463
+        },
+        {
+          "code_insee": "06121",
+          "nom": "Saint-Jean-Cap-Ferrat",
+          "departement": "06",
+          "lat": 43.6891,
+          "lon": 7.32784
+        },
+        {
+          "code_insee": "06044",
+          "nom": "La Colle-sur-Loup",
+          "departement": "06",
+          "lat": 43.68765,
+          "lon": 7.09299
+        },
+        {
+          "code_insee": "06011",
+          "nom": "Beaulieu-sur-Mer",
+          "departement": "06",
+          "lat": 43.70785,
+          "lon": 7.33051
+        },
+        {
+          "code_insee": "06046",
+          "nom": "Colomars",
+          "departement": "06",
+          "lat": 43.75745,
+          "lon": 7.22532
+        },
+        {
+          "code_insee": "06114",
+          "nom": "Saint-André-de-la-Roche",
+          "departement": "06",
+          "lat": 43.74545,
+          "lon": 7.28869
+        }
+      ]
+    },
+    {
+      "position": {
+        "lat": 43.376,
+        "lon": 4.759
+      },
+      "commune_contenant_position": "13004",
+      "communes": [
+        {
+          "code_insee": "13078",
+          "nom": "Port-Saint-Louis-du-Rhône",
+          "departement": "13",
+          "lat": 43.4065,
+          "lon": 4.79708
+        },
+        {
+          "code_insee": "13039",
+          "nom": "Fos-sur-Mer",
+          "departement": "13",
+          "lat": 43.45475,
+          "lon": 4.90392
+        },
+        {
+          "code_insee": "13004",
+          "nom": "Arles",
+          "departement": "13",
+          "lat": 43.5452,
+          "lon": 4.72187
+        },
+        {
+          "code_insee": "13077",
+          "nom": "Port-de-Bouc",
+          "departement": "13",
+          "lat": 43.42125,
+          "lon": 4.98844
+        },
+        {
+          "code_insee": "13098",
+          "nom": "Saint-Mitre-les-Remparts",
+          "departement": "13",
+          "lat": 43.45725,
+          "lon": 5.01547
+        },
+        {
+          "code_insee": "13047",
+          "nom": "Istres",
+          "departement": "13",
+          "lat": 43.5438,
+          "lon": 4.94749
+        },
+        {
+          "code_insee": "13056",
+          "nom": "Martigues",
+          "departement": "13",
+          "lat": 43.3638,
+          "lon": 5.05759
+        },
+        {
+          "code_insee": "13097",
+          "nom": "Saint-Martin-de-Crau",
+          "departement": "13",
+          "lat": 43.6078,
+          "lon": 4.83426
+        },
+        {
+          "code_insee": "13096",
+          "nom": "Saintes-Maries-de-la-Mer",
+          "departement": "13",
+          "lat": 43.4953,
+          "lon": 4.44032
+        },
+        {
+          "code_insee": "13104",
+          "nom": "Sausset-les-Pins",
+          "departement": "13",
+          "lat": 43.34765,
+          "lon": 5.12227
+        },
+        {
+          "code_insee": "13063",
+          "nom": "Miramas",
+          "departement": "13",
+          "lat": 43.586,
+          "lon": 5.01648
+        },
+        {
+          "code_insee": "13092",
+          "nom": "Saint-Chamas",
+          "departement": "13",
+          "lat": 43.5415,
+          "lon": 5.07358
+        }
+      ]
+    }
+  ]
+}

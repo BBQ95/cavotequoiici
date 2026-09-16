@@ -17,7 +17,7 @@ import {
   distanceM,
   indexerEntree,
   normaliserNom,
-  plusProche,
+  communesProches,
   rechercher,
 } from "./recherche";
 
@@ -150,15 +150,56 @@ test("distanceM — ordre de grandeur connu (Paris → Marseille ≈ 660 km)", (
   assert.ok(d > 630_000 && d < 690_000, `distance inattendue : ${d}`);
 });
 
-test("plusProche — la plus proche dans le rayon, null au-delà", () => {
+test("communesProches — Nice et Arles restent proposées malgré leurs points éloignés", () => {
+  const { cas } = JSON.parse(readFileSync(
+    join(__dirname, "../../../tests/fixtures/geolocalisation.json"), "utf-8",
+  )) as {
+    cas: {
+      position: { lat: number; lon: number };
+      commune_contenant_position: string;
+      communes: { code_insee: string; nom: string; departement: string; lat: number; lon: number }[];
+    }[];
+  };
+  for (const c of cas) {
+    const communes = c.communes.map((v) => indexerEntree(entree(v.code_insee, v.nom, v)));
+    const { lat, lon } = c.position;
+    const resultats = communesProches([...communes].reverse(), lat, lon);
+    assert.equal(resultats.length, 10);
+    assert.deepEqual(resultats, communes.slice(0, 10));
+    // Le premier point appartient à une voisine : aucun résultat ne doit
+    // être assimilé à une identification de la commune contenant la position.
+    assert.notEqual(resultats[0].code_insee, c.commune_contenant_position);
+    const contenant = resultats.find((v) => v.code_insee === c.commune_contenant_position)!;
+    assert.ok(contenant, `commune absente : ${c.commune_contenant_position}`);
+    assert.ok(distanceM(lat, lon, contenant.lat!, contenant.lon!) > 5000);
+  }
+});
+
+test("communesProches — ignore les coordonnées absentes, borne la liste sans rayon fixe", () => {
   const communes = [
     indexerEntree(entree("93066", "Saint-Denis", { lat: 48.936, lon: 2.357 })),
     indexerEntree(entree("75056", "Paris", { lat: 48.857, lon: 2.352 })),
     indexerEntree(entree("00001", "Sans-Coordonnées")),
   ];
-  // Point à ~1 km au sud de Saint-Denis.
-  const proche = plusProche(communes, 48.927, 2.357, 5000);
-  assert.equal(proche?.code_insee, "93066");
-  // Rayon trop petit : rien.
-  assert.equal(plusProche(communes, 48.5, 2.0, 1000), null);
+  const avant = [...communes];
+  assert.deepEqual(communesProches(communes, 48.927, 2.357), communes.slice(0, 2));
+  assert.deepEqual(communesProches(communes, 48.5, 2.0, 1), [communes[1]]);
+  assert.deepEqual(communes, avant, "l'index ne doit pas être réordonné");
+  assert.deepEqual(communesProches(communes, 48.5, 2.0, 0), []);
+  assert.deepEqual(communesProches([], 48.5, 2.0), []);
+  assert.deepEqual(communesProches([communes[2]], 48.5, 2.0), []);
+});
+
+test("communesProches — départage stable des points équidistants par code INSEE", () => {
+  const communes = ["93066", "75056"].map((code) =>
+    indexerEntree(entree(code, code, { lat: 48.9, lon: 2.35 })),
+  );
+  assert.deepEqual(communesProches(communes, 48.9, 2.35, 1), [communes[1]]);
+});
+
+test("communesProches — ne propose rien pour une position invalide", () => {
+  const communes = [indexerEntree(entree("75056", "Paris", { lat: 48.857, lon: 2.352 }))];
+  for (const [lat, lon] of [[NaN, 2], [Infinity, 2], [91, 2], [48, 181]]) {
+    assert.deepEqual(communesProches(communes, lat, lon), []);
+  }
 });

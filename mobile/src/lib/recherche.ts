@@ -151,28 +151,39 @@ export function distanceM(
 }
 
 /**
- * Commune (avec coordonnées) la plus proche du point, à moins de `rayonM`
- * mètres — remplace `/communes/proximite` (dont l'app ne consommait que le
- * premier résultat). Le point représentatif de l'index (ST_PointOnSurface)
- * approxime la géométrie : suffisant pour « quelle commune sous mes pieds ? ».
+ * Suggestions à CONFIRMER par l'utilisateur, classées par distance au point
+ * représentatif de l'index (ST_PointOnSurface). Ce classement ne permet pas
+ * d'identifier la commune contenant la position. Pas de rayon fixe : dans
+ * une grande commune, son point représentatif peut être très éloigné.
+ * Sélection des `limite` premiers en un passage, sans tri de l'index entier.
  */
-export function plusProche(
+export function communesProches(
   communes: readonly CommuneIndexee[],
   lat: number,
   lon: number,
-  rayonM: number,
-): CommuneIndexee | null {
-  let meilleure: CommuneIndexee | null = null;
-  let meilleureDistance = Infinity;
+  limite = 10,
+): CommuneIndexee[] {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) ||
+      Math.abs(lat) > 90 || Math.abs(lon) > 180 || limite <= 0) {
+    return [];
+  }
+  const top: { commune: CommuneIndexee; distance: number }[] = [];
   for (const c of communes) {
-    if (c.lat === null || c.lon === null) {
+    if (c.lat === null || c.lon === null ||
+        !Number.isFinite(c.lat) || !Number.isFinite(c.lon) ||
+        Math.abs(c.lat) > 90 || Math.abs(c.lon) > 180) {
       continue;
     }
     const d = distanceM(lat, lon, c.lat, c.lon);
-    if (d < meilleureDistance) {
-      meilleureDistance = d;
-      meilleure = c;
+    let i = top.length;
+    while (i > 0 && (d < top[i - 1].distance ||
+      (d === top[i - 1].distance && c.code_insee < top[i - 1].commune.code_insee))) {
+      i--;
+    }
+    if (i < limite) {
+      top.splice(i, 0, { commune: c, distance: d });
+      if (top.length > limite) top.pop();
     }
   }
-  return meilleureDistance <= rayonM ? meilleure : null;
+  return top.map(({ commune }) => commune);
 }

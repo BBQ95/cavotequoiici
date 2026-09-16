@@ -15,7 +15,7 @@ import { get, type Algo, type CommuneResultat } from "../api/client";
 import type { IndexCommunes, VersionDonnees } from "../api/types-statiques";
 import {
   indexerEntree,
-  plusProche,
+  communesProches,
   rechercher,
   type CommuneIndexee,
 } from "./recherche";
@@ -115,14 +115,14 @@ export async function rechercherCommunes(
   return rechercher(index.communes, index.familles, q, iAlgo, limite);
 }
 
-/** Commune la plus proche à moins de `rayonM` mètres, ou null — l'équivalent
- * local de `GET /communes/proximite` (premier résultat). */
-export async function communeLaPlusProche(
+/** Communes à proposer pour confirmation : la proximité des points de
+ * l'index ne prouve pas l'appartenance de la position à une commune. */
+export async function suggererCommunesProches(
   lat: number,
   lon: number,
-  rayonM: number,
-): Promise<{ code_insee: string; nom: string } | null> {
+): Promise<Pick<CommuneResultat, "code_insee" | "nom" | "departement">[]> {
   const index = await obtenirIndex();
-  const commune = plusProche(index.communes, lat, lon, rayonM);
-  return commune ? { code_insee: commune.code_insee, nom: commune.nom } : null;
+  return communesProches(index.communes, lat, lon).map(
+    ({ code_insee, nom, departement }) => ({ code_insee, nom, departement }),
+  );
 }
