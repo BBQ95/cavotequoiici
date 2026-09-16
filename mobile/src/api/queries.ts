@@ -26,7 +26,7 @@ export function useSearch(q: string) {
   const dq = useDebouncedValue(q, 250);
   // L'algo choisi teinte les pastilles des résultats : il fait partie de la clé.
   const { algo } = useAlgo();
-  return useQuery({
+  const query = useQuery({
     queryKey: ["search", dq, algo],
     // Recherche locale sur l'index statique (téléchargé puis caché sur
     // disque) : fonctionne hors ligne après un premier chargement.
@@ -35,6 +35,9 @@ export function useSearch(q: string) {
     // Garde la liste précédente affichée pendant que la nouvelle recherche part.
     placeholderData: (prev) => prev,
   });
+  // L'écran ne doit pas présenter l'état précédent comme celui de la saisie
+  // courante pendant les 250 ms de debounce.
+  return { ...query, isDebouncing: q !== dq };
 }
 
 function useFicheStatique(insee: string) {

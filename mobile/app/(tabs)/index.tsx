@@ -28,7 +28,9 @@ export default function Accueil() {
   const [recents, setRecents] = useState<Recent[]>([]);
   const [geoloc, setGeoloc] = useState(false);
   const [suggestions, setSuggestions] = useState<Recent[] | null>(null);
-  const { data: resultats, isFetching } = useSearch(q);
+  const {
+    data: resultats, isFetching, isError, isSuccess, isPaused, isDebouncing, refetch,
+  } = useSearch(q);
 
   useFocusEffect(
     useCallback(() => {
@@ -69,6 +71,8 @@ export default function Accueil() {
   }
 
   const listeRecherche = q.trim().length >= 2;
+  const rechercheEnCours = isDebouncing || isFetching;
+  const rechercheIndisponible = !rechercheEnCours && (isError || isPaused);
   // Résultats de recherche (avec `famille` API) ou récents (avec `tendance` déjà libellée).
   const donnees: (Recent & { famille?: string | null })[] = listeRecherche
     ? (resultats ?? [])
@@ -133,11 +137,29 @@ export default function Accueil() {
         keyExtractor={(c) => c.code_insee}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: insets.bottom + space.lg }}
+        ListHeaderComponent={
+          listeRecherche && rechercheEnCours ? (
+            <View style={styles.etatRecherche} accessibilityLiveRegion="polite">
+              <ActivityIndicator color={colors.accentBright} />
+              <Text style={styles.messageRecherche}>Recherche en cours…</Text>
+            </View>
+          ) : listeRecherche && rechercheIndisponible ? (
+            <View style={styles.etatRecherche}>
+              <Text style={styles.messageRecherche} accessibilityRole="alert">
+                Impossible de rechercher les communes. Vérifiez votre connexion puis réessayez.
+              </Text>
+              <Pressable
+                style={styles.geoBtn}
+                accessibilityRole="button"
+                onPress={() => { void refetch(); }}
+              >
+                <Text style={styles.geoTxt}>Réessayer</Text>
+              </Pressable>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
-          // resultats !== undefined : pas d'état vide pendant la fenêtre de
-          // debounce de la 1re recherche (la requête suit q avec 250 ms de
-          // retard, isFetching est encore false à ce moment-là).
-          listeRecherche && !isFetching && resultats !== undefined ? (
+          listeRecherche && !rechercheEnCours && !rechercheIndisponible && isSuccess ? (
             <Text style={styles.vide}>Aucune commune trouvée.</Text>
           ) : null
         }
@@ -293,4 +315,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     ...type.body,
   },
+  etatRecherche: { paddingVertical: space.lg, gap: space.sm },
+  messageRecherche: { textAlign: "center", color: colors.textSecondary, ...type.body },
 });
