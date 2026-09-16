@@ -12,6 +12,7 @@
 import { File, Paths } from "expo-file-system";
 
 import { get, type Algo, type CommuneResultat } from "../api/client";
+import { ALGOS } from "../api/types";
 import type { IndexCommunes, VersionDonnees } from "../api/types-statiques";
 import {
   indexerEntree,
@@ -29,9 +30,33 @@ type IndexCharge = {
   communes: CommuneIndexee[];
 };
 
-/** Promesse memoïsée : un seul chargement par vie de l'app (l'index est
- * immuable entre deux releases de données). */
+/** Partagée entre appels concurrents, puis conservée pour la session après
+ * succès. Un repli sur le cache permet une nouvelle tentative au prochain appel. */
 let chargement: Promise<IndexCharge> | null = null;
+
+/** Le typage de get/JSON.parse ne valide pas les données à l'exécution.
+ * Refuser un index inutilisable avant de remplacer un cache encore valide. */
+function validerIndex(valeur: unknown): asserts valeur is IndexCommunes {
+  const index = valeur as IndexCommunes | null;
+  const coordonnee = (v: unknown, max: number) =>
+    v === null || (typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= max);
+  if (!index ||
+      !Array.isArray(index.algos) || index.algos.length !== ALGOS.length ||
+      !ALGOS.every((algo) => index.algos.includes(algo)) ||
+      !Array.isArray(index.familles) || !index.familles.every((f) => typeof f === "string") ||
+      !Array.isArray(index.communes) || !index.communes.every((c) =>
+        Array.isArray(c) && c.length === 7 &&
+        typeof c[0] === "string" && typeof c[1] === "string" &&
+        (c[2] === null || typeof c[2] === "string") &&
+        coordonnee(c[3], 90) && coordonnee(c[4], 180) &&
+        Array.isArray(c[5]) && c[5].length === index.algos.length &&
+        c[5].every((hex) => typeof hex === "string" && /^#[0-9a-f]{6}$/i.test(hex)) &&
+        Array.isArray(c[6]) && c[6].length === index.algos.length &&
+        c[6].every((f) => f === null ||
+          (Number.isInteger(f) && f >= 0 && f < index.familles.length)))) {
+    throw new Error("Index de recherche invalide");
+  }
+}
 
 function deplier(index: IndexCommunes): IndexCharge {
   return {
@@ -41,13 +66,15 @@ function deplier(index: IndexCommunes): IndexCharge {
   };
 }
 
-function lireCache(): IndexCommunes | null {
+function lireCache(): IndexCharge | null {
   try {
     const fichier = new File(Paths.cache, FICHIER_INDEX);
     if (!fichier.exists) {
       return null;
     }
-    return JSON.parse(fichier.textSync()) as IndexCommunes;
+    const index: unknown = JSON.parse(fichier.textSync());
+    validerIndex(index);
+    return deplier(index);
   } catch {
     return null; // cache corrompu → on retéléchargera
   }
@@ -71,31 +98,46 @@ function versionEnCache(): string | null {
   }
 }
 
-async function charger(): Promise<IndexCharge> {
+async function charger(): Promise<{ index: IndexCharge; reessayer: boolean }> {
   let versionDistante: string | null = null;
   try {
-    versionDistante = (await get<VersionDonnees>("/meta/version.json")).genere_le;
+    const version = (await get<VersionDonnees>("/meta/version.json")).genere_le;
+    if (typeof version === "string" && version.length > 0) {
+      versionDistante = version;
+    }
   } catch {
     // Hors ligne (ou CDN indisponible) : le cache, s'il existe, fait foi.
   }
   const enCache = lireCache();
   if (versionDistante === null) {
     if (enCache) {
-      return deplier(enCache);
+      return { index: enCache, reessayer: true };
     }
     throw new Error("Index de recherche indisponible (hors ligne, sans cache)");
   }
   if (enCache && versionEnCache() === versionDistante) {
-    return deplier(enCache);
+    return { index: enCache, reessayer: false };
   }
-  const index = await get<IndexCommunes>("/index/communes.json");
-  ecrireCache(index, versionDistante);
-  return deplier(index);
+  try {
+    const index = await get<unknown>("/index/communes.json");
+    validerIndex(index);
+    const charge = deplier(index);
+    ecrireCache(index, versionDistante);
+    return { index: charge, reessayer: false };
+  } catch (err) {
+    if (enCache) {
+      return { index: enCache, reessayer: true };
+    }
+    throw err;
+  }
 }
 
 function obtenirIndex(): Promise<IndexCharge> {
   if (!chargement) {
-    chargement = charger().catch((err) => {
+    chargement = charger().then(({ index, reessayer }) => {
+      if (reessayer) chargement = null;
+      return index;
+    }).catch((err) => {
       chargement = null; // un échec ne doit pas condamner la session
       throw err;
     });
