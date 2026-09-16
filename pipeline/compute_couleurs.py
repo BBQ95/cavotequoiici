@@ -35,14 +35,19 @@ def _charger_voix_par_famille(engine, scrutin_id: str, mapping: dict[str, str]):
     """Retourne (familles, meta) pour un scrutin.
 
     familles : DataFrame (code_insee, famille, voix) agrégé.
-    meta     : DataFrame (code_insee, exprimes, inscrits).
+    meta     : DataFrame (code_insee, exprimes, votants, inscrits).
     """
     with engine.connect() as conn:
         df = pl.read_database(
-            "SELECT code_insee, nuance, voix, exprimes, inscrits "
+            "SELECT code_insee, nuance, voix, exprimes, votants, inscrits "
             "FROM resultats_scrutin WHERE scrutin_id = :s",
             conn,
             execute_options={"parameters": {"s": scrutin_id}},
+        )
+    if df["votants"].null_count():
+        raise ValueError(
+            f"{scrutin_id} : votants manquants — réingérer les résultats "
+            "avec python -m pipeline.run_all avant de recalculer les couleurs"
         )
     map_df = pl.DataFrame(
         {"nuance": list(mapping), "famille": list(mapping.values())}
@@ -54,6 +59,7 @@ def _charger_voix_par_famille(engine, scrutin_id: str, mapping: dict[str, str]):
     meta = df.group_by("code_insee").agg(
         [
             pl.col("exprimes").cast(pl.Int64).first().alias("exprimes"),
+            pl.col("votants").cast(pl.Int64).first().alias("votants"),
             pl.col("inscrits").cast(pl.Int64).first().alias("inscrits"),
         ]
     )
@@ -80,6 +86,7 @@ def _construire(engine, reference: date):
                 "type": TYPE_LONG_VERS_COURT[type_long],
                 "age": age_annees(d, reference),
                 "exprimes": r["exprimes"],
+                "votants": r["votants"],
                 "inscrits": r["inscrits"],
                 "voix": {},
             }
@@ -105,7 +112,7 @@ def _resultats_scrutin(bloc: dict) -> ResultatScrutin:
         type_scrutin=bloc["type"],
         age_annees=bloc["age"],
         parts_familles=parts_familles(bloc["voix"], bloc["exprimes"]),
-        participation=participation(bloc["exprimes"], bloc["inscrits"]),
+        participation=participation(bloc["votants"], bloc["inscrits"]),
     )
 
 
@@ -125,7 +132,7 @@ def main() -> None:
         for sid, bloc in blocs.items():
             if bloc["exprimes"] > 0:
                 part_par_scrutin[sid].append(
-                    participation(bloc["exprimes"], bloc["inscrits"])
+                    participation(bloc["votants"], bloc["inscrits"])
                 )
     med_scrutin = {
         sid: statistics.median(ps) for sid, ps in part_par_scrutin.items() if ps

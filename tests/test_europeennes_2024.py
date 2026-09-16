@@ -143,6 +143,7 @@ def _fake_df_pivot() -> pl.DataFrame:
             "nuance": ["LFI", "LRN", "LVEC", "LFI", "LRN"],
             "voix": [100, 200, 50, 80, 120],
             "exprimes": [350, 350, 350, 200, 200],
+            "votants": [350, 350, 350, 200, 200],
             "inscrits": [662, 662, 662, 500, 500],
         }
     )
@@ -159,6 +160,7 @@ def _fake_raw_row() -> dict:
         "Libellé commune": "L'Abergement-Clémenciat",
         "Inscrits": "662",
         "Exprimés": "369",
+        "Votants": "369",
         "Nuance liste 1": "LDIV",
         "Voix 1": "5",
         "Nuance liste 2": "LFI",
@@ -189,6 +191,7 @@ class TestAggregateVoix:
                 "nuance": ["LFI"],
                 "voix": [0],
                 "exprimes": [0],
+                "votants": [0],
                 "inscrits": [100],
             }
         )
@@ -212,6 +215,7 @@ class TestAggregateVoix:
                 "nuance": ["LFI", "LFI", "LFI"],
                 "voix": [100, 50, 80],
                 "exprimes": [350, 350, 200],
+                "votants": [350, 350, 200],
                 "inscrits": [662, 662, 500],
             }
         )
@@ -258,6 +262,7 @@ class TestParseResultatsCommune:
                 "Libellé commune": ["Test"],
                 "Inscrits": ["662"],
                 "Exprimés": ["369"],
+                "Votants": ["369"],
                 "Nuance liste 1": ["LFI"],
                 "Voix 1": ["100"],
                 "Nuance liste 2": ["LRN"],
@@ -277,6 +282,7 @@ class TestParseResultatsCommune:
                 "Libellé commune": ["Test"],
                 "Inscrits": ["662"],
                 "Exprimés": ["369"],
+                "Votants": ["369"],
                 "Nuance liste 1": ["LFI"],
                 "Voix 1": ["100"],
                 "Nuance liste 2": ["LRN"],
@@ -301,6 +307,7 @@ class TestParseResultatsCommune:
                 "Libellé commune": ["Test"],
                 "Inscrits": ["662"],
                 "Exprimés": ["369"],
+                "Votants": ["369"],
                 "Nuance liste 1": ["LFI"],
                 "Voix 1": ["100"],
                 "Nuance liste 2": ["LRN"],
@@ -322,6 +329,7 @@ class TestParseResultatsCommune:
                 "Libellé commune": ["Test"],
                 "Inscrits": ["662"],
                 "Exprimés": ["369"],
+                "Votants": ["369"],
                 "Nuance liste 1": ["LFI"],
                 "Voix 1": ["100"],
                 "Nuance liste 2": [None],
@@ -339,6 +347,7 @@ class TestParseResultatsCommune:
                 "Libellé commune": ["Test"],
                 "Inscrits": ["100"],
                 "Exprimés": ["50"],
+                "Votants": ["50"],
                 "Nuance liste 1": ["LFI"],
                 "Voix 1": ["30"],
                 "Nuance liste 2": [None],
@@ -356,6 +365,7 @@ class TestParseResultatsCommune:
                 "Libellé commune": ["Test"],
                 "Inscrits": ["100"],
                 "Exprimés": ["50"],
+                "Votants": ["50"],
                 "Nuance liste 1": ["XX_UNKNOWN"],
                 "Voix 1": ["10"],
                 "Nuance liste 2": [None],
@@ -378,6 +388,7 @@ class TestParseResultatsCommune:
                 "Libellé commune": ["Test"],
                 "Inscrits": ["1000"],
                 "Exprimés": ["500"],
+                "Votants": ["500"],
                 "Nuance liste 1": ["LFI"],
                 "Voix 1": ["100"],
                 "Nuance liste 2": ["LRN"],
@@ -405,6 +416,7 @@ class TestParseResultatsCommune:
                 "Libellé commune": ["Test"],
                 "Inscrits": ["1000"],
                 "Exprimés": ["500"],
+                "Votants": ["500"],
                 "Nuance liste 1": ["LFI"],
                 "Voix 1": ["100"],
                 "Nuance liste 10": ["LVEC"],
@@ -459,7 +471,7 @@ class TestParseResultatsCommune:
 
         # Colonnes attendues
         assert set(result.columns) == {
-            "code_insee", "nuance", "voix", "exprimes", "inscrits"
+            "code_insee", "nuance", "voix", "exprimes", "votants", "inscrits"
         }
 
         # Les 3 communes de la fixture (01001, 01002, 01004) sont présentes
@@ -516,6 +528,7 @@ class TestBuildLignesInsertion:
                 "nuance": ["LFI", "LRN", "XYZ_NON_MAPPEE"],
                 "voix": [100, 200, 50],
                 "exprimes": [350, 350, 200],
+                "votants": [350, 350, 200],
                 "inscrits": [662, 662, 500],
             }
         )
@@ -542,7 +555,7 @@ class TestBuildLignesInsertion:
         assert len(lignes) == 2  # 2 nuances mappées
         for ligne in lignes:
             assert set(ligne.keys()) == {
-                "code_insee", "nuance", "voix", "exprimes", "inscrits"
+                "code_insee", "nuance", "voix", "exprimes", "votants", "inscrits"
             }
             assert isinstance(ligne["code_insee"], str)
             assert isinstance(ligne["nuance"], str)
@@ -556,6 +569,7 @@ class TestBuildLignesInsertion:
                 "nuance": ["LFI", "LRN"],
                 "voix": [100, 200],
                 "exprimes": [350, 350],
+                "votants": [350, 350],
                 "inscrits": [662, 662],
             }
         )
@@ -647,6 +661,7 @@ class TestCodeInseeMalformeIgnore:
                 "Libellé commune": ["Commune Bogus", "Commune Valide"],
                 "Inscrits": ["100", "662"],
                 "Exprimés": ["50", "369"],
+                "Votants": ["50", "369"],
                 "Nuance liste 1": ["LFI", "LFI"],
                 "Voix 1": ["10", "100"],
                 "Nuance liste 2": ["LRN", "LRN"],
@@ -682,6 +697,7 @@ class TestCodeInseeMalformeIgnore:
                 "nuance": ["LFI", "LFI"],
                 "voix": [10, 100],
                 "exprimes": [50, 369],
+                "votants": [50, 369],
                 "inscrits": [100, 662],
             }
         )
@@ -703,6 +719,7 @@ class TestCodeInseeMalformeIgnore:
                 "Libellé commune": ["Commune Bogus", "Commune Valide"],
                 "Inscrits": ["100", "662"],
                 "Exprimés": ["50", "369"],
+                "Votants": ["50", "369"],
                 "Nuance liste 1": ["LFI", "LFI"],
                 "Voix 1": ["10", "100"],
                 "Nuance liste 2": ["LRN", "LRN"],

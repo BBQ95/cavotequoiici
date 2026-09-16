@@ -184,6 +184,7 @@ def _fake_df_long() -> pl.DataFrame:
             "nuance": ["LFI", "LRN", "LVEC", "LFI", "LRN"],
             "voix": [100, 200, 50, 80, 120],
             "exprimes": [350, 350, 350, 200, 200],
+            "votants": [350, 350, 350, 200, 200],
             "inscrits": [662, 662, 662, 500, 500],
         }
     )
@@ -206,6 +207,7 @@ class TestAggregateVoix:
                 "nuance": ["LFI"],
                 "voix": [0],
                 "exprimes": [0],
+                "votants": [0],
                 "inscrits": [100],
             }
         )
@@ -223,6 +225,7 @@ class TestAggregateVoix:
                 "nuance": ["LFI", "LFI", "LFI"],
                 "voix": [100, 50, 80],
                 "exprimes": [350, 350, 200],
+                "votants": [350, 350, 200],
                 "inscrits": [662, 662, 500],
             }
         )
@@ -264,6 +267,7 @@ def _fake_raw_wide(petite: bool = False) -> pl.DataFrame:
                 "Libellé commune": ["PetiteCommune"],
                 "Inscrits": ["500"],
                 "Exprimés": ["250"],
+                "Votants": ["250"],
                 "Nuance liste 1": [None],
                 "Voix 1": ["150"],
                 "Nuance liste 2": [None],
@@ -278,6 +282,7 @@ def _fake_raw_wide(petite: bool = False) -> pl.DataFrame:
             "Libellé commune": ["Paris 1er"],
             "Inscrits": ["10000"],
             "Exprimés": ["5000"],
+            "Votants": ["5000"],
             "Nuance liste 1": ["LFI"],
             "Voix 1": ["1000"],
             "Nuance liste 2": ["LRN"],
@@ -302,7 +307,7 @@ class TestParseResultatsCommune:
         df = _fake_raw_wide(petite=False)
         result = parse_resultats_commune(df)
         cols = set(result.columns)
-        assert {"code_insee", "nuance", "voix", "exprimes", "inscrits"} <= cols
+        assert {"code_insee", "nuance", "voix", "exprimes", "votants", "inscrits"} <= cols
 
     def test_parse_voix_converties_en_entiers(self):
         """Les voix sont converties en entiers."""
@@ -326,6 +331,7 @@ class TestParseResultatsCommune:
                 "Libellé commune": ["Test"],
                 "Inscrits": ["100"],
                 "Exprimés": ["50"],
+                "Votants": ["50"],
                 "Nuance liste 1": ["LFI"],
                 "Voix 1": ["30"],
                 "Nuance liste 2": [None],
@@ -343,6 +349,7 @@ class TestParseResultatsCommune:
                 "Libellé commune": ["Test"],
                 "Inscrits": ["100"],
                 "Exprimés": ["50"],
+                "Votants": ["50"],
                 "Nuance liste 1": ["XX_UNKNOWN"],
                 "Voix 1": ["10"],
                 "Nuance liste 2": [None],
@@ -424,6 +431,7 @@ class TestBuildLignesInsertion:
                 "nuance": ["LFI", "XX_UNKNOWN"],
                 "voix": [100, 10],
                 "exprimes": [350, 350],
+                "votants": [350, 350],
                 "inscrits": [662, 662],
             }
         )
@@ -438,6 +446,7 @@ class TestBuildLignesInsertion:
                 "nuance": ["LFI", "LRN"],
                 "voix": [100, 200],
                 "exprimes": [350, 350],
+                "votants": [350, 350],
                 "inscrits": [662, 662],
             }
         )
@@ -454,13 +463,14 @@ class TestBuildLignesInsertion:
                 "nuance": ["LFI"],
                 "voix": [100],
                 "exprimes": [350],
+                "votants": [350],
                 "inscrits": [662],
             }
         )
         lignes = build_lignes_insertion(df, mapping_nuances)
         assert len(lignes) == 1
         assert set(lignes[0].keys()) == {
-            "code_insee", "nuance", "voix", "exprimes", "inscrits"
+            "code_insee", "nuance", "voix", "exprimes", "votants", "inscrits"
         }
 
     def test_nuance_non_mappee_leve_erreur(self, mapping_nuances):
@@ -476,6 +486,7 @@ class TestBuildLignesInsertion:
                 "nuance": ["LFI", "ZZ_BOGUS"],
                 "voix": [100, 10],
                 "exprimes": [350, 350],
+                "votants": [350, 350],
                 "inscrits": [662, 662],
             }
         )
@@ -490,6 +501,7 @@ class TestBuildLignesInsertion:
                 "nuance": ["LFI", "LRN"],
                 "voix": [100, 200],
                 "exprimes": [350, 350],
+                "votants": [350, 350],
                 "inscrits": [662, 662],
             }
         )
@@ -560,6 +572,7 @@ class TestVerifierColonnes:
         df = pl.DataFrame({
             "Code commune": ["01001"],
             "Exprimés": ["100"],
+            "Votants": ["100"],
             "Inscrits": ["200"],
             "Nuance liste 1": ["LFI"],
             "Voix 1": ["50"],
@@ -602,6 +615,7 @@ class TestVerifierColonnes:
             "Libellé commune": ["Test"],
             "Inscrits": ["200"],
             "Exprimés": ["100"],
+            "Votants": ["100"],
             "Nuance liste 1": ["LFI"],
             "Voix 1": ["50"],
         })
@@ -618,8 +632,8 @@ class TestLireCsvRobuste:
     def test_lit_fichier_utf8(self, tmp_path):
         """Un fichier UTF-8 est lu correctement (chemin normal)."""
         content = (
-            '"Code commune";"Exprimés";"Inscrits";"Nuance liste 1";"Voix 1"\r\n'
-            '"01001";"100";"200";"LFI";"50"\r\n'
+            '"Code commune";"Exprimés";"Votants";"Inscrits";"Nuance liste 1";"Voix 1"\r\n'
+            '"01001";"100";"110";"200";"LFI";"50"\r\n'
         )
         f = tmp_path / "test_utf8.csv"
         f.write_bytes(content.encode("utf-8"))
@@ -637,8 +651,8 @@ class TestLireCsvRobuste:
         """
         # L'en-tête + une ligne avec un nom de commune avec accents
         content = (
-            '"Code commune";"Libellé commune";"Exprimés";"Inscrits";"Nuance liste 1";"Voix 1"\r\n'
-            '"01001";"L\'Abergement-Clémenciat";"345";"679";"";"345"\r\n'
+            '"Code commune";"Libellé commune";"Exprimés";"Votants";"Inscrits";"Nuance liste 1";"Voix 1"\r\n'
+            '"01001";"L\'Abergement-Clémenciat";"345";"360";"679";"";"345"\r\n'
         )
         f = tmp_path / "test_latin1.csv"
         f.write_bytes(content.encode("latin-1"))
@@ -683,8 +697,8 @@ class TestLireCsvRobuste:
         # Ici on teste surtout que la fonction ne crash pas sur du contenu
         # avec U+FFFD explicite.
         content = (
-            '"Code commune";"Libellé commune";"Exprimés";"Inscrits";"Nuance liste 1";"Voix 1"\r\n'
-            '"01001";"Test\ufffd";"100";"200";"LFI";"50"\r\n'
+            '"Code commune";"Libellé commune";"Exprimés";"Votants";"Inscrits";"Nuance liste 1";"Voix 1"\r\n'
+            '"01001";"Test\ufffd";"100";"110";"200";"LFI";"50"\r\n'
         )
         f = tmp_path / "test_replacement.csv"
         f.write_bytes(content.encode("utf-8"))

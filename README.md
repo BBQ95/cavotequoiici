@@ -160,6 +160,28 @@ version lu par l'app), puis purge du cache (runbook interne).
 En local, `make data-serve` sert exactement ce contrat. Les types TypeScript du client mobile
 (`mobile/src/api/types.ts`) sont **manuels**, miroir des schémas `pipeline/schemas/*.py`.
 
+### Mise à niveau du calcul de participation (migration 0005)
+
+La participation utilise les **votants / inscrits**, blancs et nuls compris ; les
+parts politiques restent calculées sur les exprimés. La migration ajoute
+`resultats_scrutin.votants` sans inventer les valeurs historiques : elles restent
+nulles jusqu'à la réingestion. Un recalcul sans réingestion échoue explicitement.
+
+Sur une base existante, exécuter dans cet ordre :
+
+```bash
+make migrate
+make data                # réingère les quatre sources et recalcule les couleurs
+make test
+make export-statique
+make tiles               # les couleurs des tuiles doivent aussi être recalculées
+```
+
+Les anciennes couleurs et les exports restent inchangés tant que ces étapes ne
+sont pas exécutées. Pour la publication via `data-release.yml`, activer
+**publier_tuiles** afin de mettre à jour ensemble fiches, index et carte.
+Le format JSON consommé par l'application ne change pas.
+
 ## Mobile
 
 ```bash

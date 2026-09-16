@@ -138,12 +138,12 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
     """Transforme le DataFrame wide (13 listes en colonnes) en format long.
 
     Colonnes du fichier source :
-      - "Code commune", "Libellé commune", "Inscrits", "Exprimés"
+      - "Code commune", "Libellé commune", "Inscrits", "Votants", "Exprimés"
       - Pour chaque liste N (1..13) :
         "Nuance liste N", "Voix N"
 
     Retourne un DataFrame avec colonnes :
-      code_insee, nuance, voix, exprimes, inscrits
+      code_insee, nuance, voix, exprimes, votants, inscrits
     (une ligne par commune × nuance, sans les panneaux vides)
 
     Note : les communes < 1000 hab. ont des candidats nominatifs sans nuance
@@ -179,6 +179,7 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
             pl.col(nc).alias("nuance"),
             pl.col(vc).alias("voix_raw"),
             pl.col("Exprimés").alias("exprimes_raw"),
+            pl.col("Votants").alias("votants_raw"),
             pl.col("Inscrits").alias("inscrits_raw"),
         )
         # Filtrer les panneaux vides :
@@ -221,6 +222,7 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
                 "nuance": pl.Utf8,
                 "voix": pl.Int64,
                 "exprimes": pl.Int64,
+                "votants": pl.Int64,
                 "inscrits": pl.Int64,
             }
         )
@@ -235,16 +237,17 @@ def parse_resultats_commune(df: pl.DataFrame) -> pl.DataFrame:
         ).alias("code_insee")
     )
 
-    # Convertir voix, exprimes, inscrits en entiers
+    # Convertir voix, exprimes, votants, inscrits en entiers
     long_df = long_df.with_columns(
         pl.col("voix_raw").cast(pl.Int64, strict=False).fill_null(0).alias("voix"),
         pl.col("exprimes_raw").cast(pl.Int64, strict=False).fill_null(0).alias("exprimes"),
+        pl.col("votants_raw").cast(pl.Int64).alias("votants"),
         pl.col("inscrits_raw").cast(pl.Int64, strict=False).fill_null(0).alias("inscrits"),
     )
 
     # Sélectionner les colonnes finales
     result = long_df.select(
-        ["code_insee", "nuance", "voix", "exprimes", "inscrits"]
+        ["code_insee", "nuance", "voix", "exprimes", "votants", "inscrits"]
     )
 
     return result
@@ -257,11 +260,12 @@ def aggregate_voix(df: pl.DataFrame) -> pl.DataFrame:
     si deux listes de même nuance se présentent dans la même commune, bien que
     théoriquement rare).
 
-    Garde exprimes et inscrits au niveau commune (max, car constant par commune).
+    Garde exprimes, votants et inscrits au niveau commune (max, car constant par commune).
     """
     agg = df.group_by(["code_insee", "nuance"]).agg(
         pl.col("voix").sum().alias("voix"),
         pl.col("exprimes").max().alias("exprimes"),
+        pl.col("votants").max().alias("votants"),
         pl.col("inscrits").max().alias("inscrits"),
     )
     return agg
@@ -285,7 +289,7 @@ def telecharger_fichier(url: str, dest: Path) -> Path:
 
 # Colonnes obligatoires du fichier source (hors colonnes de listes « Nuance liste N » / « Voix N »
 # qui sont détectées dynamiquement par parse_resultats_commune).
-COLONNES_OBLIGATOIRES = ["Code commune", "Exprimés", "Inscrits"]
+COLONNES_OBLIGATOIRES = ["Code commune", "Exprimés", "Votants", "Inscrits"]
 
 
 def verifier_colonnes(df: pl.DataFrame) -> None:
@@ -349,7 +353,7 @@ def build_lignes_insertion(
     """Filtre les nuances non mappées et prépare les lignes pour inserer_resultats.
 
     Retourne une liste de dicts avec les colonnes :
-    code_insee, nuance, voix, exprimes, inscrits
+    code_insee, nuance, voix, exprimes, votants, inscrits
 
     Les lignes dont ``code_insee`` est ``None`` (issu d'une normalisation
     non-strict sur un code INSEE invalide) sont également exclues.

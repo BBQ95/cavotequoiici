@@ -51,9 +51,9 @@ def normaliser_insee(expr: pl.Expr) -> pl.Expr:
 
 
 def agreger_resultats(df: pl.DataFrame, max_candidats: int = MAX_CANDIDATS) -> pl.DataFrame:
-    """Dépivote les blocs candidat et agrège en (code_insee, nuance, voix, exprimes, inscrits).
+    """Dépivote les blocs candidat et agrège en (code_insee, nuance, voix, exprimes, votants, inscrits).
 
-    Somme les voix par (commune, nuance) ; exprimés/inscrits sont des totaux communaux
+    Somme les voix par (commune, nuance) ; exprimés/votants/inscrits sont des totaux communaux
     (répétés sur chaque bloc) repris une seule fois.
     """
     insee = normaliser_insee(pl.col("Code commune")).alias("code_insee")
@@ -68,6 +68,7 @@ def agreger_resultats(df: pl.DataFrame, max_candidats: int = MAX_CANDIDATS) -> p
                     insee,
                     pl.col("Inscrits").alias("inscrits"),
                     pl.col("Exprimés").alias("exprimes"),
+                    pl.col("Votants").alias("votants"),
                     pl.col(ncol).str.strip_chars().alias("nuance"),
                     pl.col(vcol).alias("voix"),
                 ]
@@ -81,6 +82,7 @@ def agreger_resultats(df: pl.DataFrame, max_candidats: int = MAX_CANDIDATS) -> p
             pl.col("voix").cast(pl.Int64),
             pl.col("inscrits").cast(pl.Int64),
             pl.col("exprimes").cast(pl.Int64),
+            pl.col("votants").cast(pl.Int64),
         ]
     )
     voix = long.group_by(["code_insee", "nuance"]).agg(
@@ -89,11 +91,12 @@ def agreger_resultats(df: pl.DataFrame, max_candidats: int = MAX_CANDIDATS) -> p
     meta = long.group_by("code_insee").agg(
         [
             pl.col("exprimes").first().alias("exprimes"),
+            pl.col("votants").first().alias("votants"),
             pl.col("inscrits").first().alias("inscrits"),
         ]
     )
     return voix.join(meta, on="code_insee", how="left").select(
-        "code_insee", "nuance", "voix", "exprimes", "inscrits"
+        "code_insee", "nuance", "voix", "exprimes", "votants", "inscrits"
     )
 
 
