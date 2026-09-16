@@ -35,8 +35,12 @@ def parts_familles(voix_par_famille: dict[str, int], exprimes: int) -> dict[str,
     return {f: v / exprimes for f, v in voix_par_famille.items()}
 
 
-def participation(exprimes: int, inscrits: int) -> float:
-    """Taux de participation = exprimés / inscrits (0 si inscrits <= 0)."""
+def participation(votants: int, inscrits: int) -> float:
+    """Taux de participation = votants / inscrits, blancs et nuls compris.
+
+    Les parts politiques restent calculées sur les exprimés. Retourne 0
+    si inscrits <= 0.
+    """
     if inscrits <= 0:
         return 0.0
-    return exprimes / inscrits
+    return votants / inscrits

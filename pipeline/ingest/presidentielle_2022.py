@@ -95,16 +95,17 @@ def construire_insee(dep_code: str, commune_code: str) -> str:
 
 
 def agreger_resultats(df: pl.DataFrame) -> pl.DataFrame:
-    """Agrège le fichier long en lignes (code_insee, nuance, voix, exprimes, inscrits).
+    """Agrège le fichier long en lignes (code_insee, nuance, voix, exprimes, votants, inscrits).
 
     - voix : somme par (commune, nuance) — fusionne les arrondissements PLM ;
-    - exprimes/inscrits : somme des sous-communes (comptées une seule fois).
+    - exprimes/votants/inscrits : somme des sous-communes (comptées une seule fois).
     """
     df = df.with_columns(
         [
             pl.col("cand_num_panneau").cast(pl.Int64),
             pl.col("cand_nb_voix").cast(pl.Int64),
             pl.col("exprimes_nb").cast(pl.Int64),
+            pl.col("votants_nb").cast(pl.Int64),
             pl.col("inscrits_nb").cast(pl.Int64),
         ]
     ).with_columns(
@@ -133,12 +134,13 @@ def agreger_resultats(df: pl.DataFrame) -> pl.DataFrame:
         .agg(
             [
                 pl.col("exprimes_nb").sum().alias("exprimes"),
+                pl.col("votants_nb").sum().alias("votants"),
                 pl.col("inscrits_nb").sum().alias("inscrits"),
             ]
         )
     )
     return voix.join(meta, on="code_insee", how="left").select(
-        "code_insee", "nuance", "voix", "exprimes", "inscrits"
+        "code_insee", "nuance", "voix", "exprimes", "votants", "inscrits"
     )
 
 

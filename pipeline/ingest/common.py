@@ -5,7 +5,7 @@ helpers). Garde les fichiers de parseur **disjoints** pour permettre le travail
 parallèle ; seul ce module et la convention `config/nuances/<scrutin_id>.csv` sont
 partagés.
 
-Table cible `resultats_scrutin` : (code_insee, scrutin_id, nuance, voix, exprimes, inscrits).
+Table cible `resultats_scrutin` : (code_insee, scrutin_id, nuance, voix, exprimes, votants, inscrits).
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
 NUANCES_DIR = CONFIG_DIR / "nuances"
 
 # Colonnes attendues d'une ligne de résultat prête à insérer.
-COLONNES_RESULTAT = ("code_insee", "nuance", "voix", "exprimes", "inscrits")
+COLONNES_RESULTAT = ("code_insee", "nuance", "voix", "exprimes", "votants", "inscrits")
 
 
 def familles_valides(config_dir: Path | str = CONFIG_DIR) -> set[str]:
@@ -142,6 +142,8 @@ def inserer_resultats(
         {c: l[c] for c in COLONNES_RESULTAT} | {"scrutin_id": scrutin_id}
         for l in lignes
     ]
+    if any(row["votants"] is None for row in rows):
+        raise ValueError(f"{scrutin_id} : votants manquants dans la source")
     with engine.begin() as conn:
         conn.execute(
             text("DELETE FROM resultats_scrutin WHERE scrutin_id = :s"),
@@ -151,9 +153,9 @@ def inserer_resultats(
             conn.execute(
                 text(
                     "INSERT INTO resultats_scrutin "
-                    "(code_insee, scrutin_id, nuance, voix, exprimes, inscrits) "
+                    "(code_insee, scrutin_id, nuance, voix, exprimes, votants, inscrits) "
                     "VALUES (:code_insee, :scrutin_id, :nuance, :voix, "
-                    ":exprimes, :inscrits)"
+                    ":exprimes, :votants, :inscrits)"
                 ),
                 rows,
             )

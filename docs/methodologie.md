@@ -122,6 +122,11 @@ des suffrages exprimés sur tous les scrutins inclus :
 part_famille = Σ (poids_scrutin × part_famille_scrutin) / Σ poids_scrutin
 ```
 
+La participation d'un scrutin est le nombre de **votants / inscrits** : les votes
+blancs et nuls comptent comme une participation. Ils n'entrent pas dans les
+suffrages exprimés, qui restent le dénominateur des parts par famille politique.
+Par exemple, 80 votants dont 5 votes blancs et 5 nuls pour 100 inscrits donnent
+une participation de 80 % et 70 suffrages exprimés.
 La participation synthétique est la même moyenne pondérée des taux de participation.
 Le panier actuel : présidentielle 2022, législatives 2024, européennes 2024, municipales 2026
 (1ᵉʳˢ tours).

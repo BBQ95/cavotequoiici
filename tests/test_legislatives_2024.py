@@ -24,6 +24,7 @@ def _source():
             "Code commune": ["2068", "65286"],
             "Inscrits": ["100", "200"],
             "Exprimés": ["80", "150"],
+            "Votants": ["80", "150"],
             "Nuance candidat 1": ["RN", "UG"],
             "Voix 1": ["30", "70"],
             "Nuance candidat 2": ["UG", "RN"],
@@ -36,7 +37,7 @@ def _source():
 
 def test_agreger_colonnes():
     out = agreger_resultats(_source(), max_candidats=3)
-    assert set(out.columns) == {"code_insee", "nuance", "voix", "exprimes", "inscrits"}
+    assert set(out.columns) == {"code_insee", "nuance", "voix", "exprimes", "votants", "inscrits"}
 
 
 def test_agreger_somme_par_nuance():

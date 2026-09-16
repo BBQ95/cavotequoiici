@@ -68,6 +68,7 @@ def _source():
         "cand_num_panneau": [],
         "cand_nb_voix": [],
         "exprimes_nb": [],
+        "votants_nb": [],
         "inscrits_nb": [],
     }
 
@@ -78,6 +79,7 @@ def _source():
             base["cand_num_panneau"].append(p)
             base["cand_nb_voix"].append(v)
             base["exprimes_nb"].append(expr)
+            base["votants_nb"].append(expr + 5)
             base["inscrits_nb"].append(insc)
 
     # commune métropole simple
@@ -92,7 +94,7 @@ def _source():
 
 def test_agreger_resultats_colonnes():
     out = agreger_resultats(_source())
-    assert set(out.columns) == {"code_insee", "nuance", "voix", "exprimes", "inscrits"}
+    assert set(out.columns) == {"code_insee", "nuance", "voix", "exprimes", "votants", "inscrits"}
 
 
 def test_agreger_resultats_fusion_arrondissements():
@@ -105,6 +107,7 @@ def test_agreger_resultats_fusion_arrondissements():
     # exprimés/inscrits parent = somme des arrondissements (comptés une fois)
     expr = set(paris["exprimes"].to_list())
     insc = set(paris["inscrits"].to_list())
+    assert set(paris["votants"]) == {90}  # 55 + 35, une fois par arrondissement
     assert expr == {80}      # 50 + 30
     assert insc == {110}     # 70 + 40
 
