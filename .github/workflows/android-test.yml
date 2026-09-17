@@ -127,17 +127,18 @@ jobs:
           chmod +x gradlew
           for i in 1 2 3 4 5; do
             echo "Tentative $i — téléchargement de la distribution Gradle via le wrapper"
-            if ./gradlew --version >/dev/null 2>&1; then
+            if ./gradlew --version; then
               echo "Distribution Gradle prête (tentative $i)"
-              break
+              exit 0
             fi
-            echo "Échec tentative $i — purge du cache wrapper Gradle et retry…"
-            rm -rf "${HOME}/.gradle/wrapper/dists/gradle-"*-bin
-            sleep 10
+            if [ "$i" -lt 5 ]; then
+              echo "Échec tentative $i — purge du cache wrapper Gradle et retry…"
+              rm -rf "${HOME}/.gradle/wrapper/dists/gradle-"*-bin
+              sleep 10
+            fi
           done
-          # Vérification : `./gradlew --version` doit réussir, sinon le build
-          # échouerait de toute façon au téléchargement de la distribution.
-          ./gradlew --version
+          echo "::error::Échec téléchargement Gradle après 5 tentatives"
+          exit 1
 
       - name: Build APK release (JS embarqué, signé debug)
         working-directory: mobile/android
