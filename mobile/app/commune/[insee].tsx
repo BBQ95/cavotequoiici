@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { ScrollView, View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,6 +12,7 @@ import { ALGOS, useAlgo } from "../../src/lib/algo";
 import { agregerParBlocs } from "../../src/lib/blocs";
 import { familleInfo } from "../../src/lib/familles";
 import { pourcent } from "../../src/lib/color";
+import { demanderCadrage } from "../../src/lib/cadrage";
 import { addRecent } from "../../src/lib/recents";
 import { colors, radius, space, type } from "../../src/theme/tokens";
 
@@ -33,6 +34,16 @@ export default function FicheCommune() {
   const scrutins = useScrutins(insee);
 
   const data = fiche.data;
+  const communeCadree = useRef<string | undefined>(undefined);
+  // Une visite explicite, pas un rafraîchissement de données ou d'algorithme.
+  useEffect(() => {
+    if (data?.code_insee === insee && communeCadree.current !== insee &&
+        typeof data.lon === "number" && typeof data.lat === "number" &&
+        Number.isFinite(data.lon) && Number.isFinite(data.lat)) {
+      communeCadree.current = insee;
+      demanderCadrage([data.lon, data.lat], 11);
+    }
+  }, [insee, data]);
   // `famille_dominante` dépend de l'algo servi (tendance/blocs : divers exclu
   // ou blocs agrégés) ; `repartition[0]` reste le classement complet et sert
   // de repli pour une base pas encore recalculée.

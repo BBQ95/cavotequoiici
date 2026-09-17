@@ -64,6 +64,7 @@ function session({ glyphs = true } = {}) {
     "../theme/tokens": tokens,
     "../api/client": { DATA_BASE: glyphs ? "https://data.example.test" : "" },
     "../lib/territoires": { CENTRE_FRANCE: [2, 47], ZOOM_METROPOLE: 5 },
+    "../lib/cadrage": { sessionCarte: {}, memoriserCadrage: () => {} },
     "../lib/tiles": {
       FONTSTACK_ETIQUETTES: "Noto Sans Medium", SOURCE_LAYER_COMMUNES: "communes",
       SOURCE_LAYER_ETIQUETTES: "etiquettes", TUILES_COMMUNES_URL: "pmtiles://test",
