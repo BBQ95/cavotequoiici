@@ -159,9 +159,9 @@ Concrètement : Saint-Denis, où gauche et extrême gauche dominent tous les scr
 l'abstention est élevée, apparaît **rouge, légèrement adouci**. Nice, droite et extrême droite
 dominantes avec une participation proche de la médiane, apparaît **bleu marine, franc**.
 
-## Trois algorithmes pour désigner la famille dominante
+## Trois algorithmes pour désigner la famille ou le bloc dominant
 
-La teinte d'une commune vient de sa **famille dominante**. Or « dominante » se définit de
+La teinte d'une commune vient de sa **famille dominante**, ou de son **bloc dominant** en mode « par blocs ». Or « dominante » se définit de
 plusieurs façons, chacune honnête mais racontant autre chose. Plutôt que d'en imposer une,
 les trois sont **précalculées** (`pipeline/couleur.py`, table `couleurs_ville_algo`, propriétés
 `hex_algo_*` des tuiles) et l'app propose le choix dans son écran **Paramètres** :
@@ -170,19 +170,41 @@ les trois sont **précalculées** (`pipeline/couleur.py`, table `couleurs_ville_
 |------|----------|------------------|
 | **Synthèse complète** (`complet`) | Pluralité sur les 7 familles, « divers » inclus | Le plus fidèle aux données brutes. Grâce au taux de couverture (« S4 » ci-dessus), les municipales sans étiquette ne pèsent plus rien : même dans les communes rurales, la teinte vient des scrutins nationaux et le gris a quasiment disparu. |
 | **Tendance politique** (`tendance`) | « Divers » est exclu de la course à la dominance ; les parts sont renormalisées sur les 6 familles politiques | La teinte vient du vote **politiquement classé** (présidentielle, législatives, européennes…). Une commune ne reste grise que sans aucune voix classée. C'est le **défaut de l'app**. |
-| **Par blocs** (`blocs`) | Gauche (extrême gauche + gauche + écologistes), centre, droite (droite + extrême droite) sont agrégés avant la dominance | Répond à la limite « blocs divisés » ci-dessous : un camp éclaté en plusieurs familles ne perd plus la première place face à un camp uni. |
+| **Par blocs** (`blocs`) | Gauche (extrême gauche + gauche + écologistes), centre, droite (droite + extrême droite) sont agrégés avant la dominance | Répond à la limite « blocs divisés » ci-dessous : un camp éclaté en plusieurs familles ne perd plus la première place face à un camp uni. Le bloc gagnant a une teinte commune, indépendante de sa sous-famille en tête. |
 
-Quel que soit l'algo, **rien n'est caché** : la répartition complète des familles — divers
-compris — reste affichée sur chaque fiche, et seuls la teinte et son libellé de dominante
-changent. L'API sert `?algo=` (défaut : `complet`, le comportement historique) ; l'app demande
-explicitement sa préférence.
+En mode **par blocs**, les couleurs de référence sont :
+
+| Bloc | Familles regroupées | Teinte de base |
+|------|---------------------|----------------|
+| Gauche | Extrême gauche, gauche, écologistes | Rose `#E84E6B` |
+| Centre | Centre | Jaune `#FFB300` |
+| Droite | Droite, extrême droite | Bleu `#2D6FCB` |
+| Hors blocs | Divers / régionalistes et familles inconnues | Gris `#9AA0A6` |
+
+La couleur finale conserve la teinte du bloc ; sa chroma est modulée par la
+marge entre les deux premiers blocs et par la participation, selon la même
+formule que les autres algorithmes. Un résultat serré ou une participation
+faible donne donc une couleur moins saturée. Les légendes et les barres de
+répartition utilisent les teintes de base, sans cette modulation.
+
+« Divers » ne concourt pas au classement des blocs, mais ses suffrages restent
+affichés. Sans aucune voix classée dans un bloc, la synthèse est grise, porte
+le libellé « Divers / régionalistes » et une marge politique nulle. Dans les
+artefacts, `famille_dominante` contient l'identifiant du **bloc** en mode
+`blocs` (`gauche`, `centre`, `droite`, ou `divers` pour ce repli).
+
+Quel que soit l'algo, **rien n'est caché** : la répartition complète des familles
+reste dans les données. La fiche et l'image partagée regroupent la synthèse
+par blocs lorsque ce mode est actif, divers compris ; les détails scrutin par
+scrutin gardent leurs familles et couleurs propres. Les modes `complet` et
+`tendance` conservent leurs palettes de familles.
 
 ## La transparence dans l'app
 
 En cas d'**égalité exacte** des parts calculées, le départage suit l'ordre
 alphabétique croissant des identifiants techniques (par exemple, `droite` avant
-`gauche`). Cette règle s'applique aux familles, aux blocs et aux sous-familles
-du bloc gagnant ; elle stabilise aussi l'ordre de la répartition. Elle est
+`gauche`). Cette règle s'applique aux familles et aux blocs ; elle stabilise aussi
+l'ordre de la répartition des familles. Elle est
 appliquée **avant l'arrondi d'affichage** : deux parts affichées à 50 % peuvent
 donc avoir un ordre déterminé par leurs valeurs non arrondies.
 

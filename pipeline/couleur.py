@@ -63,7 +63,7 @@ COULEURS = {
 #              politiques — les « sans étiquette » ne grisent plus la carte
 #   blocs    : gauche/centre/droite agrégés avant dominance (un camp divisé en
 #              deux familles ne perd plus face à un camp uni) ; la teinte vient
-#              de la sous-famille dominante du bloc gagnant
+#              du bloc gagnant (rose / jaune / bleu)
 ALGOS = ("complet", "tendance", "blocs")
 
 BLOCS = {
@@ -74,6 +74,10 @@ BLOCS = {
     "droite": "droite",
     "extreme_droite": "droite",
 }
+
+# Teintes de référence des blocs, communes aux exports et aux légendes mobiles.
+VERSION_PALETTE_BLOCS = 2
+COULEURS_BLOCS = {bloc: COULEURS[bloc] for bloc in ("gauche", "centre", "droite", "divers")}
 
 # ---------------------------------------------------------------------------
 # Dataclass
@@ -258,16 +262,15 @@ def _dominance(classement: list[tuple[str, float]], algo: str) -> tuple[str, flo
     """Choisit (gagnante, part, marge) dans un classement trié par (-part, id).
 
     Une égalité exacte est départagée par identifiant alphabétique, y compris
-    entre blocs et entre sous-familles du bloc gagnant. La marge entre deux
-    familles ou blocs ex æquo reste nulle.
+    entre blocs. La marge entre deux familles ou blocs ex æquo reste nulle.
 
     - complet : pluralité brute sur tout le classement.
     - tendance : divers exclu, parts renormalisées sur le total politique ;
       retombe sur « complet » si aucune famille politique n'a de voix.
     - blocs : familles agrégées par bloc (cf. BLOCS, divers et familles
       inconnues exclus), marge entre blocs renormalisée sur le total
-      politique ; la gagnante est la sous-famille dominante du bloc gagnant ;
-      même repli que « tendance » si aucun bloc n'a de voix.
+      politique ; la gagnante est le bloc lui-même. Sans voix classée dans
+      un bloc, le résultat est « divers », neutre et sans marge politique.
     """
     if algo == "tendance":
         politiques = [(f, v) for f, v in classement if f != "divers"]
@@ -286,10 +289,9 @@ def _dominance(classement: list[tuple[str, float]], algo: str) -> tuple[str, flo
             blocs = sorted(par_bloc.items(), key=lambda kv: (-kv[1], kv[0]))
             bloc_gagnant, part_bloc = blocs[0]
             part_bloc2 = blocs[1][1] if len(blocs) > 1 else 0.0
-            # Teinte = sous-famille dominante du bloc gagnant (1re du classement)
-            gagnante = next(f for f, _ in politiques if BLOCS[f] == bloc_gagnant)
-            return gagnante, part_bloc / total, (part_bloc - part_bloc2) / total
-    # « complet », ou repli des deux autres algos quand tout est divers.
+            return bloc_gagnant, part_bloc / total, (part_bloc - part_bloc2) / total
+        return "divers", sum(v for _, v in classement), 0.0
+    # « complet », ou repli de « tendance » quand tout est divers.
     (gagnante, part) = classement[0]
     part2 = classement[1][1] if len(classement) > 1 else 0.0
     return gagnante, part, part - part2
@@ -309,7 +311,7 @@ def couleur_ville(
     participation_mediane : participation médienne nationale, utilisée
         comme référence pour le facteur de désaturation.
     algo : algo de dominance (cf. ALGOS). Ne change QUE le choix de la
-        famille gagnante, la part/marge rapportées (renormalisées pour
+        famille ou du bloc gagnant, la part/marge rapportées (renormalisées pour
         tendance/blocs) et donc la teinte et sa netteté ; la participation
         et la répartition retournée (classement complet, divers inclus —
         transparence) sont identiques pour les trois algos.
@@ -319,8 +321,8 @@ def couleur_ville(
     dict avec les clés :
         - hex : couleur finale au format #RRGGBB
         - algo : algo de dominance utilisé
-        - famille_dominante : nom de la famille gagnante
-        - part_synthetique : part de la famille dominante (arr. 3 ;
+        - famille_dominante : identifiant de la famille ou du bloc gagnant
+        - part_synthetique : part de la famille ou du bloc dominant (arr. 3 ;
           renormalisée sur les familles politiques pour tendance/blocs)
         - marge : écart avec la 2ᵉ famille ou le 2ᵉ bloc (arr. 3 ; même
           renormalisation)
@@ -365,7 +367,7 @@ def couleur_ville(
     # 3. Famille dominante et marge, selon l'algo choisi
     # Le set de familles n'a pas d'ordre stable entre processus. Départager
     # les égalités par identifiant AVANT l'arrondi stabilise aussi la
-    # répartition exportée et la sous-famille choisie dans le bloc gagnant.
+    # répartition exportée.
     classement = sorted(synthese.items(), key=lambda kv: (-kv[1], kv[0]))
     gagnante, part, marge = _dominance(classement, algo)
 
@@ -379,7 +381,8 @@ def couleur_ville(
             participation / participation_mediane, PLANCHER_DESATURATION, 1.0
         )
     # Fallback : si la famille gagnante n'est pas dans COULEURS, utiliser « divers »
-    base = hex_to_oklch(COULEURS.get(gagnante, COULEURS["divers"]))
+    palette = COULEURS_BLOCS if algo == "blocs" else COULEURS
+    base = hex_to_oklch(palette.get(gagnante, COULEURS["divers"]))
     couleur = OKLCH(
         L=base.L,
         C=base.C * saturation_marge * facteur_participation,

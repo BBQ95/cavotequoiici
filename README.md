@@ -178,9 +178,37 @@ make tiles               # les couleurs des tuiles doivent aussi être recalcul�
 ```
 
 Les anciennes couleurs et les exports restent inchangés tant que ces étapes ne
-sont pas exécutées. Pour la publication via `data-release.yml`, activer
-**publier_tuiles** afin de mettre à jour ensemble fiches, index et carte.
+sont pas exécutées. Le workflow `data-release.yml` régénère et publie toujours ensemble fiches,
+index et tuiles ; la version est publiée en dernier, après l'archive.
 Le format JSON consommé par l'application ne change pas.
+
+### Palette par blocs (révision 2)
+
+Le mode « blocs » utilise désormais une teinte commune par bloc (gauche rose,
+centre jaune, droite bleue), modulée par la marge et la participation. Le champ
+`famille_dominante` contient alors le bloc gagnant. Fiche, carte, index et partage
+doivent provenir du même recalcul ; les autres algorithmes gardent leur palette.
+
+Après fusion, lancer **Data release** (`data-release.yml`) : il reconstruit la
+base depuis les sources, recalcule les couleurs, exporte fiches/index et tuiles,
+publie la version après tous les artefacts, purge le CDN et compare les SHA-256
+de trois fiches témoins, de l'index et de l'archive publiés avec les fichiers locaux.
+Pour une préparation locale, utiliser une base migrée et réingérée, puis
+`make couleurs && make export-statique && make tiles`.
+
+Publier les données **avant la distribution de l'application mise à jour**.
+`meta/version.json` porte `palette_blocs: 2` ; les nouvelles requêtes JSON et
+PMTiles ajoutent `?palette_blocs=2` pour éviter de réutiliser les réponses HTTP
+de l'ancienne palette. L'index disque suit toujours `genere_le`, avec repli
+hors ligne sur les données déjà disponibles.
+
+Les chemins du CDN sont fixes : l'envoi séquentiel ne constitue pas une bascule
+atomique pour les applications déjà ouvertes. Après publication, contrôler la
+version, les fiches témoins et les requêtes Range, puis comparer carte/fiche/
+partage dans une nouvelle session de l'app, avec et sans cache. Les anciennes
+versions peuvent conserver leur cache natif jusqu'à expiration ; une purge du
+CDN n'efface pas les caches des appareils. Ne pas annoncer la nouvelle palette
+comme disponible avant ces contrôles.
 
 ## Mobile
 

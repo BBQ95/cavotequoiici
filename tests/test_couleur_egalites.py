@@ -19,8 +19,8 @@ CAS = [
     # Blocs à égalité, malgré une sous-famille gauche plus forte que chacune
     # des sous-familles du bloc droite : le départage porte sur les BLOCS.
     ({"gauche": 0.5, "droite": 0.25, "extreme_droite": 0.25}, "blocs", "droite", 0.0),
-    # Bloc gauche gagnant, puis égalité de ses sous-familles.
-    ({"gauche": 0.375, "ecologistes": 0.375, "droite": 0.25}, "blocs", "ecologistes", 0.5),
+    # Bloc gauche gagnant, quelle que soit l'égalité de ses sous-familles.
+    ({"gauche": 0.375, "ecologistes": 0.375, "droite": 0.25}, "blocs", "gauche", 0.5),
 ]
 
 

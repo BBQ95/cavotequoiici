@@ -43,8 +43,8 @@ def test_reperes_algos():
 
     Saint-Urcize (15216, rurale < 1000 hab., municipales 100 % LUD) était grise
     avec l'algo complet. Avec la couverture S4, le poids de ses municipales non
-    classables tombe à 0 et l'extrême droite (marine) l'emporte désormais dans
-    les TROIS algos. Les repères historiques ne doivent PAS changer de famille
+    classables tombe à 0. L'extrême droite l'emporte dans les algos par famille ;
+    en mode blocs, le bloc droite est bleu. Les repères historiques ne doivent PAS changer de famille
     entre complet et tendance.
     """
     from sqlalchemy import create_engine, text
@@ -59,9 +59,13 @@ def test_reperes_algos():
         ).fetchall()
         assert len(lignes) == 3, "3 algos attendus pour Saint-Urcize"
         par_algo = {r.algo: r for r in lignes}
-        for algo in ("complet", "tendance", "blocs"):
+        for algo in ("complet", "tendance"):
             assert par_algo[algo].famille_dominante == "extreme_droite", algo
             assert 240 <= par_algo[algo].h <= 275, f"{algo} : H hors marine"
+
+        from pipeline.couleur import COULEURS_BLOCS, hex_to_oklch
+        assert par_algo["blocs"].famille_dominante == "droite"
+        assert abs(par_algo["blocs"].h - hex_to_oklch(COULEURS_BLOCS["droite"]).H) < 1
 
         # Non-régression des repères : même famille en complet et tendance.
         for code, (nom, _, _) in REPERES.items():

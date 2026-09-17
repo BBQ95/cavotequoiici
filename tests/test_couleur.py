@@ -641,9 +641,8 @@ class TestCouleurVilleAlgos:
 
     def test_blocs_commune_lud_bloc_droite(self, commune_lud_rurale):
         resultat = couleur_ville(commune_lud_rurale, participation_mediane=0.74, algo="blocs")
-        # Bloc droite (droite + extrême droite) gagne ; la teinte vient de la
-        # sous-famille dominante du bloc (ici l'extrême droite).
-        assert resultat["famille_dominante"] == "extreme_droite"
+        # Bloc droite (droite + extrême droite) gagnant : couleur et libellé du bloc.
+        assert resultat["famille_dominante"] == "droite"
         tendance = couleur_ville(commune_lud_rurale, participation_mediane=0.74, algo="tendance")
         assert resultat["marge"] >= tendance["marge"]
 
@@ -666,8 +665,8 @@ class TestCouleurVilleAlgos:
         complet = couleur_ville(scrutins, participation_mediane=0.60)
         blocs = couleur_ville(scrutins, participation_mediane=0.60, algo="blocs")
         assert complet["famille_dominante"] == "droite"
-        # Bloc gauche = 0.55 > bloc droite = 0.40 ; sous-famille max = EG
-        assert blocs["famille_dominante"] == "extreme_gauche"
+        # Bloc gauche = 0.55 > bloc droite = 0.40 ; teinte commune au bloc gauche
+        assert blocs["famille_dominante"] == "gauche"
 
     def test_blocs_sans_famille_politique_reste_divers(self):
         scrutins = [

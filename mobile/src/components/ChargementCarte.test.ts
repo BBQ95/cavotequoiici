@@ -3,6 +3,7 @@ import { test } from "node:test";
 import * as jsx from "react/jsx-runtime";
 import { creerChargeur, hooks, type Element } from "../../test-utils/components";
 import * as tokens from "../theme/tokens";
+import * as versionDonnees from "../lib/versionDonnees";
 import * as territoires from "../lib/territoires";
 
 const charger = creerChargeur(__dirname);
@@ -25,7 +26,7 @@ function session() {
     },
     "../theme/tokens": tokens, "../api/client": { DATA_BASE: "https://data.example.test" },
     "../lib/territoires": territoires, "../lib/cadrage": memoire,
-    "../lib/tiles": charger("../lib/tiles.ts", { "../api/client": { DATA_BASE: "https://data.example.test" } }),
+    "../lib/tiles": charger("../lib/tiles.ts", { "./versionDonnees": versionDonnees, "../api/client": { DATA_BASE: "https://data.example.test" } }),
   });
   const s = {
     vols,

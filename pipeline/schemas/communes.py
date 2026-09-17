@@ -32,7 +32,8 @@ class CouleurSynthese(BaseModel):
     `algo` = algo de dominance servi (cf. pipeline.couleur.ALGOS) ;
     `famille_dominante` en dépend — pour « tendance »/« blocs » elle peut
     différer de la première entrée de `repartition` (qui reste le classement
-    complet, divers inclus, identique pour tous les algos).
+    complet, divers inclus, identique pour tous les algos). En mode « blocs »,
+    cet identifiant désigne le bloc gagnant, ou divers sans voix classée.
     """
 
     code_insee: str

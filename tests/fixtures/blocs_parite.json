@@ -7,5 +7,12 @@
     "centre": "centre",
     "droite": "droite",
     "extreme_droite": "droite"
-  }
+  },
+  "couleurs": {
+    "gauche": "#E84E6B",
+    "centre": "#FFB300",
+    "droite": "#2D6FCB",
+    "divers": "#9AA0A6"
+  },
+  "version_palette": 2
 }

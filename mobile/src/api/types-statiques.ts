@@ -50,6 +50,8 @@ export type IndexCommunes = {
 
 /** meta/version.json : identité du jeu de données publié (cache-busting). */
 export type VersionDonnees = {
+  /** Absent des anciennes publications. */
+  palette_blocs?: number;
   schema: number;
   genere_le: string;
   nb_communes: number;
