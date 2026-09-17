@@ -12,11 +12,12 @@
  * voir `mobile/.env.example`). Sans elle, la source reste vide (carte sans
  * tuiles = échec visible) plutôt qu'un fallback codé en dur.
  */
+import { versionnerDonnees } from "./versionDonnees";
 import { DATA_BASE, type Algo } from "../api/client";
 
 /** URL pmtiles:// de l'archive des communes pour la `VectorSource` MapLibre. */
 export const TUILES_COMMUNES_URL = DATA_BASE
-  ? `pmtiles://${DATA_BASE}/tiles/communes.pmtiles`
+  ? `pmtiles://${versionnerDonnees(`${DATA_BASE}/tiles/communes.pmtiles`)}`
   : "";
 
 /**

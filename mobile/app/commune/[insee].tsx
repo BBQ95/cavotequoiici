@@ -137,7 +137,7 @@ export default function FicheCommune() {
               <Text style={styles.sectionTitre}>
                 {parBlocs ? "Répartition par blocs" : "Répartition des familles"}
               </Text>
-              <RepartitionBar segments={segments} />
+              <RepartitionBar segments={segments} parBlocs={parBlocs} />
               {parBlocs ? (
                 <Text style={styles.noteBlocs}>
                   « Divers / régionalistes » reste affiché ici mais n'entre pas

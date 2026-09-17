@@ -47,7 +47,7 @@ from pipeline.schemas.scrutins import (
     FamilleVoix,
     ScrutinInclus,
 )
-from pipeline.couleur import ALGOS, OKLCH, oklch_to_hex
+from pipeline.couleur import ALGOS, OKLCH, VERSION_PALETTE_BLOCS, oklch_to_hex
 from pipeline.ingest.common import NUANCES_DIR, charger_nuances, charger_nuances_completes
 from pipeline.jsoncol import decode_json_col
 from pipeline.synthese import TYPE_LONG_VERS_COURT
@@ -466,6 +466,7 @@ def meta_version(
     """
     return {
         "schema": SCHEMA_VERSION,
+        "palette_blocs": VERSION_PALETTE_BLOCS,
         "genere_le": genere_le,
         "nb_communes": nb_communes,
         "algos": list(ALGOS),

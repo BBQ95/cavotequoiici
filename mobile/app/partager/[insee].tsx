@@ -16,6 +16,7 @@ import * as Sharing from "expo-sharing";
 
 import { useFiche } from "../../src/api/queries";
 import { texteSurFond, pourcent } from "../../src/lib/color";
+import { agregerParBlocs, blocInfo } from "../../src/lib/blocs";
 import { familleInfo } from "../../src/lib/familles";
 import { colors, space, radius, type } from "../../src/theme/tokens";
 
@@ -66,6 +67,9 @@ export default function Partager() {
   const dominante = couleur.famille_dominante ?? couleur.repartition[0]?.famille;
   const tendance = dominante ? familleInfo(dominante).label : null;
   const txt = texteSurFond(couleur.hex);
+  const parBlocs = couleur.algo === "blocs";
+  const segments = parBlocs ? agregerParBlocs(couleur.repartition) : couleur.repartition;
+  const info = parBlocs ? blocInfo : familleInfo;
 
   return (
     <View style={[styles.page, { paddingTop: insets.top + space.sm }]}>
@@ -122,16 +126,16 @@ export default function Partager() {
           <Text style={[styles.carteParticipation, { color: txt }]} allowFontScaling={false}>
             {pourcent(couleur.participation_mediane)} de participation
           </Text>
-          {couleur.repartition.length > 0 ? (
+          {segments.length > 0 ? (
             <View style={styles.miniBarre}>
-              {[...couleur.repartition]
+              {[...segments]
                 .sort((a, b) => b.part - a.part)
                 .map((f) => (
                   <View
                     key={f.famille}
                     style={{
                       flex: Math.max(f.part, 0.001),
-                      backgroundColor: familleInfo(f.famille).hex,
+                      backgroundColor: info(f.famille).hex,
                     }}
                   />
                 ))}
@@ -141,7 +145,7 @@ export default function Partager() {
             style={[styles.cartePied, { color: txt, opacity: 0.85 }]}
             allowFontScaling={false}
           >
-            Synthèse pondérée · scrutins récents
+            Synthèse pondérée{parBlocs ? " par blocs" : ""} · scrutins récents
           </Text>
         </View>
         <Text style={styles.apercu}>Aperçu de l'image partagée</Text>

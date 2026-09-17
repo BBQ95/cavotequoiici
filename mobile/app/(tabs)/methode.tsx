@@ -94,7 +94,7 @@ export default function Methode() {
         </Point>
       </View>
 
-      <Text style={styles.h2}>Trois façons de désigner la famille en tête</Text>
+      <Text style={styles.h2}>Trois façons de désigner le vote en tête</Text>
       <View style={styles.carte}>
         <Point icone="tune" couleur={colors.accentBright}>
           <Text style={styles.b}>Synthèse complète</Text> : la famille en tête sur
@@ -111,11 +111,17 @@ export default function Methode() {
           <Text style={styles.b}>Par blocs</Text> : gauche, centre et droite sont
           regroupés avant de désigner la teinte — un camp divisé ne perd plus la
           première place face à un camp uni. La fiche montre alors la répartition
-          par bloc (les « divers » restent affichés, hors calcul).
+          par bloc : gauche en rose, centre en jaune, droite en bleu, quelle que
+          soit la famille en tête dans le bloc. La participation et la marge
+          atténuent ces teintes. Les « divers » restent affichés en gris, hors
+          classement ; sans voix classée, la synthèse est grise.
         </Point>
         <Point icone="settings" couleur={colors.textTertiary}>
           Le choix se fait dans l'onglet <Text style={styles.b}>Paramètres</Text> et ne
-          change que la présentation (teinte, regroupement), jamais les chiffres.
+          change la lecture de la synthèse (teinte, regroupement), jamais les
+          suffrages. En cas d'égalité exacte, le départage suit l'ordre
+          alphabétique des identifiants, avec une marge nulle : la couleur
+          n'indique alors aucune avance.
         </Point>
       </View>
 

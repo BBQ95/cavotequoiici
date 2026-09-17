@@ -7,6 +7,7 @@
  * retour sont les types manuels de `src/api/types.ts` (miroir de
  * `pipeline/schemas`), ré-exportés ici pour les écrans.
  */
+import { versionnerDonnees } from "../lib/versionDonnees";
 import type { FicheStatique } from "./types-statiques";
 import type {
   Algo,
@@ -59,7 +60,7 @@ export async function get<T>(path: string): Promise<T> {
   if (!BASE_URL) {
     throw new ApiError("Données non configurées (EXPO_PUBLIC_DATA_URL manquante)", 0);
   }
-  const res = await fetch(`${BASE_URL}${path}`);
+  const res = await fetch(versionnerDonnees(`${BASE_URL}${path}`));
   if (res.status === 404) {
     throw new ApiError("Commune introuvable", 404);
   }

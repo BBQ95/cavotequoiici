@@ -60,7 +60,8 @@ export const ALGOS = [
     description:
       "Gauche, centre et droite sont regroupés avant de désigner la teinte : " +
       "un camp divisé en plusieurs familles ne perd plus la première place " +
-      "face à un camp uni.",
+      "face à un camp uni. Gauche en rose, centre en jaune, droite en bleu ; " +
+      "la participation et la marge atténuent la couleur.",
   },
 ] as const satisfies readonly AlgoInfo[];
 

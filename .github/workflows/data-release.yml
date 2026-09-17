@@ -11,11 +11,6 @@ name: Data release (export → R2 → purge CDN)
 
 on:
   workflow_dispatch:
-    inputs:
-      publier_tuiles:
-        type: boolean
-        default: false
-        description: "Régénérer et publier aussi tiles/communes.pmtiles (nécessite tippecanoe)"
 
 # Le GITHUB_TOKEN ne sert à rien ici (pas de push, pas d'API GitHub) :
 # permissions minimales.
@@ -100,7 +95,6 @@ jobs:
         run: python -m pytest -q -m integration
 
       - name: Tuiles vectorielles (tippecanoe)
-        if: ${{ inputs.publier_tuiles }}
         run: |
           sudo apt-get update
           sudo apt-get install -y tippecanoe
@@ -124,23 +118,24 @@ jobs:
           sudo unzip -j -o "$zip" "*/rclone" -d /usr/local/bin
           rclone version
 
-      # ⚠️ JAMAIS de sync sur la racine du bucket : tiles/ suit son propre
-      # cycle (make tiles) et serait supprimé. Synchronisation PAR SOUS-CHEMIN.
+      # ⚠️ JAMAIS de sync sur la racine du bucket : tiles/ est hors du dossier
+      # export/ et serait supprimé. Synchronisation PAR SOUS-CHEMIN.
       # meta/ passe en DERNIER : version.json est le pointeur lu par l'app, il
       # ne doit jamais annoncer un jeu de données pas encore téléversé.
-      - name: Publier l'export vers R2 (meta en dernier)
+      - name: Publier les fiches, l’index et les ressources vers R2
         run: |
           rclone sync export/communes r2:cavotequoiici-data/communes --checksum --transfers 32
           rclone sync export/index    r2:cavotequoiici-data/index    --checksum
           rclone sync export/fonts    r2:cavotequoiici-data/fonts    --checksum
           rclone copyto export/nuances.json r2:cavotequoiici-data/nuances.json --checksum
-          rclone sync export/meta     r2:cavotequoiici-data/meta     --checksum
           rclone size r2:cavotequoiici-data
 
       - name: Publier les tuiles vers R2
-        if: ${{ inputs.publier_tuiles }}
         # copyto ciblé sur le seul .pmtiles — jamais de sync du préfixe tiles/.
         run: rclone copyto tiles/communes.pmtiles r2:cavotequoiici-data/tiles/communes.pmtiles --checksum
+
+      - name: Publier la version après les fiches ET les tuiles
+        run: rclone sync export/meta r2:cavotequoiici-data/meta --checksum
 
       # Plan Cloudflare Free : pas de purge par préfixe → purge_everything sur
       # la zone (sans conséquence : seul data. sert du contenu). Le TTL Edge
@@ -175,16 +170,36 @@ jobs:
           exit 1
 
       - name: Vérifier les requêtes Range sur les tuiles (206)
-        if: ${{ inputs.publier_tuiles }}
         # pmtiles:// lit le fichier par requêtes Range : sans 206, la carte
         # casse en silence.
         run: |
-          code=$(curl -s -o /dev/null -w "%{http_code}" -r 0-16383 https://data.cavotequoiici.fr/tiles/communes.pmtiles)
-          if [ "$code" != "206" ]; then
-            echo "::error::Range non honoré sur communes.pmtiles (HTTP $code)"
-            exit 1
-          fi
-          echo "✓ Range → 206"
+          palette=$(python3 -c "import json; print(json.load(open('export/meta/version.json'))['palette_blocs'])")
+          for suffixe in "" "?palette_blocs=$palette"; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" -r 0-16383 "https://data.cavotequoiici.fr/tiles/communes.pmtiles$suffixe")
+            if [ "$code" != "206" ]; then
+              echo "::error::Range non honoré sur communes.pmtiles$suffixe (HTTP $code)"
+              exit 1
+            fi
+            echo "✓ Range → 206 ($suffixe)"
+          done
+
+      - name: Vérifier les artefacts servis (fiches, index et archive)
+        # Contrôle des anciens chemins et de la nouvelle clé de cache mobile.
+        run: |
+          palette=$(python3 -c "import json; print(json.load(open('export/meta/version.json'))['palette_blocs'])")
+          for chemin in meta/version.json communes/93066.json communes/06088.json communes/75056.json index/communes.json tiles/communes.pmtiles; do
+            local="export/$chemin"
+            if [ "$chemin" = "tiles/communes.pmtiles" ]; then local="$chemin"; fi
+            attendu=$(sha256sum "$local" | cut -d ' ' -f 1)
+            for suffixe in "" "?palette_blocs=$palette"; do
+              recu=$(curl --fail --silent --show-error --retry 3 "https://data.cavotequoiici.fr/$chemin$suffixe" | sha256sum | cut -d ' ' -f 1)
+              if [ "$attendu" != "$recu" ]; then
+                echo "::error::Artefact CDN différent de l'export : $chemin$suffixe"
+                exit 1
+              fi
+            done
+            echo "✓ $chemin : SHA-256 conforme"
+          done
 
   notify:
     name: Notifier Boss (webhook Hermès)

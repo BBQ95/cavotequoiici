@@ -26,7 +26,8 @@ export type FamilleSynthese = {
  * Couleur politique synthétique d'une commune.
  *
  * `algo` = algo de dominance servi ; `famille_dominante` en dépend — pour
- * « tendance »/« blocs » elle peut différer de la première entrée de
+ * « blocs » elle désigne le bloc gagnant (ou divers sans voix classée).
+ * Pour « tendance »/« blocs », elle peut différer de la première entrée de
  * `repartition` (qui reste le classement complet, divers inclus, identique
  * pour tous les algos).
  */

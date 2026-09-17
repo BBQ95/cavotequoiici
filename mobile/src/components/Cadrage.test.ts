@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, mock, test } from "node:test";
 import * as jsx from "react/jsx-runtime";
 import * as tokens from "../theme/tokens";
+import * as versionDonnees from "../lib/versionDonnees";
 import * as territoires from "../lib/territoires";
 import { creerChargeur, hooks, type Element } from "../../test-utils/components";
 
@@ -9,7 +10,7 @@ beforeEach(() => { mock.timers.enable({ apis: ["setTimeout"] }); });
 afterEach(() => { mock.timers.reset(); });
 
 const charger = creerChargeur(__dirname);
-const tiles = charger("../lib/tiles.ts", { "../api/client": { DATA_BASE: "" } });
+const tiles = charger("../lib/tiles.ts", { "./versionDonnees": versionDonnees, "../api/client": { DATA_BASE: "" } });
 const exploration = { center: [1.25, 47.8], zoom: 6.75, bearing: 32, pitch: 20 };
 const paris = { code_insee: "75056", nom: "Paris", lon: 2.35, lat: 48.85 };
 function session() {

@@ -10,7 +10,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { BLOCS, agregerParBlocs } from "./blocs";
+import { VERSION_PALETTE_BLOCS, versionnerDonnees } from "./versionDonnees";
+import { BLOCS, COULEURS_BLOCS, agregerParBlocs } from "./blocs";
 
 const FIXTURES = join(__dirname, "../../../tests/fixtures/blocs_parite.json");
 
@@ -84,4 +85,18 @@ test("agregerParBlocs — famille inconnue traitée comme divers (défensif)", (
 
 test("agregerParBlocs — répartition vide", () => {
   assert.deepEqual(agregerParBlocs([]), []);
+});
+
+
+test("COULEURS_BLOCS — palette identique au pipeline", () => {
+  const { couleurs } = JSON.parse(readFileSync(FIXTURES, "utf-8"));
+  assert.deepEqual(COULEURS_BLOCS, couleurs);
+});
+
+
+test("palette — même révision pour les JSON et les tuiles, sans écraser les paramètres", () => {
+  const fixture = JSON.parse(readFileSync(FIXTURES, "utf-8"));
+  assert.equal(VERSION_PALETTE_BLOCS, fixture.version_palette);
+  assert.equal(versionnerDonnees("https://test/communes/06088.json"), "https://test/communes/06088.json?palette_blocs=2");
+  assert.equal(versionnerDonnees("https://test/tiles/communes.pmtiles?v=1"), "https://test/tiles/communes.pmtiles?v=1&palette_blocs=2");
 });

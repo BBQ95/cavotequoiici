@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 
+import { blocInfo } from "../lib/blocs";
 import { familleInfo } from "../lib/familles";
 import { colors, space, type } from "../theme/tokens";
 
@@ -10,7 +11,8 @@ export type Segment = { famille: string; part: number };
  * Barre segmentée colorée par famille + légende. Source unique pour la
  * répartition de synthèse (fiche) ET la répartition par scrutin (accordéon).
  */
-export function RepartitionBar({ segments }: { segments: Segment[] }) {
+export function RepartitionBar({ segments, parBlocs = false }: { segments: Segment[]; parBlocs?: boolean }) {
+  const info = parBlocs ? blocInfo : familleInfo;
   const tri = [...segments].sort((a, b) => b.part - a.part);
   return (
     <View>
@@ -20,7 +22,7 @@ export function RepartitionBar({ segments }: { segments: Segment[] }) {
             key={s.famille}
             style={{
               flex: Math.max(s.part, 0.001),
-              backgroundColor: familleInfo(s.famille).hex,
+              backgroundColor: info(s.famille).hex,
             }}
           />
         ))}
@@ -30,9 +32,9 @@ export function RepartitionBar({ segments }: { segments: Segment[] }) {
           .filter((s) => s.part >= 0.02)
           .map((s) => (
             <View key={s.famille} style={styles.item}>
-              <View style={[styles.puce, { backgroundColor: familleInfo(s.famille).hex }]} />
+              <View style={[styles.puce, { backgroundColor: info(s.famille).hex }]} />
               <Text style={styles.texte}>
-                {familleInfo(s.famille).label} · {Math.round(s.part * 100)} %
+                {info(s.famille).label} · {Math.round(s.part * 100)} %
               </Text>
             </View>
           ))}

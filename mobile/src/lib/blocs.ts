@@ -10,6 +10,7 @@
  * de l'algo) mais reste affiché comme segment à part : la barre totalise
  * toujours 100 % des suffrages exprimés, rien n'est masqué.
  */
+import { familleInfo } from "./familles";
 import type { FamilleSynthese } from "../api/types";
 
 export const BLOCS: Record<string, "gauche" | "centre" | "droite"> = {
@@ -21,14 +22,22 @@ export const BLOCS: Record<string, "gauche" | "centre" | "droite"> = {
   extreme_droite: "droite",
 };
 
+/** Palette canonique des blocs, verrouillée avec le pipeline par fixture. */
+export const COULEURS_BLOCS: Record<string, string> = {
+  gauche: "#E84E6B", centre: "#FFB300", droite: "#2D6FCB", divers: "#9AA0A6",
+};
+
+export function blocInfo(bloc: string): { label: string; hex: string } {
+  return { label: familleInfo(bloc).label, hex: COULEURS_BLOCS[bloc] ?? COULEURS_BLOCS.divers };
+}
+
 /** Ordre d'émission stable ; `RepartitionBar` retrie par part décroissante. */
 const ORDRE = ["gauche", "centre", "droite", "divers"] as const;
 
 /**
  * Somme les parts de `repartition` par bloc. Les ids émis (`gauche`, `centre`,
- * `droite`, `divers`) coïncident avec des ids de familles : libellés et teintes
- * de `lib/familles.ts` réutilisés tels quels par `RepartitionBar` (choix
- * assumé : couleur du bloc = couleur de la famille homonyme). Une famille
+ * `droite`, `divers`) coïncident avec des ids de familles ; `blocInfo` fournit
+ * la palette propre au mode blocs, commune au pipeline. Une famille
  * inconnue du mapping rejoint « divers » (défensif).
  */
 export function agregerParBlocs(
