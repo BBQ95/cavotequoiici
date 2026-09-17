@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
+import type { CommunesMapProps } from "./CommunesMap";
 import { MaterialIcons } from "@expo/vector-icons";
 
 import { colors, space, type } from "../theme/tokens";
@@ -9,11 +10,7 @@ import { colors, space, type } from "../theme/tokens";
  * `expo export web` (job CI `mobile`) reste vert. La vraie carte est dans
  * `CommunesMap.native.tsx`.
  */
-export function CommunesMap(_props: {
-  couleurProperty?: string;
-  center?: [number, number];
-  cible?: { centre: [number, number]; zoom: number; cle: number };
-}) {
+export function CommunesMap(_props: CommunesMapProps) {
   return (
     <View style={styles.centre}>
       <View style={styles.cercle}>

@@ -20,6 +20,8 @@ import {
   VectorSource,
 } from "@maplibre/maplibre-react-native";
 
+import { memoriserCadrage, sessionCarte } from "../lib/cadrage";
+import type { CommunesMapProps } from "./CommunesMap";
 import { colors, radius, space } from "../theme/tokens";
 import { DATA_BASE } from "../api/client";
 import { CENTRE_FRANCE, ZOOM_METROPOLE } from "../lib/territoires";
@@ -61,8 +63,6 @@ const FOND_SOMBRE: StyleSpecification = {
 
 // Vue initiale : France métropolitaine (source partagée avec le sélecteur).
 const ZOOM_INITIAL = ZOOM_METROPOLE;
-// Zoom appliqué lors du recentrage sur une commune visitée.
-const ZOOM_COMMUNE = 11;
 // Durée de l'animation flyTo vers la commune (ms).
 const DUREE_FLYTO = 1500;
 // Zoom appliqué lors du recentrage sur la position GPS de l'utilisateur.
@@ -77,22 +77,15 @@ const COULEUR_SANS_DONNEE = colors.surface;
 
 export function CommunesMap({
   couleurProperty = "hex",
-  center,
   cible,
-}: {
-  couleurProperty?: string;
-  center?: [number, number];
-  /**
-   * Cible de cadrage explicite (sélecteur de territoire) : vole vers `centre`
-   * au `zoom` d'ensemble donné. `cle` est un jeton qui rejoue le vol même si la
-   * même cible est re-sélectionnée. Distinct de `center` (recentrage commune, zoom 11).
-   */
-  cible?: { centre: [number, number]; zoom: number; cle: number };
-}) {
+}: CommunesMapProps) {
   const cameraRef = useRef<CameraRef>(null);
   const mapRef = useRef<MapRef>(null);
   const selectionEnCours = useRef(false);
-  const centreInitial: [number, number] = center ?? CENTRE_FRANCE;
+  // Snapshot stable au montage : les événements ne pilotent pas la caméra.
+  const [vueInitiale] = useState(() => sessionCarte.cadrage ?? {
+    center: CENTRE_FRANCE, zoom: ZOOM_INITIAL,
+  });
   const [geoloc, setGeoloc] = useState(false);
 
   /** Interroge le rendu au toucher, sans la zone élargie des sources. */
@@ -139,27 +132,16 @@ export function CommunesMap({
     }
   }
 
-  // Recentre la caméra (flyTo) quand `center` change.
+  // Une commande explicite n'est jouée qu'une fois, même après remontage.
   useEffect(() => {
-    if (center) {
-      cameraRef.current?.flyTo({
-        center: center,
-        zoom: ZOOM_COMMUNE,
-        duration: DUREE_FLYTO,
-      });
-    }
-  }, [center]);
-
-  // Vole vers un territoire choisi dans le sélecteur (zoom d'ensemble).
-  useEffect(() => {
-    if (cible) {
-      cameraRef.current?.flyTo({
+    if (cible && cible.cle > sessionCarte.cleAppliquee && cameraRef.current) {
+      cameraRef.current.flyTo({
         center: cible.centre,
         zoom: cible.zoom,
         duration: DUREE_FLYTO,
       });
+      sessionCarte.cleAppliquee = cible.cle;
     }
-    // `cle` change à chaque tap : rejoue le vol même vers le même territoire.
   }, [cible?.cle]);
 
   /** Demande la permission GPS, obtient la position et vole vers elle. */
@@ -197,10 +179,12 @@ export function CommunesMap({
         style={styles.plein}
         mapStyle={FOND_SOMBRE}
         onPress={(event) => selectionner(event.nativeEvent)}
+        onRegionIsChanging={(event) => memoriserCadrage(event.nativeEvent)}
+        onRegionDidChange={(event) => memoriserCadrage(event.nativeEvent)}
       >
         <Camera
           ref={cameraRef}
-          initialViewState={{ center: centreInitial, zoom: ZOOM_INITIAL }}
+          initialViewState={vueInitiale}
           minZoom={ZOOM_MIN}
         />
         <VectorSource

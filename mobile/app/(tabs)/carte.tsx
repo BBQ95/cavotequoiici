@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
@@ -8,6 +8,7 @@ import { CommunesMap } from "../../src/components/CommunesMap";
 import { COUCHES_COULEUR, PROPRIETE_SYNTHESE_PAR_ALGO } from "../../src/lib/tiles";
 import { useAlgo } from "../../src/lib/algo";
 import { getRecents } from "../../src/lib/recents";
+import { ZOOM_COMMUNE, demanderCadrage, sessionCarte } from "../../src/lib/cadrage";
 import { TERRITOIRES } from "../../src/lib/territoires";
 
 /**
@@ -17,9 +18,9 @@ import { TERRITOIRES } from "../../src/lib/territoires";
  * dépend de la plateforme : MapLibre natif sur iOS/Android, placeholder sur le
  * web (cf. `src/components/CommunesMap.*`).
  *
- * Au focus de l'onglet, la carte se recentre sur la dernière commune visitée
- * (si ses coordonnées sont disponibles dans l'historique local) — sinon, elle
- * reste centrée sur la France métropolitaine.
+ * Un retour d'onglet conserve la vue courante. Seules une nouvelle visite de
+ * fiche ou une sélection de territoire demandent un recentrage ; l'historique
+ * fournit un point de départ au premier accès de la session.
  */
 export default function Carte() {
   const insets = useSafeAreaInsets();
@@ -30,39 +31,28 @@ export default function Carte() {
   const property =
     couche.id === "synthese" ? PROPRIETE_SYNTHESE_PAR_ALGO[algo] : couche.property;
 
-  // Centre de la carte : [lon, lat] de la dernière commune visitée, ou null
-  // (→ France) si aucune coordonnée n'est disponible.
-  const [center, setCenter] = useState<[number, number] | undefined>(undefined);
-
-  // Territoire cadré via le sélecteur (métropole / outre-mer). `cle` (jeton
-  // incrémental) force le re-cadrage même si on re-tape le même territoire.
   const [terrId, setTerrId] = useState(TERRITOIRES[0].id);
-  const [cible, setCible] = useState<
-    { centre: [number, number]; zoom: number; cle: number } | undefined
-  >(undefined);
-  const cleRef = useRef(0);
+  const [cible, setCible] = useState(sessionCarte.cible);
 
   useFocusEffect(
     useCallback(() => {
       let actif = true;
-      getRecents().then((recents) => {
-        if (!actif) return;
-        const recent = recents.find(
-          (r) =>
-            typeof r.lat === "number" &&
-            typeof r.lon === "number" &&
-            !Number.isNaN(r.lat) &&
-            !Number.isNaN(r.lon),
-        );
-        if (recent && recent.lat != null && recent.lon != null) {
-          setCenter([recent.lon, recent.lat]);
-        } else {
-          setCenter(undefined);
-        }
-      });
-      return () => {
-        actif = false;
-      };
+      setCible(sessionCarte.cible);
+      if (!sessionCarte.historiqueLu && !sessionCarte.cible && !sessionCarte.cadrage) {
+        getRecents().then((recents) => {
+          if (!actif) return;
+          sessionCarte.historiqueLu = true;
+          // Une action ou un mouvement pendant la lecture garde la priorité.
+          if (sessionCarte.cible || sessionCarte.cadrage) return;
+          const recent = recents.find((r) =>
+            typeof r.lat === "number" && typeof r.lon === "number" &&
+            Number.isFinite(r.lat) && Number.isFinite(r.lon));
+          if (recent?.lat != null && recent.lon != null) {
+            setCible(demanderCadrage([recent.lon, recent.lat], ZOOM_COMMUNE));
+          }
+        });
+      }
+      return () => { actif = false; };
     }, []),
   );
 
@@ -107,9 +97,8 @@ export default function Carte() {
             <Pressable
               key={t.id}
               onPress={() => {
-                cleRef.current += 1;
                 setTerrId(t.id);
-                setCible({ centre: t.centre, zoom: t.zoom, cle: cleRef.current });
+                setCible(demanderCadrage(t.centre, t.zoom));
               }}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
@@ -126,7 +115,7 @@ export default function Carte() {
           );
         })}
       </ScrollView>
-      <CommunesMap couleurProperty={property} center={center} cible={cible} />
+      <CommunesMap couleurProperty={property} cible={cible} />
     </View>
   );
 }
