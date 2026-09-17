@@ -28,6 +28,7 @@ export function hooks() {
   let index = 0;
   const slots: any[] = [];
   let effects: (() => void)[] = [];
+  const effectCleanups = new Map<number, () => void>();
   let focus: () => (() => void) | void;
   let cleanup: (() => void) | void;
   const changed = (a: any[], b: any[]) => !a || a.length !== b.length || b.some((v, i) => !Object.is(v, a[i]));
@@ -44,9 +45,17 @@ export function hooks() {
         if (changed(slots[i]?.deps, deps)) slots[i] = { deps, callback };
         return slots[i].callback;
       },
-      useEffect(callback: () => void, deps: any[]) {
+      useEffect(callback: () => void | (() => void), deps: any[]) {
         const i = index++;
-        if (changed(slots[i], deps)) { slots[i] = deps; effects.push(callback); }
+        if (changed(slots[i], deps)) {
+          slots[i] = deps;
+          effects.push(() => {
+            effectCleanups.get(i)?.();
+            effectCleanups.delete(i);
+            const dispose = callback();
+            if (dispose) effectCleanups.set(i, dispose);
+          });
+        }
       },
     },
     useFocusEffect(callback: typeof focus) { focus = callback; },
@@ -54,5 +63,11 @@ export function hooks() {
     blur() { cleanup?.(); },
     render(component: () => unknown) { index = 0; return elements(component()); },
     flush() { const pending = effects; effects = []; pending.forEach(f => f()); },
+    unmount() {
+      cleanup?.();
+      effectCleanups.forEach(dispose => dispose());
+      effectCleanups.clear();
+      effects = [];
+    },
   };
 }
