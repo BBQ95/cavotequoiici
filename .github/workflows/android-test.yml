@@ -109,14 +109,43 @@ jobs:
           done
           test -x "$CMAKE_BIN" || { echo "::error::Échec installation CMake 3.22.1 après 3 tentatives"; exit 1; }
 
+      # Pré-télécharge la distribution Gradle avec retry anti-flaky réseau.
+      # Le wrapper Gradle télécharge gradle-9.3.1-bin.zip depuis
+      # services.gradle.org sans retry natif : un seul « Connection reset by
+      # peer » au handshake TLS fait échouer tout le build (cf. run 35236499277
+      # — échec intermittent, pas une régression de code : les runs précédents
+      # et la PR #98 avaient réussi). On force le téléchargement via
+      # `./gradlew --version` (tâche built-in qui déclenche l'install de la
+      # distribution sans lancer de build), en purgeant le cache wrapper
+      # entre chaque tentative — même pattern anti-flaky que l'étape CMake
+      # ci-dessus. Le build lui-même (étape suivante) trouve ensuite Gradle
+      # déjà installé et saute son propre téléchargement.
+      - name: Pré-télécharger Gradle (anti-flaky réseau)
+        working-directory: mobile/android
+        run: |
+          set -u
+          chmod +x gradlew
+          for i in 1 2 3 4 5; do
+            echo "Tentative $i — téléchargement de la distribution Gradle via le wrapper"
+            if ./gradlew --version; then
+              echo "Distribution Gradle prête (tentative $i)"
+              exit 0
+            fi
+            if [ "$i" -lt 5 ]; then
+              echo "Échec tentative $i — purge du cache wrapper Gradle et retry…"
+              rm -rf "${HOME}/.gradle/wrapper/dists/gradle-"*-bin
+              sleep 10
+            fi
+          done
+          echo "::error::Échec téléchargement Gradle après 5 tentatives"
+          exit 1
+
       - name: Build APK release (JS embarqué, signé debug)
         working-directory: mobile/android
         # arm64-v8a seulement : téléphones courants pour la QA. Éviter la
         # compilation native RN (New Architecture, C++) des 4 ABIs, bien trop
         # longue sur un runner 2 cœurs (>40 min).
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
 
       - name: Artefact APK (filet de sécurité, téléchargeable depuis le run)
         uses: actions/upload-artifact@v4
