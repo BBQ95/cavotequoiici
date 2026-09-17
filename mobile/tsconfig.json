@@ -13,6 +13,7 @@
     "${configDir}/jest.config.js",
     "${configDir}/android",
     "${configDir}/ios",
+    "${configDir}/test-utils",
     "**/*.test.ts"
   ]
 }

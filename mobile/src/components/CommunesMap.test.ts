@@ -1,24 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { test } from "node:test";
-import { runInThisContext } from "node:vm";
 import * as jsx from "react/jsx-runtime";
-import ts from "typescript";
 import * as tokens from "../theme/tokens";
 
-// Exécute le composant réel ; seules les frontières natives sont simulées.
-const source = ts.transpileModule(
-  readFileSync(join(__dirname, "CommunesMap.native.tsx"), "utf8"),
-  { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } },
-).outputText;
+import { creerChargeur, hooks } from "../../test-utils/components";
 
-type Element = { type: string; props: Record<string, any> };
-function elements(value: any): Element[] {
-  if (Array.isArray(value)) return value.flatMap(elements);
-  if (!value || typeof value !== "object") return [];
-  return [value, ...elements(value.props.children)];
-}
+const charger = creerChargeur(__dirname);
 const feature = (insee: unknown) => ({ properties: { insee } });
 const point = [120, 240];
 const lngLat = [2.35, 48.85];
@@ -44,13 +31,10 @@ function session({ glyphs = true } = {}) {
       return { zoom: s.zoom };
     },
   };
+  const h = hooks();
   const dependencies: Record<string, unknown> = {
     "react/jsx-runtime": jsx,
-    react: {
-      useState: () => [false, () => {}],
-      useRef: (current: unknown) => ({ current }),
-      useEffect: () => {},
-    },
+    react: h.react,
     "react-native": {
       ...Object.fromEntries(["View", "Pressable", "ActivityIndicator"].map(n => [n, n])),
       StyleSheet: { create: (styles: unknown) => styles }, Alert: {},
@@ -64,26 +48,21 @@ function session({ glyphs = true } = {}) {
     "../theme/tokens": tokens,
     "../api/client": { DATA_BASE: glyphs ? "https://data.example.test" : "" },
     "../lib/territoires": { CENTRE_FRANCE: [2, 47], ZOOM_METROPOLE: 5 },
-    "../lib/cadrage": { sessionCarte: {}, memoriserCadrage: () => {} },
+    "../lib/cadrage": charger("../lib/cadrage.ts", {}),
     "../lib/tiles": {
       FONTSTACK_ETIQUETTES: "Noto Sans Medium", SOURCE_LAYER_COMMUNES: "communes",
       SOURCE_LAYER_ETIQUETTES: "etiquettes", TUILES_COMMUNES_URL: "pmtiles://test",
       TUILES_MINZOOM: 4, TUILES_MAXZOOM: 11,
     },
   };
-  const exports = {} as { CommunesMap: (props: object) => unknown };
-  runInThisContext(`(function(require, exports) { ${source}\n})`)(
-    (name: string) => {
-      assert.ok(name in dependencies, `Import inattendu : ${name}`);
-      return dependencies[name];
-    }, exports,
-  );
-  const arbre = elements(exports.CommunesMap({}));
+  const { CommunesMap } = charger("CommunesMap.native.tsx", dependencies);
+  const arbre = h.render(() => CommunesMap({}));
   const carte = arbre.find(e => e.type === "Map")!;
   if (carte.props.ref) carte.props.ref.current = map;
   arbre.find(e => e.type === "Camera")!.props.ref.current = {
     flyTo: (options: unknown) => vols.push(options),
   };
+  h.flush();
   return {
     s, queries, routes, vols, arbre,
     detach() { carte.props.ref.current = null; },

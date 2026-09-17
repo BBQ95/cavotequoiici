@@ -12,7 +12,7 @@ import { ALGOS, useAlgo } from "../../src/lib/algo";
 import { agregerParBlocs } from "../../src/lib/blocs";
 import { familleInfo } from "../../src/lib/familles";
 import { pourcent } from "../../src/lib/color";
-import { demanderCadrage } from "../../src/lib/cadrage";
+import { ZOOM_COMMUNE, demanderCadrage } from "../../src/lib/cadrage";
 import { addRecent } from "../../src/lib/recents";
 import { colors, radius, space, type } from "../../src/theme/tokens";
 
@@ -41,7 +41,7 @@ export default function FicheCommune() {
         typeof data.lon === "number" && typeof data.lat === "number" &&
         Number.isFinite(data.lon) && Number.isFinite(data.lat)) {
       communeCadree.current = insee;
-      demanderCadrage([data.lon, data.lat], 11);
+      demanderCadrage([data.lon, data.lat], ZOOM_COMMUNE);
     }
   }, [insee, data]);
   // `famille_dominante` dépend de l'algo servi (tendance/blocs : divers exclu

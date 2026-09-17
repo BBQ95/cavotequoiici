@@ -1,62 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { test } from "node:test";
-import { runInThisContext } from "node:vm";
 import * as jsx from "react/jsx-runtime";
-import ts from "typescript";
 import * as tokens from "../theme/tokens";
 import * as territoires from "../lib/territoires";
+import { creerChargeur, hooks, type Element } from "../../test-utils/components";
 
-
-type Element = { type: string; props: Record<string, any> };
-function elements(v: any): Element[] {
-  if (Array.isArray(v)) return v.flatMap(elements);
-  return v && typeof v === "object" ? [v, ...elements(v.props.children)] : [];
-}
-function charger(path: string, deps: Record<string, unknown>): any {
-  const source = ts.transpileModule(readFileSync(join(__dirname, path), "utf8"), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
-  }).outputText;
-  const exports = {};
-  runInThisContext(`(function(require, exports) { ${source}\n})`)((name: string) => {
-    assert.ok(name in deps, `Import inattendu : ${name}`); return deps[name];
-  }, exports);
-  return exports;
-}
-// Cycle de hooks pour exercer les vrais composants, effets, focus et remontages.
-function hooks() {
-  let index = 0;
-  const slots: any[] = [];
-  let effects: (() => void)[] = [];
-  let focus: () => (() => void) | void;
-  let cleanup: (() => void) | void;
-  const changed = (a: any[], b: any[]) => !a || b.some((v, i) => !Object.is(v, a[i]));
-  return {
-    react: {
-      useState(initial: any) {
-        const i = index++;
-        if (!(i in slots)) slots[i] = typeof initial === "function" ? initial() : initial;
-        return [slots[i], (v: any) => { slots[i] = typeof v === "function" ? v(slots[i]) : v; }];
-      },
-      useRef(current: any) { const i = index++; return slots[i] ??= { current }; },
-      useCallback(callback: any, deps: any[]) {
-        const i = index++;
-        if (changed(slots[i]?.deps, deps)) slots[i] = { deps, callback };
-        return slots[i].callback;
-      },
-      useEffect(callback: () => void, deps: any[]) {
-        const i = index++;
-        if (changed(slots[i], deps)) { slots[i] = deps; effects.push(callback); }
-      },
-    },
-    useFocusEffect(callback: typeof focus) { focus = callback; },
-    async focus() { cleanup = focus(); await Promise.resolve(); },
-    blur() { cleanup?.(); },
-    render(component: () => unknown) { index = 0; return elements(component()); },
-    flush() { const pending = effects; effects = []; pending.forEach(f => f()); },
-  };
-}
+const charger = creerChargeur(__dirname);
 const tiles = charger("../lib/tiles.ts", { "../api/client": { DATA_BASE: "" } });
 const exploration = { center: [1.25, 47.8], zoom: 6.75, bearing: 32, pitch: 20 };
 const paris = { code_insee: "75056", nom: "Paris", lon: 2.35, lat: 48.85 };
@@ -122,10 +71,10 @@ function session() {
     },
     async focus() { await carteHooks.focus(); s.render(); },
     blur() { carteHooks.blur(); },
-    bouger(fin = true) {
+    bouger(fin = true, vue: object = exploration) {
       s.renderCarte().find(e => e.type === "Map")!.props[
         fin ? "onRegionDidChange" : "onRegionIsChanging"
-      ]?.({ nativeEvent: exploration });
+      ]?.({ nativeEvent: vue });
     },
     couche() {
       arbre.filter(e => e.type === "Pressable")[1].props.onPress(); s.render();
@@ -191,7 +140,7 @@ test("cadrage — fiche chargée : une demande par visite, aucune au changement 
     ...Object.fromEntries(["ColorHero", "StatCard", "RepartitionBar", "TransparenceEncart"].map(n => [`../../src/components/${n}`, {}])),
     "../../src/lib/algo": { useAlgo: () => ({ algo: "tendance" }) },
     "../../src/lib/blocs": {}, "../../src/lib/familles": {}, "../../src/lib/color": {},
-    "../../src/lib/cadrage": { demanderCadrage: (...args: unknown[]) => demandes.push(args) },
+    "../../src/lib/cadrage": { ZOOM_COMMUNE: 11, demanderCadrage: (...args: unknown[]) => demandes.push(args) },
     "../../src/lib/recents": { addRecent: () => {} }, "../../src/theme/tokens": tokens,
   }).default;
   const render = () => { h.render(Fiche); h.flush(); };
@@ -216,4 +165,44 @@ test("cadrage — réponse d'historique après sortie ignorée", async () => {
 test("cadrage — changement de couche ne déplace pas la caméra", async () => {
   const s = session(); await s.focus(); s.monterCarte(); s.bouger(); s.vols.length = 0;
   s.couche(); assert.deepEqual(s.vols, []);
+});
+
+for (const fin of [true, false]) {
+  test(`cadrage — événement ${fin ? "final" : "en mouvement"} sans orientation : centre et zoom restaurés`, async () => {
+    const s = session(); s.recents = []; await s.focus(); s.monterCarte();
+    const vue = { center: [7.26, 43.7], zoom: 8.25 };
+    s.bouger(fin, vue); s.monterCarte();
+    assert.deepEqual(s.renderCarte().find(e => e.type === "Camera")!.props.initialViewState,
+      { ...vue, bearing: 0, pitch: 0 });
+  });
+}
+
+for (const champ of ["bearing", "pitch"] as const) {
+  test(`cadrage — ${champ} absent ou invalide conserve sa dernière valeur connue`, async () => {
+    const s = session(); await s.focus(); s.monterCarte();
+    for (const valeur of [undefined, null, NaN, Infinity, -Infinity, "12"]) {
+      s.bouger();
+      const vue = { center: [7.26, 43.7], zoom: 8.25, bearing: 12, pitch: 5, [champ]: valeur };
+      s.bouger(true, vue); s.monterCarte();
+      assert.deepEqual(s.renderCarte().find(e => e.type === "Camera")!.props.initialViewState,
+        { ...vue, [champ]: exploration[champ] });
+    }
+    // Zéro est une orientation valide, pas une valeur manquante.
+    s.bouger(true, { ...exploration, bearing: 0, pitch: 0 }); s.monterCarte();
+    assert.deepEqual(s.renderCarte().find(e => e.type === "Camera")!.props.initialViewState,
+      { ...exploration, bearing: 0, pitch: 0 });
+  });
+}
+
+test("cadrage — événement vide, centre ou zoom invalide ne remplace pas la dernière vue valide", async () => {
+  const s = session(); await s.focus(); s.monterCarte(); s.bouger();
+  for (const vue of [
+    {}, { center: undefined }, { center: null }, { center: [] }, { center: [7.26] },
+    { center: [7.26, 43.7], zoom: undefined },
+    { center: [NaN, 43.7], zoom: 8 }, { center: [7.26, Infinity], zoom: 8 },
+    { center: [7.26, 43.7], zoom: NaN }, { center: [7.26, 43.7], zoom: Infinity },
+  ]) {
+    s.bouger(true, vue); s.monterCarte();
+    assert.deepEqual(s.renderCarte().find(e => e.type === "Camera")!.props.initialViewState, exploration);
+  }
 });

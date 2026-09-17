@@ -8,7 +8,7 @@ import { CommunesMap } from "../../src/components/CommunesMap";
 import { COUCHES_COULEUR, PROPRIETE_SYNTHESE_PAR_ALGO } from "../../src/lib/tiles";
 import { useAlgo } from "../../src/lib/algo";
 import { getRecents } from "../../src/lib/recents";
-import { demanderCadrage, sessionCarte } from "../../src/lib/cadrage";
+import { ZOOM_COMMUNE, demanderCadrage, sessionCarte } from "../../src/lib/cadrage";
 import { TERRITOIRES } from "../../src/lib/territoires";
 
 /**
@@ -48,7 +48,7 @@ export default function Carte() {
             typeof r.lat === "number" && typeof r.lon === "number" &&
             Number.isFinite(r.lat) && Number.isFinite(r.lon));
           if (recent?.lat != null && recent.lon != null) {
-            setCible(demanderCadrage([recent.lon, recent.lat], 11));
+            setCible(demanderCadrage([recent.lon, recent.lat], ZOOM_COMMUNE));
           }
         });
       }

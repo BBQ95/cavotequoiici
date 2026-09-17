@@ -1,4 +1,6 @@
 /** Mémoire de session : survit au démontage des écrans, pas à l'arrêt de l'app. */
+export const ZOOM_COMMUNE = 11;
+
 export type Cadrage = {
   center: [number, number];
   zoom: number;
@@ -20,7 +22,20 @@ export function demanderCadrage(centre: [number, number], zoom: number): CibleCa
   return cible;
 }
 
-export function memoriserCadrage({ center, zoom, bearing, pitch }: Cadrage): void {
-  if (![...center, zoom, bearing, pitch].every(Number.isFinite)) return;
-  sessionCarte.cadrage = { center: [...center], zoom, bearing, pitch };
+export function memoriserCadrage({ center, zoom, bearing, pitch }:
+  Pick<Cadrage, "center" | "zoom"> & Partial<Pick<Cadrage, "bearing" | "pitch">>,
+): void {
+  // Android peut aussi émettre un objet vide avant qu'une cible soit disponible.
+  if (!Array.isArray(center) || center.length !== 2 ||
+      ![...center, zoom].every(Number.isFinite)) return;
+  // MapLibre 11 fournit ces deux champs sur Android/iOS. Un événement partiel
+  // ou invalide doit néanmoins conserver le panoramique et le zoom reçus.
+  const precedent = sessionCarte.cadrage;
+  sessionCarte.cadrage = {
+    center: [...center], zoom,
+    bearing: typeof bearing === "number" && Number.isFinite(bearing)
+      ? bearing : precedent?.bearing ?? 0,
+    pitch: typeof pitch === "number" && Number.isFinite(pitch)
+      ? pitch : precedent?.pitch ?? 0,
+  };
 }
