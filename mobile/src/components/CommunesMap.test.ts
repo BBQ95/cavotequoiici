@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { afterEach, beforeEach, mock, test } from "node:test";
 import * as jsx from "react/jsx-runtime";
 import * as tokens from "../theme/tokens";
 
 import { creerChargeur, hooks } from "../../test-utils/components";
+
+beforeEach(() => { mock.timers.enable({ apis: ["setTimeout"] }); });
+afterEach(() => { mock.timers.reset(); });
 
 const charger = creerChargeur(__dirname);
 const feature = (insee: unknown) => ({ properties: { insee } });
@@ -36,7 +39,7 @@ function session({ glyphs = true } = {}) {
     "react/jsx-runtime": jsx,
     react: h.react,
     "react-native": {
-      ...Object.fromEntries(["View", "Pressable", "ActivityIndicator"].map(n => [n, n])),
+      ...Object.fromEntries(["View", "Text", "Pressable", "ActivityIndicator"].map(n => [n, n])),
       StyleSheet: { create: (styles: unknown) => styles }, Alert: {},
     },
     "expo-router": { router: { push: (route: string) => routes.push(route) } },

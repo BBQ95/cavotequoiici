@@ -4,6 +4,7 @@ import {
   Alert,
   Pressable,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
 import { router } from "expo-router";
@@ -22,7 +23,7 @@ import {
 
 import { memoriserCadrage, sessionCarte } from "../lib/cadrage";
 import type { CommunesMapProps } from "./CommunesMap";
-import { colors, radius, space } from "../theme/tokens";
+import { colors, radius, space, type } from "../theme/tokens";
 import { DATA_BASE } from "../api/client";
 import { CENTRE_FRANCE, ZOOM_METROPOLE } from "../lib/territoires";
 import {
@@ -74,6 +75,9 @@ const ZOOM_MIN = 4;
 // Teinte des communes sans donnée pour la couche choisie (scrutin non disputé
 // dans la commune → pas de propriété `hex_<scrutin_id>` dans la tuile).
 const COULEUR_SANS_DONNEE = colors.surface;
+// Une attente bornée propose de réessayer sans conclure à une panne réseau.
+const DELAI_ATTENTE = 20_000;
+type EtatChargement = "chargement" | "prete" | "erreur" | "lent";
 
 export function CommunesMap({
   couleurProperty = "hex",
@@ -83,10 +87,85 @@ export function CommunesMap({
   const mapRef = useRef<MapRef>(null);
   const selectionEnCours = useRef(false);
   // Snapshot stable au montage : les événements ne pilotent pas la caméra.
-  const [vueInitiale] = useState(() => sessionCarte.cadrage ?? {
+  const [vueInitiale, setVueInitiale] = useState(() => sessionCarte.cadrage ?? {
     center: CENTRE_FRANCE, zoom: ZOOM_INITIAL,
   });
   const [geoloc, setGeoloc] = useState(false);
+
+  const [etatChargement, setEtatChargement] = useState<EtatChargement>("chargement");
+  const etatRef = useRef<EtatChargement>("chargement");
+  const attenteRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const monteRef = useRef(true);
+  const mouvementRef = useRef(false);
+  const renduCompletRef = useRef(false);
+  const [tentative, setTentative] = useState(0);
+  const tentativeRef = useRef(0);
+
+  function arreterAttente() {
+    clearTimeout(attenteRef.current);
+    attenteRef.current = undefined;
+  }
+
+  function changerEtat(etat: EtatChargement) {
+    if (!monteRef.current || etatRef.current === etat) return;
+    etatRef.current = etat;
+    setEtatChargement(etat);
+  }
+
+  function attendreRendu() {
+    if (!monteRef.current || etatRef.current === "erreur" || etatRef.current === "lent") return;
+    changerEtat("chargement");
+    // Les trames partielles répétées ne repoussent pas indéfiniment l'échéance.
+    if (attenteRef.current === undefined) {
+      attenteRef.current = setTimeout(() => {
+        attenteRef.current = undefined;
+        changerEtat("lent");
+      }, DELAI_ATTENTE);
+    }
+  }
+
+  function verifierRendu() {
+    if (!mouvementRef.current && renduCompletRef.current && etatRef.current !== "erreur") {
+      arreterAttente();
+      changerEtat("prete");
+    }
+  }
+
+  // Une ancienne vue native ne doit pas terminer ou faire échouer un nouvel essai.
+  function evenementActuel(action: () => void) {
+    if (monteRef.current && tentative === tentativeRef.current) action();
+  }
+
+  function renduPartiel() {
+    renduCompletRef.current = false;
+    attendreRendu();
+  }
+
+  function renduComplet() {
+    renduCompletRef.current = true;
+    verifierRendu();
+  }
+
+  function reessayer() {
+    arreterAttente();
+    mouvementRef.current = false;
+    renduCompletRef.current = false;
+    changerEtat("chargement");
+    setVueInitiale(sessionCarte.cadrage ?? vueInitiale);
+    tentativeRef.current += 1;
+    setTentative(tentativeRef.current);
+    // Recrée la vue, la source PMTiles et ses requêtes, au cadrage courant.
+    attendreRendu();
+  }
+
+  useEffect(() => {
+    monteRef.current = true;
+    attendreRendu();
+    return () => {
+      monteRef.current = false;
+      arreterAttente();
+    };
+  }, []);
 
   /** Interroge le rendu au toucher, sans la zone élargie des sources. */
   async function selectionner({ point, lngLat }: PressEvent) {
@@ -135,6 +214,7 @@ export function CommunesMap({
   // Une commande explicite n'est jouée qu'une fois, même après remontage.
   useEffect(() => {
     if (cible && cible.cle > sessionCarte.cleAppliquee && cameraRef.current) {
+      renduPartiel();
       cameraRef.current.flyTo({
         center: cible.centre,
         zoom: cible.zoom,
@@ -175,12 +255,30 @@ export function CommunesMap({
   return (
     <View style={styles.plein}>
       <Map
+        key={tentative}
         ref={mapRef}
         style={styles.plein}
         mapStyle={FOND_SOMBRE}
         onPress={(event) => selectionner(event.nativeEvent)}
-        onRegionIsChanging={(event) => memoriserCadrage(event.nativeEvent)}
-        onRegionDidChange={(event) => memoriserCadrage(event.nativeEvent)}
+        onWillStartLoadingMap={() => evenementActuel(renduPartiel)}
+        onDidFailLoadingMap={() => evenementActuel(() => {
+          arreterAttente();
+          changerEtat("erreur");
+        })}
+        onDidFinishRenderingFrame={() => evenementActuel(renduPartiel)}
+        onDidFinishRenderingMap={() => evenementActuel(renduPartiel)}
+        onDidFinishRenderingFrameFully={() => evenementActuel(renduComplet)}
+        onDidFinishRenderingMapFully={() => evenementActuel(renduComplet)}
+        onRegionWillChange={() => evenementActuel(() => {
+          mouvementRef.current = true;
+          renduPartiel();
+        })}
+        onRegionIsChanging={(event) => evenementActuel(() => memoriserCadrage(event.nativeEvent))}
+        onRegionDidChange={(event) => evenementActuel(() => {
+          memoriserCadrage(event.nativeEvent);
+          mouvementRef.current = false;
+          verifierRendu();
+        })}
       >
         <Camera
           ref={cameraRef}
@@ -245,6 +343,32 @@ export function CommunesMap({
           )}
         </VectorSource>
       </Map>
+      {etatChargement !== "prete" && (
+        <View style={styles.etatCarte} accessibilityLiveRegion="polite">
+          {etatChargement === "chargement" ? (
+            <>
+              <ActivityIndicator color={colors.text} />
+              <Text style={styles.etatTexte}>Chargement de la carte…</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.etatTexte}>
+                {etatChargement === "erreur"
+                  ? "Impossible de charger la carte."
+                  : "Le chargement prend plus de temps que prévu."}
+              </Text>
+              <Pressable
+                onPress={reessayer}
+                style={styles.reessayer}
+                accessibilityRole="button"
+                accessibilityLabel="Réessayer le chargement de la carte"
+              >
+                <Text style={styles.etatTexte}>Réessayer</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      )}
       <Pressable
         onPress={localiser}
         style={styles.geoBtn}
@@ -264,6 +388,27 @@ export function CommunesMap({
 
 const styles = StyleSheet.create({
   plein: { flex: 1 },
+  etatCarte: {
+    position: "absolute",
+    top: space.md,
+    left: space.lg,
+    right: space.lg,
+    padding: space.md,
+    gap: space.sm,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+  },
+  etatTexte: { color: colors.text, fontSize: 14, textAlign: "center", ...type.body },
+  reessayer: {
+    minHeight: 44,
+    paddingHorizontal: space.lg,
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+  },
   geoBtn: {
     position: "absolute",
     bottom: space.xl,

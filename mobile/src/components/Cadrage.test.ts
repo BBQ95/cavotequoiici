@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { afterEach, beforeEach, mock, test } from "node:test";
 import * as jsx from "react/jsx-runtime";
 import * as tokens from "../theme/tokens";
 import * as territoires from "../lib/territoires";
 import { creerChargeur, hooks, type Element } from "../../test-utils/components";
+
+beforeEach(() => { mock.timers.enable({ apis: ["setTimeout"] }); });
+afterEach(() => { mock.timers.reset(); });
 
 const charger = creerChargeur(__dirname);
 const tiles = charger("../lib/tiles.ts", { "../api/client": { DATA_BASE: "" } });
