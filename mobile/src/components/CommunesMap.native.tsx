@@ -15,6 +15,8 @@ import {
   type CameraRef,
   Layer,
   Map,
+  type MapRef,
+  type PressEvent,
   VectorSource,
 } from "@maplibre/maplibre-react-native";
 
@@ -88,8 +90,54 @@ export function CommunesMap({
   cible?: { centre: [number, number]; zoom: number; cle: number };
 }) {
   const cameraRef = useRef<CameraRef>(null);
+  const mapRef = useRef<MapRef>(null);
+  const selectionEnCours = useRef(false);
   const centreInitial: [number, number] = center ?? CENTRE_FRANCE;
   const [geoloc, setGeoloc] = useState(false);
+
+  /** Interroge le rendu au toucher, sans la zone élargie des sources. */
+  async function selectionner({ point, lngLat }: PressEvent) {
+    const map = mapRef.current;
+    if (!map || selectionEnCours.current) return;
+    selectionEnCours.current = true;
+    try {
+      const inseeUniques = (features: GeoJSON.Feature[]) => [
+        ...new Set(features.flatMap((feature) => {
+          const insee = feature.properties?.insee;
+          return typeof insee === "string" && insee.length > 0 ? [insee] : [];
+        })),
+      ];
+      // Une étiquette débordant sur sa voisine désigne la commune nommée.
+      let communes = GLYPHS_URL
+        ? inseeUniques(await map.queryRenderedFeatures(point, {
+            layers: ["communes-etiquettes"],
+          }))
+        : [];
+      if (communes.length === 0) {
+        communes = inseeUniques(await map.queryRenderedFeatures(point, {
+          layers: ["communes-fill"],
+        }));
+      }
+      if (mapRef.current !== map) return;
+      if (communes.length === 1) {
+        router.push(`/commune/${communes[0]}`);
+      } else if (communes.length > 1) {
+        // Frontière ou géométries superposées : laisser l'utilisateur préciser.
+        // Le zoom d'affichage peut dépasser le zoom maximal des tuiles.
+        const { zoom } = await map.getViewState();
+        if (mapRef.current !== map) return;
+        cameraRef.current?.flyTo({
+          center: lngLat,
+          zoom: Math.min(zoom + 2, 22),
+          duration: 500,
+        });
+      }
+    } catch {
+      // Aucune fiche si l'interrogation native échoue ; un nouveau tap réessaie.
+    } finally {
+      selectionEnCours.current = false;
+    }
+  }
 
   // Recentre la caméra (flyTo) quand `center` change.
   useEffect(() => {
@@ -144,7 +192,12 @@ export function CommunesMap({
 
   return (
     <View style={styles.plein}>
-      <Map style={styles.plein} mapStyle={FOND_SOMBRE}>
+      <Map
+        ref={mapRef}
+        style={styles.plein}
+        mapStyle={FOND_SOMBRE}
+        onPress={(event) => selectionner(event.nativeEvent)}
+      >
         <Camera
           ref={cameraRef}
           initialViewState={{ center: centreInitial, zoom: ZOOM_INITIAL }}
@@ -157,17 +210,6 @@ export function CommunesMap({
           url={TUILES_COMMUNES_URL}
           minzoom={TUILES_MINZOOM}
           maxzoom={TUILES_MAXZOOM}
-          onPress={(event) => {
-            // Le tap remonte les features de TOUTES les couches de la source
-            // (polygones ET points d'étiquette) : on prend la première qui
-            // porte un insee — taper un nom de ville ouvre aussi sa fiche.
-            const insee = event.nativeEvent.features?.find(
-              (f) => f?.properties?.insee,
-            )?.properties?.insee as string | undefined;
-            if (insee) {
-              router.push(`/commune/${insee}`);
-            }
-          }}
         >
           <Layer
             id="communes-fill"
